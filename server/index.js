@@ -2125,7 +2125,7 @@ cloudinary.config({
 // }
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.resolve();
 const uploadsDir = path.join(__dirname, "uploads/");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -2554,6 +2554,7 @@ app.get("*", (_req, res) => {
 // // app.get("/", (req, res) => {
 // //   res.send("Server is running and database connected successfully!");
 // // });
+
 
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
