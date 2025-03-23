@@ -76,14 +76,16 @@
 //   plugins: [require("tailwindcss-animate")],
 // }
 
+import tailwindcssAnimate from "tailwindcss-animate";
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
   content: [
-    './pages/**/*.{js,jsx}',
-    './components/**/*.{js,jsx}',
-    './app/**/*.{js,jsx}',
-    './src/**/*.{js,jsx}',
+    "./pages/**/*.{js,jsx}",
+    "./components/**/*.{js,jsx}",
+    "./app/**/*.{js,jsx}",
+    "./src/**/*.{js,jsx}",
   ],
   prefix: "",
   theme: {
@@ -151,7 +153,7 @@ export default {
       },
     },
   },
-  // plugins: [(await import("tailwindcss-animate")).default],
-  plugins: [require("tailwindcss-animate")],
-
+  plugins: [tailwindcssAnimate],
 };
+
+
