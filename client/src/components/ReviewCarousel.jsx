@@ -9,7 +9,8 @@ const ReviewCarousel = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { t } = useTranslation();
   useEffect(() => {
-    axios.get('http://localhost:8000/api/v1/reviews')
+    // axios.get('http://localhost:8000/api/v1/reviews')
+    axios.get('https://joblinker-1.onrender.com/api/v1/reviews')
       .then(response => {
         if (response.status === 200 && Array.isArray(response.data)) {
           const sortedReviews = response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

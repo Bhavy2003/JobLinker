@@ -186,7 +186,8 @@ const Profile = () => {
         formData.append('file', file);
 
         try {
-            const response = await fetch('http://localhost:8000/api/parse-resume', {
+            // const response = await fetch('http://localhost/api/pa:8000/api/parse-resume', {
+            const response = await fetch('https://joblinker-1.onrender.com/api/parse-resume', {
                 method: 'POST',
                 body: formData,
             });

@@ -946,7 +946,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 const corsOptions = {
-  origin: ["http://localhost:5173", "https://hire-hub-chandan.vercel.app"],
+  origin: [ "http://localhost:8000", "https://joblinker-1.onrender.com"],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
@@ -1391,7 +1391,8 @@ app.post("/api/upload-chat-file", chatFileUpload, async (req, res) => {
   }
 
   try {
-    const fileUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
+    // const fileUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
+    const fileUrl = `https://joblinker-1.onrender.com/uploads/${req.file.filename}`;
     const filePath = path.join(uploadsDir, req.file.filename);
     if (fs.existsSync(filePath)) {
       // File exists
@@ -1586,7 +1587,7 @@ app.use((err, req, res, next) => {
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "https://hire-hub-chandan.vercel.app"],
+    origin: ["https://joblinker-1.onrender.com","http://localhost:8000"],
     methods: ["GET", "POST"],
   },
 });

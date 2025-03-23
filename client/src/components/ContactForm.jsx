@@ -30,7 +30,8 @@ const ContactForm = () => {
     setError(null);
 
     try {
-      const response = await axios.post("http://localhost:8000/api/v1/contact", formData);
+      // const response = await axios.post("http://localhost:8000/api/v1/contact", formData);
+      const response = await axios.post("https://joblinker-1.onrender.com/api/v1/contact", formData);
       setSuccess(response.data.message);
       setFormData({ name: "", email: "", message: "" , contactnumber: "" });
 

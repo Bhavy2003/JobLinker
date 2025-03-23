@@ -96,7 +96,8 @@ const Review = () => {
     };
 
     try {
-        const response = await axios.post("http://localhost:8000/api/v1/review", reviewData);
+        // const response = await axios.post("http://localhost:8000/api/v1/review", reviewData);
+        const response = await axios.post("https://joblinker-1.onrender.com/api/v1/review", reviewData);
         setSuccess(response.data.message);
 
         // Reset form and logo after successful submission

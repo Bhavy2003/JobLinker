@@ -45,8 +45,8 @@ router.post("/forget-password", async (req, res) => {
         await user.save();
 
         // Reset Password URL
-        const resetPasswordLink = `http://localhost:5173/reset-password/`;
-
+        // const resetPasswordLink = `http://localhost:5173/reset-password/`;
+        const resetPasswordLink = `https://joblinker-1.onrender.com/reset-password/`;
         // Email message
         const message = `
             <p>You requested a password reset. Click the link below to reset your password:</p>

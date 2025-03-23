@@ -34,7 +34,10 @@ export default function Chat() {
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
 
-    const socket = io("http://localhost:8000", {
+    // const socket = io("http://localhost:8000", {
+    //     transports: ["websocket", "polling"],
+    // });
+    const socket = io("https://joblinker-1.onrender.com", {
         transports: ["websocket", "polling"],
     });
 
@@ -87,7 +90,8 @@ export default function Chat() {
     useEffect(() => {
         socket.emit("register", currentUser);
 
-        fetch("http://localhost:8000/api/v1/user/users/all")
+        // fetch("http://localhost:8000/api/v1/user/users/all")
+        fetch("https://joblinker-1.onrender.com/api/v1/user/users/all")
             .then((res) => res.json())
             .then((data) => {
                 const filteredUsers = data.filter((user) => user.email !== currentUser);
@@ -109,7 +113,8 @@ export default function Chat() {
     }, [currentUser, storageKey]);
 
     useEffect(() => {
-        fetch(`http://localhost:8000/api/unread-messages/${currentUser}`)
+        // fetch(`http://localhost:8000/api/unread-messages/${currentUser}`)
+        fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`)
             .then((res) => res.json())
             .then((data) => {
                 setUnreadMessages(data);
@@ -342,7 +347,8 @@ export default function Chat() {
         // console.log("Uploading file:", file.name);
 
         try {
-            const response = await fetch("http://localhost:8000/api/upload-chat-file", {
+            // const response = await fetch("http://localhost:8000/api/upload-chat-file", {
+            const response = await fetch("https://joblinker-1.onrender.com/api/upload-chat-file", {
                 method: "POST",
                 body: formData,
             });
