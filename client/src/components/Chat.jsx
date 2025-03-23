@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import Navbar from "./shared/Navbar";
@@ -9,6 +7,7 @@ import EmojiPicker from "emoji-picker-react";
 import { BsEmojiSmile, BsPaperclip } from "react-icons/bs";
 import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
+
 export default function Chat() {
     const { t } = useTranslation();
     const [allUsers, setAllUsers] = useState([]);
@@ -34,28 +33,10 @@ export default function Chat() {
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
 
-    // const socket = io("http://localhost:8000", {
-    //     transports: ["websocket", "polling"],
-    // });
     const socket = io("https://joblinker-1.onrender.com", {
         transports: ["websocket", "polling"],
         withCredentials: true,
-      });
-      
-      useEffect(() => {
-        socket.on("connect", () => {
-          console.log("Socket.IO connected, socket ID:", socket.id);
-          socket.emit("register", currentUser);
-        });
-      
-        socket.on("connect_error", (error) => {
-          console.error("Socket.IO connection error:", error);
-        });
-      
-        return () => {
-          socket.disconnect();
-        };
-      }, [currentUser]);
+    });
 
     const scrollToBottom = () => {
         if (chatContainerRef.current) {
@@ -70,8 +51,13 @@ export default function Chat() {
         if (selectedUser) {
             const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
             localStorage.setItem(chatKey, JSON.stringify(msgs));
-            // console.log(`Saved to localStorage (${chatKey}):`, msgs);
         }
+    };
+
+    const loadMessagesFromLocalStorage = (userEmail) => {
+        const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
+        const cachedMessages = localStorage.getItem(chatKey);
+        return cachedMessages ? JSON.parse(cachedMessages) : [];
     };
 
     useEffect(() => {
@@ -93,9 +79,12 @@ export default function Chat() {
 
     useEffect(() => {
         socket.on("connect", () => {
-            // console.log("Socket.IO connected, socket ID:", socket.id);
+            console.log("Socket.IO connected, socket ID:", socket.id);
             socket.emit("register", currentUser);
-            // console.log("Emitted register event for user:", currentUser);
+        });
+
+        socket.on("connect_error", (error) => {
+            console.error("Socket.IO connection error:", error);
         });
 
         return () => {
@@ -105,30 +94,30 @@ export default function Chat() {
 
     useEffect(() => {
         socket.emit("register", currentUser);
-      
+
         fetch("https://joblinker-1.onrender.com/api/v1/user/users/all")
-          .then((res) => res.json())
-          .then((data) => {
-            const filteredUsers = data.filter((user) => user.email !== currentUser);
-            setAllUsers(filteredUsers);
-      
-            const storedSentUsers = JSON.parse(localStorage.getItem(storageKey)) || [];
-            const updatedStoredUsers = storedSentUsers.map((user) => {
-              const fullUser = filteredUsers.find((u) => u.email === user.email) || user;
-              return { ...fullUser, hasNewMessage: user.hasNewMessage || false, deleted: user.deleted || false };
-            });
-            setSentUsers(updatedStoredUsers);
-            localStorage.setItem(storageKey, JSON.stringify(updatedStoredUsers));
-          })
-          .catch((err) => console.error("Error fetching users:", err));
-      
+            .then((res) => res.json())
+            .then((data) => {
+                const filteredUsers = data.filter((user) => user.email !== currentUser);
+                setAllUsers(filteredUsers);
+
+                const storedSentUsers = JSON.parse(localStorage.getItem(storageKey)) || [];
+                const updatedStoredUsers = storedSentUsers.map((user) => {
+                    const fullUser = filteredUsers.find((u) => u.email === user.email) || user;
+                    return { ...fullUser, hasNewMessage: user.hasNewMessage || false, deleted: user.deleted || false };
+                });
+                setSentUsers(updatedStoredUsers);
+                localStorage.setItem(storageKey, JSON.stringify(updatedStoredUsers));
+            })
+            .catch((err) => console.error("Error fetching users:", err));
+
         return () => {
-          socket.disconnect();
+            socket.disconnect();
         };
-      }, [currentUser, storageKey]);
+    }, [currentUser, storageKey]);
 
     useEffect(() => {
-        fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`) 
+        fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`)
             .then((res) => res.json())
             .then((data) => {
                 setUnreadMessages(data);
@@ -161,7 +150,6 @@ export default function Chat() {
     useEffect(() => {
         socket.on("newMessageNotification", (msgData) => {
             if (msgData.receiver === currentUser) {
-                // console.log("New message notification received:", msgData);
                 setSentUsers((prevSentUsers) => {
                     let updatedSentUsers = [...prevSentUsers];
                     const senderDetails = allUsers.find((user) => user.email === msgData.sender);
@@ -202,7 +190,6 @@ export default function Chat() {
 
     useEffect(() => {
         socket.on("message", (msg) => {
-            // console.log("Message received from server:", msg);
             if (
                 (msg.sender === currentUser && msg.receiver === selectedUser?.email) ||
                 (msg.receiver === currentUser && msg.sender === selectedUser?.email)
@@ -262,42 +249,47 @@ export default function Chat() {
 
     useEffect(() => {
         if (selectedUser) {
-          setMessages([]); // Clear messages before loading new ones
-          socket.emit("joinChat", {
-            sender: currentUser,
-            receiver: selectedUser.email,
-          });
-      
-          socket.on("loadMessages", (serverMessages) => {
-            console.log("Loaded messages from server:", serverMessages);
-            setMessages(serverMessages);
-      
-            setUnreadMessages((prev) =>
-              prev.filter((msg) => msg.sender !== selectedUser.email)
-            );
-            const firstUnread = serverMessages.find(
-              (msg) => msg.receiver === currentUser && !msg.isRead
-            );
-            if (firstUnread && !firstNewMessageId) {
-              setFirstNewMessageId(firstUnread._id);
-              setShowNewMessage(true);
-              setTimeout(() => {
-                setShowNewMessage(false);
-                setFirstNewMessageId(null);
-              }, 10000);
-            }
-            socket.emit("markAsRead", {
-              sender: selectedUser.email,
-              receiver: currentUser,
+            // Load messages from localStorage immediately
+            const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
+            setMessages(cachedMessages);
+
+            // Fetch the latest messages from the backend
+            socket.emit("joinChat", {
+                sender: currentUser,
+                receiver: selectedUser.email,
             });
-          });
+
+            socket.on("loadMessages", (serverMessages) => {
+                console.log("Loaded messages from server:", serverMessages);
+                setMessages(serverMessages);
+                saveMessagesToLocalStorage(serverMessages); // Update localStorage with the latest messages
+
+                setUnreadMessages((prev) =>
+                    prev.filter((msg) => msg.sender !== selectedUser.email)
+                );
+                const firstUnread = serverMessages.find(
+                    (msg) => msg.receiver === currentUser && !msg.isRead
+                );
+                if (firstUnread && !firstNewMessageId) {
+                    setFirstNewMessageId(firstUnread._id);
+                    setShowNewMessage(true);
+                    setTimeout(() => {
+                        setShowNewMessage(false);
+                        setFirstNewMessageId(null);
+                    }, 10000);
+                }
+                socket.emit("markAsRead", {
+                    sender: selectedUser.email,
+                    receiver: currentUser,
+                });
+            });
         }
-      
+
         return () => {
-          socket.off("loadMessages");
+            socket.off("loadMessages");
         };
-      }, [selectedUser, currentUser, firstNewMessageId]);
-    
+    }, [selectedUser, currentUser, firstNewMessageId]);
+
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
             setSentUsers((prevSentUsers) => {
@@ -307,7 +299,7 @@ export default function Chat() {
                 localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
                 return updatedSentUsers;
             });
-    
+
             if (selectedUser?.email === receiver) {
                 setMessages([]);
                 setSelectedUser(null);
@@ -315,29 +307,26 @@ export default function Chat() {
                 localStorage.removeItem(chatKey);
             }
         });
-    
+
         return () => {
             socket.off("chatDeleted");
         };
     }, [currentUser, selectedUser, chatStorageKey]);
+
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
         socket.emit("deleteChat", {
             sender: currentUser,
             receiver: userEmail,
         });
-        // setSentUsers((prevSentUsers) => {
-        //     const updatedSentUsers = prevSentUsers.filter((u) => u.email !== userEmail);
-        //     localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
-        //     return updatedSentUsers;
-        // });
+
         setSentUsers((prevSentUsers) => {
-    const updatedSentUsers = prevSentUsers.map((u) =>
-        u.email === userEmail ? { ...u, deleted: true } : u
-    );
-    localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
-    return updatedSentUsers;
-});
+            const updatedSentUsers = prevSentUsers.map((u) =>
+                u.email === userEmail ? { ...u, deleted: true } : u
+            );
+            localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
+            return updatedSentUsers;
+        });
 
         setMessages([]);
         setSelectedUser(null);
@@ -348,35 +337,27 @@ export default function Chat() {
         toast.success("Chat deleted from your view.");
     };
 
-    
-
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) {
-            // console.log("No file selected");
             return;
         }
 
         const formData = new FormData();
         formData.append("file", file);
-        // console.log("Uploading file:", file.name);
 
         try {
-            // const response = await fetch("http://localhost:8000/api/upload-chat-file", {
             const response = await fetch("https://joblinker-1.onrender.com/api/upload-chat-file", {
                 method: "POST",
                 body: formData,
             });
 
-            // console.log("Upload response status:", response.status);
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || "Failed to upload file");
             }
 
             const fileData = await response.json();
-            // console.log("File upload successful. Response:", fileData);
-
             setSelectedFile({
                 name: fileData.originalName,
                 type: fileData.type,
@@ -391,12 +372,11 @@ export default function Chat() {
 
     const sendMessage = () => {
         if (!selectedUser) {
-            // console.log("No user selected");
+            toast.error("Please select a user to chat with");
             return;
         }
 
         if (!message.trim() && !selectedFile) {
-            // console.log("No message or file to send");
             toast.error("Please type a message or upload a file");
             return;
         }
@@ -418,16 +398,14 @@ export default function Chat() {
         });
 
         socket.emit("sendMessage", msgData);
-        // console.log("Sending message:", msgData);
 
         setMessage("");
-        setSelectedFile(null); // Clear the file after sending
+        setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
 
         setSentUsers((prevSentUsers) => {
             let updatedSentUsers = [...prevSentUsers];
             const existingIndex = updatedSentUsers.findIndex((u) => u.email === selectedUser.email);
-            // console.log("Before update - sentUsers:", updatedSentUsers, "selectedUser:", selectedUser);
 
             if (existingIndex === -1) {
                 updatedSentUsers = [selectedUser, ...updatedSentUsers];
@@ -436,7 +414,6 @@ export default function Chat() {
                 updatedSentUsers = [{ ...user, hasNewMessage: false }, ...updatedSentUsers];
             }
 
-            // console.log("After update - sentUsers:", updatedSentUsers);
             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
             return updatedSentUsers;
         });
@@ -482,22 +459,19 @@ export default function Chat() {
 
     const displayedUsers = [
         ...allUsers.filter((user) => user.email === currentUser),
-        ...sentUsers.filter((user) => user.email !== currentUser && !user.deleted), // Exclude deleted users
+        ...sentUsers.filter((user) => user.email !== currentUser && !user.deleted),
         ...allUsers.filter(
-          (user) =>
-            user.email !== currentUser && !sentUsers.some((u) => u.email === user.email)
+            (user) =>
+                user.email !== currentUser && !sentUsers.some((u) => u.email === user.email)
         ),
-      ];
-      
-      const filteredUsers = displayedUsers.filter((user) =>
-        (user.email === currentUser ? "You" : user.fullname)
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    ];
 
-    // console.log("displayedUsers:", displayedUsers);
-    // console.log("filteredUsers:", filteredUsers);
+    const filteredUsers = displayedUsers.filter((user) =>
+        (user.email === currentUser ? "You" : user.fullname)
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <>
@@ -669,7 +643,6 @@ export default function Chat() {
                                             </button>
                                         </div>
                                     )}
-                                    
                                 </div>
                                 <button
                                     className="ml-2 bg-indigo-500 text-white text-lg p-4 rounded hover:bg-blue-800"
@@ -692,122 +665,113 @@ export default function Chat() {
 }
 
 const ChatMessage = ({ message, user, isFirstNew }) => {
-  const isSender = message.sender === user;
+    const isSender = message.sender === user;
 
-
-const renderFile = (file, fileUrl) => {
-    if (file || fileUrl) {
-        let fileData = file || {};
-        if (fileUrl) {
-            fileData.url = fileUrl;
-            fileData.name = fileUrl.split("/").pop();
-        }
-
-        let fileType;
-        if (file) {
-            fileType = file.type || "unknown";
-        } else if (fileUrl) {
-            const fileName = fileData.name.toLowerCase();
-            if (fileName.endsWith(".pdf")) {
-                fileType = "application/pdf";
-            } else if (fileName.endsWith(".csv")) {
-                fileType = "text/csv";
-            } else if (fileName.endsWith(".doc")) {
-                fileType = "application/msword";
-            } else if (fileName.endsWith(".docx")) {
-                fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            } else if (fileName.endsWith(".xls")) {
-                fileType = "application/vnd.ms-excel";
-            } else if (fileName.endsWith(".xlsx")) {
-                fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            } else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) {
-                fileType = "image";
-            } else {
-                fileType = "application/octet-stream";
+    const renderFile = (file, fileUrl) => {
+        if (file || fileUrl) {
+            let fileData = file || {};
+            if (fileUrl) {
+                fileData.url = fileUrl;
+                fileData.name = fileUrl.split("/").pop();
             }
-        } else {
-            fileType = "unknown";
-        }
-        
-        // Handle PDFs (embeddable)
-        if (fileType === "application/pdf") {
-            return (
-                <embed
-                    src={fileData.url}
-                    type="application/pdf"
-                    width="100%"
-                    height="300px"
-                    title={fileData.name}
-                />
-            );
-        }
-        
-        // Handle images (embeddable)
-        else if (fileType.startsWith("image")) {
-            return (
-                <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-                    <img
-                        src={fileData.url}
-                        alt={fileData.name}
-                        style={{ maxWidth: "100%", maxHeight: "300px" }}
-                    />
-                    
-                </a>
-               
-            );
-        }
-        // Handle other file types (downloadable links)
-        else {
-            return (
-                <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-                    Download {fileData.name} 
-                </a>
-            );
-        }
-    }
 
-   
-    return <div>File not available</div>;
-};
-  return (
-      <div
-          style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: isSender ? "flex-end" : "flex-start",
-              margin: "5px 0",
-          }}
-      >
-          {isFirstNew && message.receiver === user && (
-              <span
-                  style={{
-                      color: "#FFD700",
-                      fontSize: "12px",
-                      fontWeight: "bold",
-                      marginBottom: "5px",
-                  }}
-              >
-                  New Message
-              </span>
-          )}
-          <div
-              style={{
-                  backgroundColor: isSender ? "#1E40AF" : "#374151",
-                  padding: "10px",
-                  borderRadius: "10px",
-                  maxWidth: "60%",
-                  textAlign: isSender ? "right" : "left",
-                  color: "white",
-                  wordBreak: "break-word",
-                  whiteSpace: "pre-wrap",
-                  overflowWrap: "break-word",
-              }}
-          >
-              {message.text && <div>{message.text}</div>}
-              {(message.file || message.fileUrl) && (
-                  <div>{renderFile(message.file, message.fileUrl)}</div>
-              )}
-          </div>
-      </div>
-  );
+            let fileType;
+            if (file) {
+                fileType = file.type || "unknown";
+            } else if (fileUrl) {
+                const fileName = fileData.name.toLowerCase();
+                if (fileName.endsWith(".pdf")) {
+                    fileType = "application/pdf";
+                } else if (fileName.endsWith(".csv")) {
+                    fileType = "text/csv";
+                } else if (fileName.endsWith(".doc")) {
+                    fileType = "application/msword";
+                } else if (fileName.endsWith(".docx")) {
+                    fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                } else if (fileName.endsWith(".xls")) {
+                    fileType = "application/vnd.ms-excel";
+                } else if (fileName.endsWith(".xlsx")) {
+                    fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                } else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) {
+                    fileType = "image";
+                } else {
+                    fileType = "application/octet-stream";
+                }
+            } else {
+                fileType = "unknown";
+            }
+
+            if (fileType === "application/pdf") {
+                return (
+                    <embed
+                        src={fileData.url}
+                        type="application/pdf"
+                        width="100%"
+                        height="300px"
+                        title={fileData.name}
+                    />
+                );
+            } else if (fileType.startsWith("image")) {
+                return (
+                    <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+                        <img
+                            src={fileData.url}
+                            alt={fileData.name}
+                            style={{ maxWidth: "100%", maxHeight: "300px" }}
+                        />
+                    </a>
+                );
+            } else {
+                return (
+                    <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+                        Download {fileData.name}
+                    </a>
+                );
+            }
+        }
+
+        return <div>File not available</div>;
+    };
+
+    return (
+        <div
+            style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: isSender ? "flex-end" : "flex-start",
+                margin: "5px 0",
+            }}
+        >
+            {isFirstNew && message.receiver === user && (
+                <span
+                    style={{
+                        color: "#FFD700",
+                        fontSize: "12px",
+                        fontWeight: "bold",
+                        marginBottom: "5px",
+                    }}
+                >
+                    New Message
+                </span>
+            )}
+            <div
+                style={{
+                    backgroundColor: isSender ? "#1E40AF" : "#374151",
+                    padding: "10px",
+                    borderRadius: "10px",
+                    maxWidth: "60%",
+                    textAlign: isSender ? "right" : "left",
+                    color: "white",
+                    wordBreak: "break-word",
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "break-word",
+                }}
+            >
+                {message.text && <div>{message.text}</div>}
+                {(message.file || message.fileUrl) && (
+                    <div>{renderFile(message.file, message.fileUrl)}</div>
+                )}
+            </div>
+        </div>
+    );
 };
