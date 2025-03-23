@@ -1711,7 +1711,7 @@ io.on("connection", (socket) => {
 
 // Serve static files and handle client-side routing
 app.use(express.static(path.join(_dirname, "client", "dist")));
-app.get("/", (_req, res) => {
+app.get("*", (_req, res) => {
   res.sendFile(path.join(_dirname, "client", "dist", "index.html"));
 });
 // // app.get("/", (req, res) => {
