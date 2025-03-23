@@ -322,28 +322,31 @@ export default function Chat() {
     }, [currentUser, selectedUser, chatStorageKey]);
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
-        console.log(`Deleting chat for ${currentUser} with ${userEmail}`);
         socket.emit("deleteChat", {
-          sender: currentUser,
-          receiver: userEmail,
+            sender: currentUser,
+            receiver: userEmail,
         });
-      
+        // setSentUsers((prevSentUsers) => {
+        //     const updatedSentUsers = prevSentUsers.filter((u) => u.email !== userEmail);
+        //     localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
+        //     return updatedSentUsers;
+        // });
         setSentUsers((prevSentUsers) => {
-          const updatedSentUsers = prevSentUsers.map((u) =>
-            u.email === userEmail ? { ...u, deleted: true } : u
-          );
-          localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
-          return updatedSentUsers;
-        });
-      
+    const updatedSentUsers = prevSentUsers.map((u) =>
+        u.email === userEmail ? { ...u, deleted: true } : u
+    );
+    localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
+    return updatedSentUsers;
+});
+
         setMessages([]);
         setSelectedUser(null);
-      
+
         const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
         localStorage.removeItem(chatKey);
-      
+
         toast.success("Chat deleted from your view.");
-      };
+    };
 
     
 
@@ -692,76 +695,80 @@ const ChatMessage = ({ message, user, isFirstNew }) => {
   const isSender = message.sender === user;
 
 
-  const renderFile = (file, fileUrl) => {
+const renderFile = (file, fileUrl) => {
     if (file || fileUrl) {
-      let fileData = file || {};
-      if (fileUrl) {
-        fileData.url = fileUrl;
-        fileData.name = fileUrl.split("/").pop();
-      }
-  
-      let fileType;
-      if (file) {
-        fileType = file.type || "unknown";
-      } else if (fileUrl) {
-        const fileName = fileData.name.toLowerCase();
-        if (fileName.endsWith(".pdf")) {
-          fileType = "application/pdf";
-        } else if (fileName.endsWith(".csv")) {
-          fileType = "text/csv";
-        } else if (fileName.endsWith(".doc")) {
-          fileType = "application/msword";
-        } else if (fileName.endsWith(".docx")) {
-          fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-        } else if (fileName.endsWith(".xls")) {
-          fileType = "application/vnd.ms-excel";
-        } else if (fileName.endsWith(".xlsx")) {
-          fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-        } else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) {
-          fileType = "image";
-        } else {
-          fileType = "application/octet-stream";
+        let fileData = file || {};
+        if (fileUrl) {
+            fileData.url = fileUrl;
+            fileData.name = fileUrl.split("/").pop();
         }
-      } else {
-        fileType = "unknown";
-      }
-  
-      // Handle PDFs (embeddable)
-      if (fileType === "application/pdf") {
-        return (
-          <embed
-            src={fileData.url}
-            type="application/pdf"
-            width="100%"
-            height="300px"
-            title={fileData.name}
-          />
-        );
-      }
-      // Handle images (embeddable)
-      else if (fileType.startsWith("image")) {
-        return (
-          <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-            <img
-              src={fileData.url}
-              alt={fileData.name}
-              style={{ maxWidth: "100%", maxHeight: "300px" }}
-            />
-          </a>
-        );
-      }
-      // Handle other file types (downloadable links)
-      else {
-        return (
-          <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-            Download {fileData.name}
-          </a>
-        );
-      }
+
+        let fileType;
+        if (file) {
+            fileType = file.type || "unknown";
+        } else if (fileUrl) {
+            const fileName = fileData.name.toLowerCase();
+            if (fileName.endsWith(".pdf")) {
+                fileType = "application/pdf";
+            } else if (fileName.endsWith(".csv")) {
+                fileType = "text/csv";
+            } else if (fileName.endsWith(".doc")) {
+                fileType = "application/msword";
+            } else if (fileName.endsWith(".docx")) {
+                fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            } else if (fileName.endsWith(".xls")) {
+                fileType = "application/vnd.ms-excel";
+            } else if (fileName.endsWith(".xlsx")) {
+                fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            } else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) {
+                fileType = "image";
+            } else {
+                fileType = "application/octet-stream";
+            }
+        } else {
+            fileType = "unknown";
+        }
+        
+        // Handle PDFs (embeddable)
+        if (fileType === "application/pdf") {
+            return (
+                <embed
+                    src={fileData.url}
+                    type="application/pdf"
+                    width="100%"
+                    height="300px"
+                    title={fileData.name}
+                />
+            );
+        }
+        
+        // Handle images (embeddable)
+        else if (fileType.startsWith("image")) {
+            return (
+                <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+                    <img
+                        src={fileData.url}
+                        alt={fileData.name}
+                        style={{ maxWidth: "100%", maxHeight: "300px" }}
+                    />
+                    
+                </a>
+               
+            );
+        }
+        // Handle other file types (downloadable links)
+        else {
+            return (
+                <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+                    Download {fileData.name} 
+                </a>
+            );
+        }
     }
-  
+
+   
     return <div>File not available</div>;
-  };
+};
   return (
       <div
           style={{
