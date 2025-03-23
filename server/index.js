@@ -946,7 +946,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 const corsOptions = {
-  origin: [ "http://localhost:8000", "https://joblinker-1.onrender.com"],
+  origin: [ "https://joblinker-1.onrender.com"],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
@@ -1587,7 +1587,7 @@ app.use((err, req, res, next) => {
 
 const io = new Server(server, {
   cors: {
-    origin: ["https://joblinker-1.onrender.com","http://localhost:8000"],
+    origin: ["https://joblinker-1.onrender.com"],
     methods: ["GET", "POST"],
   },
 });

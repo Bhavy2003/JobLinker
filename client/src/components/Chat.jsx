@@ -90,8 +90,8 @@ export default function Chat() {
     useEffect(() => {
         socket.emit("register", currentUser);
 
-        // fetch("http://localhost:8000/api/v1/user/users/all")
         fetch("https://joblinker-1.onrender.com/api/v1/user/users/all")
+        // fetch("https://joblinker-1.onrender.com/api/v1/user/users/all")
             .then((res) => res.json())
             .then((data) => {
                 const filteredUsers = data.filter((user) => user.email !== currentUser);
@@ -113,8 +113,7 @@ export default function Chat() {
     }, [currentUser, storageKey]);
 
     useEffect(() => {
-        // fetch(`http://localhost:8000/api/unread-messages/${currentUser}`)
-        fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`)
+        fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`) 
             .then((res) => res.json())
             .then((data) => {
                 setUnreadMessages(data);
