@@ -39,7 +39,23 @@ export default function Chat() {
     // });
     const socket = io("https://joblinker-1.onrender.com", {
         transports: ["websocket", "polling"],
-    });
+        withCredentials: true,
+      });
+      
+      useEffect(() => {
+        socket.on("connect", () => {
+          console.log("Socket.IO connected, socket ID:", socket.id);
+          socket.emit("register", currentUser);
+        });
+      
+        socket.on("connect_error", (error) => {
+          console.error("Socket.IO connection error:", error);
+        });
+      
+        return () => {
+          socket.disconnect();
+        };
+      }, [currentUser]);
 
     const scrollToBottom = () => {
         if (chatContainerRef.current) {
@@ -89,28 +105,27 @@ export default function Chat() {
 
     useEffect(() => {
         socket.emit("register", currentUser);
-
+      
         fetch("https://joblinker-1.onrender.com/api/v1/user/users/all")
-        // fetch("https://joblinker-1.onrender.com/api/v1/user/users/all")
-            .then((res) => res.json())
-            .then((data) => {
-                const filteredUsers = data.filter((user) => user.email !== currentUser);
-                setAllUsers(filteredUsers);
-
-                const storedSentUsers = JSON.parse(localStorage.getItem(storageKey)) || [];
-                const updatedStoredUsers = storedSentUsers.map((user) => {
-                    const fullUser = filteredUsers.find((u) => u.email === user.email) || user;
-                    return { ...fullUser, hasNewMessage: user.hasNewMessage || false };
-                });
-                setSentUsers(updatedStoredUsers);
-                localStorage.setItem(storageKey, JSON.stringify(updatedStoredUsers));
-            })
-            .catch((err) => console.error("Error fetching users:", err));
-
+          .then((res) => res.json())
+          .then((data) => {
+            const filteredUsers = data.filter((user) => user.email !== currentUser);
+            setAllUsers(filteredUsers);
+      
+            const storedSentUsers = JSON.parse(localStorage.getItem(storageKey)) || [];
+            const updatedStoredUsers = storedSentUsers.map((user) => {
+              const fullUser = filteredUsers.find((u) => u.email === user.email) || user;
+              return { ...fullUser, hasNewMessage: user.hasNewMessage || false, deleted: user.deleted || false };
+            });
+            setSentUsers(updatedStoredUsers);
+            localStorage.setItem(storageKey, JSON.stringify(updatedStoredUsers));
+          })
+          .catch((err) => console.error("Error fetching users:", err));
+      
         return () => {
-            socket.disconnect();
+          socket.disconnect();
         };
-    }, [currentUser, storageKey]);
+      }, [currentUser, storageKey]);
 
     useEffect(() => {
         fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`) 
@@ -247,40 +262,41 @@ export default function Chat() {
 
     useEffect(() => {
         if (selectedUser) {
-            socket.emit("joinChat", {
-                sender: currentUser,
-                receiver: selectedUser.email,
+          setMessages([]); // Clear messages before loading new ones
+          socket.emit("joinChat", {
+            sender: currentUser,
+            receiver: selectedUser.email,
+          });
+      
+          socket.on("loadMessages", (serverMessages) => {
+            console.log("Loaded messages from server:", serverMessages);
+            setMessages(serverMessages);
+      
+            setUnreadMessages((prev) =>
+              prev.filter((msg) => msg.sender !== selectedUser.email)
+            );
+            const firstUnread = serverMessages.find(
+              (msg) => msg.receiver === currentUser && !msg.isRead
+            );
+            if (firstUnread && !firstNewMessageId) {
+              setFirstNewMessageId(firstUnread._id);
+              setShowNewMessage(true);
+              setTimeout(() => {
+                setShowNewMessage(false);
+                setFirstNewMessageId(null);
+              }, 10000);
+            }
+            socket.emit("markAsRead", {
+              sender: selectedUser.email,
+              receiver: currentUser,
             });
-
-            socket.on("loadMessages", (serverMessages) => {
-                // console.log("Loaded messages from server:", serverMessages);
-                setMessages(serverMessages);
-
-                setUnreadMessages((prev) =>
-                    prev.filter((msg) => msg.sender !== selectedUser.email)
-                );
-                const firstUnread = serverMessages.find(
-                    (msg) => msg.receiver === currentUser && !msg.isRead
-                );
-                if (firstUnread && !firstNewMessageId) {
-                    setFirstNewMessageId(firstUnread._id);
-                    setShowNewMessage(true);
-                    setTimeout(() => {
-                        setShowNewMessage(false);
-                        setFirstNewMessageId(null);
-                    }, 10000);
-                }
-                socket.emit("markAsRead", {
-                    sender: selectedUser.email,
-                    receiver: currentUser,
-                });
-            });
+          });
         }
-
+      
         return () => {
-            socket.off("loadMessages");
+          socket.off("loadMessages");
         };
-    }, [selectedUser, currentUser, firstNewMessageId]);
+      }, [selectedUser, currentUser, firstNewMessageId]);
     
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
@@ -306,31 +322,28 @@ export default function Chat() {
     }, [currentUser, selectedUser, chatStorageKey]);
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
+        console.log(`Deleting chat for ${currentUser} with ${userEmail}`);
         socket.emit("deleteChat", {
-            sender: currentUser,
-            receiver: userEmail,
+          sender: currentUser,
+          receiver: userEmail,
         });
-        // setSentUsers((prevSentUsers) => {
-        //     const updatedSentUsers = prevSentUsers.filter((u) => u.email !== userEmail);
-        //     localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
-        //     return updatedSentUsers;
-        // });
+      
         setSentUsers((prevSentUsers) => {
-    const updatedSentUsers = prevSentUsers.map((u) =>
-        u.email === userEmail ? { ...u, deleted: true } : u
-    );
-    localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
-    return updatedSentUsers;
-});
-
+          const updatedSentUsers = prevSentUsers.map((u) =>
+            u.email === userEmail ? { ...u, deleted: true } : u
+          );
+          localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
+          return updatedSentUsers;
+        });
+      
         setMessages([]);
         setSelectedUser(null);
-
+      
         const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
         localStorage.removeItem(chatKey);
-
+      
         toast.success("Chat deleted from your view.");
-    };
+      };
 
     
 
@@ -466,19 +479,19 @@ export default function Chat() {
 
     const displayedUsers = [
         ...allUsers.filter((user) => user.email === currentUser),
-        ...sentUsers.filter((user) => user.email !== currentUser),
+        ...sentUsers.filter((user) => user.email !== currentUser && !user.deleted), // Exclude deleted users
         ...allUsers.filter(
-            (user) =>
-                user.email !== currentUser && !sentUsers.some((u) => u.email === user.email)
+          (user) =>
+            user.email !== currentUser && !sentUsers.some((u) => u.email === user.email)
         ),
-    ];
-
-    const filteredUsers = displayedUsers.filter((user) =>
+      ];
+      
+      const filteredUsers = displayedUsers.filter((user) =>
         (user.email === currentUser ? "You" : user.fullname)
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
         user.email.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+      );
 
     // console.log("displayedUsers:", displayedUsers);
     // console.log("filteredUsers:", filteredUsers);
@@ -679,80 +692,76 @@ const ChatMessage = ({ message, user, isFirstNew }) => {
   const isSender = message.sender === user;
 
 
-const renderFile = (file, fileUrl) => {
+  const renderFile = (file, fileUrl) => {
     if (file || fileUrl) {
-        let fileData = file || {};
-        if (fileUrl) {
-            fileData.url = fileUrl;
-            fileData.name = fileUrl.split("/").pop();
-        }
-
-        let fileType;
-        if (file) {
-            fileType = file.type || "unknown";
-        } else if (fileUrl) {
-            const fileName = fileData.name.toLowerCase();
-            if (fileName.endsWith(".pdf")) {
-                fileType = "application/pdf";
-            } else if (fileName.endsWith(".csv")) {
-                fileType = "text/csv";
-            } else if (fileName.endsWith(".doc")) {
-                fileType = "application/msword";
-            } else if (fileName.endsWith(".docx")) {
-                fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            } else if (fileName.endsWith(".xls")) {
-                fileType = "application/vnd.ms-excel";
-            } else if (fileName.endsWith(".xlsx")) {
-                fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            } else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) {
-                fileType = "image";
-            } else {
-                fileType = "application/octet-stream";
-            }
+      let fileData = file || {};
+      if (fileUrl) {
+        fileData.url = fileUrl;
+        fileData.name = fileUrl.split("/").pop();
+      }
+  
+      let fileType;
+      if (file) {
+        fileType = file.type || "unknown";
+      } else if (fileUrl) {
+        const fileName = fileData.name.toLowerCase();
+        if (fileName.endsWith(".pdf")) {
+          fileType = "application/pdf";
+        } else if (fileName.endsWith(".csv")) {
+          fileType = "text/csv";
+        } else if (fileName.endsWith(".doc")) {
+          fileType = "application/msword";
+        } else if (fileName.endsWith(".docx")) {
+          fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        } else if (fileName.endsWith(".xls")) {
+          fileType = "application/vnd.ms-excel";
+        } else if (fileName.endsWith(".xlsx")) {
+          fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        } else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) {
+          fileType = "image";
         } else {
-            fileType = "unknown";
+          fileType = "application/octet-stream";
         }
-        
-        // Handle PDFs (embeddable)
-        if (fileType === "application/pdf") {
-            return (
-                <embed
-                    src={fileData.url}
-                    type="application/pdf"
-                    width="100%"
-                    height="300px"
-                    title={fileData.name}
-                />
-            );
-        }
-        
-        // Handle images (embeddable)
-        else if (fileType.startsWith("image")) {
-            return (
-                <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-                    <img
-                        src={fileData.url}
-                        alt={fileData.name}
-                        style={{ maxWidth: "100%", maxHeight: "300px" }}
-                    />
-                    
-                </a>
-               
-            );
-        }
-        // Handle other file types (downloadable links)
-        else {
-            return (
-                <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-                    Download {fileData.name} 
-                </a>
-            );
-        }
+      } else {
+        fileType = "unknown";
+      }
+  
+      // Handle PDFs (embeddable)
+      if (fileType === "application/pdf") {
+        return (
+          <embed
+            src={fileData.url}
+            type="application/pdf"
+            width="100%"
+            height="300px"
+            title={fileData.name}
+          />
+        );
+      }
+      // Handle images (embeddable)
+      else if (fileType.startsWith("image")) {
+        return (
+          <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+            <img
+              src={fileData.url}
+              alt={fileData.name}
+              style={{ maxWidth: "100%", maxHeight: "300px" }}
+            />
+          </a>
+        );
+      }
+      // Handle other file types (downloadable links)
+      else {
+        return (
+          <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+            Download {fileData.name}
+          </a>
+        );
+      }
     }
-
-   
+  
     return <div>File not available</div>;
-};
+  };
   return (
       <div
           style={{
