@@ -2509,32 +2509,20 @@ io.on("connection", (socket) => {
   });
 
   socket.on("deleteChat", async ({ sender, receiver }) => {
-    try {
-      // Mark messages as deleted for the sender
-      await Message.updateMany(
-        {
-          $or: [
-            { sender, receiver },
-            { sender: receiver, receiver: sender },
-          ],
-        },
-        { $addToSet: { deletedBy: sender } }
-      );
-  
-      const senderSocketId = connectedUsers.get(sender);
-      if (senderSocketId) {
-        io.to(senderSocketId).emit("chatDeleted", { receiver });
-      }
-  
-      // Optionally notify the receiver (if needed)
-      const receiverSocketId = connectedUsers.get(receiver);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("chatUpdated", { sender });
-      }
-    } catch (error) {
-      console.error("Error deleting chat:", error);
-    }
-  });
+        try {
+          await Message.updateMany(
+            {
+              $or: [
+                { sender, receiver },
+                { sender: receiver, receiver: sender },
+              ],
+            },
+            { $addToSet: { deletedBy: sender } }
+          );
+    
+  } catch (error) {
+    console.error("Error deleting chat:", error);
+  }});
 
   socket.on("disconnect", () => {
     for (let [email, socketId] of connectedUsers.entries()) {
