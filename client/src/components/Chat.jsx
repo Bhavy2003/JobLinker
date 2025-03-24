@@ -797,19 +797,7 @@ export default function Chat() {
         }
     };
 
-    const saveMessagesToLocalStorage = (msgs) => {
-        if (selectedUser) {
-            const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
-            localStorage.setItem(chatKey, JSON.stringify(msgs));
-        }
-    };
-
-    const loadMessagesFromLocalStorage = (userEmail) => {
-        const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
-        const cachedMessages = localStorage.getItem(chatKey);
-        return cachedMessages ? JSON.parse(cachedMessages) : [];
-    };
-
+   
     useEffect(() => {
         const container = chatContainerRef.current;
         if (!container) return;
@@ -844,27 +832,22 @@ export default function Chat() {
 
     useEffect(() => {
         socket.emit("register", currentUser);
-
+    
         fetch("https://joblinker-1.onrender.com/api/v1/user/users/all")
             .then((res) => res.json())
             .then((data) => {
                 const filteredUsers = data.filter((user) => user.email !== currentUser);
                 setAllUsers(filteredUsers);
-
-                const storedSentUsers = JSON.parse(localStorage.getItem(storageKey)) || [];
-                const updatedStoredUsers = storedSentUsers.map((user) => {
-                    const fullUser = filteredUsers.find((u) => u.email === user.email) || user;
-                    return { ...fullUser, hasNewMessage: user.hasNewMessage || false };
-                });
-                setSentUsers(updatedStoredUsers);
-                localStorage.setItem(storageKey, JSON.stringify(updatedStoredUsers));
+    
+                // Initialize sentUsers without relying on localStorage
+                setSentUsers([]); // Start fresh; will be populated by messages or server data
             })
             .catch((err) => console.error("Error fetching users:", err));
-
+    
         return () => {
             socket.disconnect();
         };
-    }, [currentUser, storageKey]);
+    }, [currentUser]);
 
     useEffect(() => {
         fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`)
@@ -954,16 +937,15 @@ export default function Chat() {
                                 m.timestamp === msg.timestamp &&
                                 (m.file ? m.file.name === msg.file?.name : !msg.file))
                     );
-
+    
                     if (!messageExists) {
                         const updatedMessages = [...prevMessages, msg];
-                        saveMessagesToLocalStorage(updatedMessages);
-                        setTimeout(() => scrollToBottom(), 0);
+                        setTimeout(() => scrollToBottom(), 0); // Scroll asynchronously
                         return updatedMessages;
                     }
                     return prevMessages;
                 });
-
+    
                 if (msg.receiver === currentUser) {
                     setShowPopup(true);
                     setTimeout(() => setShowPopup(false), 3000);
@@ -977,32 +959,31 @@ export default function Chat() {
                     }
                 }
             }
-
+    
             if (msg.receiver === currentUser && !msg.isRead) {
                 setUnreadMessages((prev) => [...prev, msg]);
             }
         });
-
+    
         return () => {
             socket.off("message");
         };
-    }, [selectedUser, currentUser, firstNewMessageId]);
+    }, [selectedUserkong, currentUser, firstNewMessageId]);
 
     useEffect(() => {
         if (selectedUser) {
-            const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
-            setMessages(cachedMessages);
-
+            // Clear messages initially and rely on server data
+            setMessages([]);
+    
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
             });
-
+    
             socket.on("loadMessages", (serverMessages) => {
                 console.log("Loaded messages from server:", serverMessages);
                 setMessages(serverMessages);
-                saveMessagesToLocalStorage(serverMessages);
-
+    
                 setUnreadMessages((prev) =>
                     prev.filter((msg) => msg.sender !== selectedUser.email)
                 );
@@ -1014,7 +995,7 @@ export default function Chat() {
                     setShowNewMessage(true);
                     setTimeout(() => {
                         setShowNewMessage(false);
-                        setFirstNewMessageId(null);
+                        setFirstNewMessageId(null Ile);
                     }, 10000);
                 }
                 socket.emit("markAsRead", {
@@ -1023,7 +1004,7 @@ export default function Chat() {
                 });
             });
         }
-
+    
         return () => {
             socket.off("loadMessages");
         };
@@ -1114,17 +1095,14 @@ export default function Chat() {
         // Emit the message to the server immediately for real-time delivery
         socket.emit("sendMessage", msgData);
     
-        // Optimistically update local messages state without waiting
+        // Optimistically update local messages state without saving to localStorage
         setMessages((prevMessages) => {
             const updatedMessages = [...prevMessages, msgData];
-            // Save to local storage in the background
-            saveMessagesToLocalStorage(updatedMessages);
-            // Scroll to bottom asynchronously to avoid blocking
-            setTimeout(() => scrollToBottom(), 0);
+            setTimeout(() => scrollToBottom(), 0); // Scroll asynchronously
             return updatedMessages;
         });
     
-        // Update sentUsers asynchronously
+        // Update sentUsers without localStorage
         setSentUsers((prevSentUsers) => {
             let updatedSentUsers = [...prevSentUsers];
             const existingIndex = updatedSentUsers.findIndex((u) => u.email === selectedUser.email);
@@ -1136,7 +1114,6 @@ export default function Chat() {
                 updatedSentUsers = [{ ...user, hasNewMessage: false }, ...updatedSentUsers];
             }
     
-            localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
             return updatedSentUsers;
         });
     
@@ -1145,6 +1122,7 @@ export default function Chat() {
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
     };
+
 
     const handleKeyPress = (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
