@@ -968,7 +968,7 @@ export default function Chat() {
         return () => {
             socket.off("message");
         };
-    }, [selectedUserkong, currentUser, firstNewMessageId]);
+    }, [selectedUser, currentUser, firstNewMessageId]);
 
     useEffect(() => {
         if (selectedUser) {
