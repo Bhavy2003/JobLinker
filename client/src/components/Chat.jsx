@@ -797,7 +797,19 @@ export default function Chat() {
         }
     };
 
-   
+    const saveMessagesToLocalStorage = (msgs) => {
+        if (selectedUser) {
+            const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
+            localStorage.setItem(chatKey, JSON.stringify(msgs));
+        }
+    };
+
+    const loadMessagesFromLocalStorage = (userEmail) => {
+        const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
+        const cachedMessages = localStorage.getItem(chatKey);
+        return cachedMessages ? JSON.parse(cachedMessages) : [];
+    };
+
     useEffect(() => {
         const container = chatContainerRef.current;
         if (!container) return;
@@ -832,22 +844,27 @@ export default function Chat() {
 
     useEffect(() => {
         socket.emit("register", currentUser);
-    
+
         fetch("https://joblinker-1.onrender.com/api/v1/user/users/all")
             .then((res) => res.json())
             .then((data) => {
                 const filteredUsers = data.filter((user) => user.email !== currentUser);
                 setAllUsers(filteredUsers);
-    
-                // Initialize sentUsers without relying on localStorage
-                setSentUsers([]); // Start fresh; will be populated by messages or server data
+
+                const storedSentUsers = JSON.parse(localStorage.getItem(storageKey)) || [];
+                const updatedStoredUsers = storedSentUsers.map((user) => {
+                    const fullUser = filteredUsers.find((u) => u.email === user.email) || user;
+                    return { ...fullUser, hasNewMessage: user.hasNewMessage || false };
+                });
+                setSentUsers(updatedStoredUsers);
+                localStorage.setItem(storageKey, JSON.stringify(updatedStoredUsers));
             })
             .catch((err) => console.error("Error fetching users:", err));
-    
+
         return () => {
             socket.disconnect();
         };
-    }, [currentUser]);
+    }, [currentUser, storageKey]);
 
     useEffect(() => {
         fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`)
@@ -888,26 +905,21 @@ export default function Chat() {
                     const senderDetails = allUsers.find((user) => user.email === msgData.sender);
                     if (!senderDetails) return prevSentUsers;
                     const existingIndex = updatedSentUsers.findIndex((u) => u.email === msgData.sender);
-
+    
                     toast.info(`New message from ${msgData.sender}: ${msgData.text || "File"}`);
-
+    
                     if (existingIndex === -1) {
                         updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
                     } else {
                         const [user] = updatedSentUsers.splice(existingIndex, 1);
                         updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
                     }
-
-                    localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
+    
                     return updatedSentUsers;
                 });
-
+    
                 setUnreadMessages((prev) => {
-                    const exists = prev.some(
-                        (msg) =>
-                            msg.timestamp === msgData.timestamp &&
-                            (msg.text === msgData.text || (msg.file && msgData.file && msg.file.name === msgData.file.name))
-                    );
+                    const exists = prev.some((m) => m._id === msgData._id);
                     if (!exists) {
                         return [...prev, { ...msgData, isRead: false }];
                     }
@@ -915,12 +927,16 @@ export default function Chat() {
                 });
             }
         });
-
+    
         return () => {
             socket.off("newMessageNotification");
         };
-    }, [allUsers, currentUser, storageKey]);
-
+    }, [allUsers, currentUser]);
+    const socketRef = useRef(io("https://joblinker-1.onrender.com", {
+        transports: ["websocket"],
+        withCredentials: true,
+    }));
+    const socket = socketRef.current;
     useEffect(() => {
         socket.on("message", (msg) => {
             if (
@@ -928,24 +944,24 @@ export default function Chat() {
                 (msg.receiver === currentUser && msg.sender === selectedUser?.email)
             ) {
                 setMessages((prevMessages) => {
-                    const messageExists = prevMessages.some(
-                        (m) =>
-                            (m._id && m._id === msg._id) ||
-                            (m.sender === msg.sender &&
-                                m.receiver === msg.receiver &&
-                                m.text === msg.text &&
-                                m.timestamp === msg.timestamp &&
-                                (m.file ? m.file.name === msg.file?.name : !msg.file))
-                    );
-    
+                    // Check if the message already exists to avoid duplicates
+                    const messageExists = prevMessages.some((m) => m._id && m._id === msg._id);
                     if (!messageExists) {
                         const updatedMessages = [...prevMessages, msg];
-                        setTimeout(() => scrollToBottom(), 0); // Scroll asynchronously
+                        // Scroll to bottom only if the user is near the bottom
+                        if (chatContainerRef.current) {
+                            const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+                            const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+                            if (isNearBottom) {
+                                setTimeout(() => scrollToBottom(), 0);
+                            }
+                        }
                         return updatedMessages;
                     }
                     return prevMessages;
                 });
     
+                // Handle new message notifications for the receiver
                 if (msg.receiver === currentUser) {
                     setShowPopup(true);
                     setTimeout(() => setShowPopup(false), 3000);
@@ -957,11 +973,14 @@ export default function Chat() {
                             setFirstNewMessageId(null);
                         }, 5000);
                     }
+                    // Update unread messages
+                    setUnreadMessages((prev) => {
+                        if (!prev.some((m) => m._id === msg._id)) {
+                            return [...prev, msg];
+                        }
+                        return prev;
+                    });
                 }
-            }
-    
-            if (msg.receiver === currentUser && !msg.isRead) {
-                setUnreadMessages((prev) => [...prev, msg]);
             }
         });
     
@@ -972,8 +991,7 @@ export default function Chat() {
 
     useEffect(() => {
         if (selectedUser) {
-            // Clear messages initially and rely on server data
-            setMessages([]);
+            setMessages([]); // Clear current messages
     
             socket.emit("joinChat", {
                 sender: currentUser,
@@ -981,12 +999,16 @@ export default function Chat() {
             });
     
             socket.on("loadMessages", (serverMessages) => {
-                console.log("Loaded messages from server:", serverMessages);
                 setMessages(serverMessages);
+                // Scroll to bottom on initial load
+                setTimeout(() => scrollToBottom(), 0);
     
+                // Clear unread messages for this conversation
                 setUnreadMessages((prev) =>
                     prev.filter((msg) => msg.sender !== selectedUser.email)
                 );
+    
+                // Mark messages as read
                 const firstUnread = serverMessages.find(
                     (msg) => msg.receiver === currentUser && !msg.isRead
                 );
@@ -996,7 +1018,7 @@ export default function Chat() {
                     setTimeout(() => {
                         setShowNewMessage(false);
                         setFirstNewMessageId(null);
-                    }, 10000);
+                    }, 5000);
                 }
                 socket.emit("markAsRead", {
                     sender: selectedUser.email,
@@ -1092,17 +1114,17 @@ export default function Chat() {
             isRead: false,
         };
     
-        // Emit the message to the server immediately for real-time delivery
+        // Emit the message to the server immediately
         socket.emit("sendMessage", msgData);
     
-        // Optimistically update local messages state without saving to localStorage
+        // Optimistically add the message to the UI
         setMessages((prevMessages) => {
             const updatedMessages = [...prevMessages, msgData];
-            setTimeout(() => scrollToBottom(), 0); // Scroll asynchronously
+            setTimeout(() => scrollToBottom(), 0); // Scroll to bottom asynchronously
             return updatedMessages;
         });
     
-        // Update sentUsers without localStorage
+        // Update sentUsers to reflect the conversation
         setSentUsers((prevSentUsers) => {
             let updatedSentUsers = [...prevSentUsers];
             const existingIndex = updatedSentUsers.findIndex((u) => u.email === selectedUser.email);
@@ -1117,13 +1139,12 @@ export default function Chat() {
             return updatedSentUsers;
         });
     
-        // Clear input fields immediately
+        // Clear input fields
         setMessage("");
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
     };
-
-
+    
     const handleKeyPress = (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
