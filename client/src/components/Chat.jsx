@@ -1,3 +1,5 @@
+
+
 // import React, { useState, useEffect, useRef } from "react";
 // import io from "socket.io-client";
 // import Navbar from "./shared/Navbar";
@@ -104,7 +106,7 @@
 //                 const storedSentUsers = JSON.parse(localStorage.getItem(storageKey)) || [];
 //                 const updatedStoredUsers = storedSentUsers.map((user) => {
 //                     const fullUser = filteredUsers.find((u) => u.email === user.email) || user;
-//                     return { ...fullUser, hasNewMessage: user.hasNewMessage || false, deleted: user.deleted || false };
+//                     return { ...fullUser, hasNewMessage: user.hasNewMessage || false };
 //                 });
 //                 setSentUsers(updatedStoredUsers);
 //                 localStorage.setItem(storageKey, JSON.stringify(updatedStoredUsers));
@@ -208,16 +210,7 @@
 //                     if (!messageExists) {
 //                         const updatedMessages = [...prevMessages, msg];
 //                         saveMessagesToLocalStorage(updatedMessages);
-
-//                         const container = chatContainerRef.current;
-//                         const wasAtBottom =
-//                             container &&
-//                             container.scrollHeight - container.scrollTop <= container.clientHeight + 5;
-
-//                         if (wasAtBottom) {
-//                             setTimeout(() => scrollToBottom(), 0);
-//                         }
-
+//                         setTimeout(() => scrollToBottom(), 0);
 //                         return updatedMessages;
 //                     }
 //                     return prevMessages;
@@ -249,11 +242,9 @@
 
 //     useEffect(() => {
 //         if (selectedUser) {
-//             // Load messages from localStorage immediately
 //             const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
 //             setMessages(cachedMessages);
 
-//             // Fetch the latest messages from the backend
 //             socket.emit("joinChat", {
 //                 sender: currentUser,
 //                 receiver: selectedUser.email,
@@ -262,7 +253,7 @@
 //             socket.on("loadMessages", (serverMessages) => {
 //                 console.log("Loaded messages from server:", serverMessages);
 //                 setMessages(serverMessages);
-//                 saveMessagesToLocalStorage(serverMessages); // Update localStorage with the latest messages
+//                 saveMessagesToLocalStorage(serverMessages);
 
 //                 setUnreadMessages((prev) =>
 //                     prev.filter((msg) => msg.sender !== selectedUser.email)
@@ -292,14 +283,6 @@
 
 //     useEffect(() => {
 //         socket.on("chatDeleted", ({ receiver }) => {
-//             setSentUsers((prevSentUsers) => {
-//                 const updatedSentUsers = prevSentUsers.map((u) =>
-//                     u.email === receiver ? { ...u, deleted: true } : u
-//                 );
-//                 localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
-//                 return updatedSentUsers;
-//             });
-
 //             if (selectedUser?.email === receiver) {
 //                 setMessages([]);
 //                 setSelectedUser(null);
@@ -315,33 +298,23 @@
 
 //     const deleteChat = (userEmail) => {
 //         if (!selectedUser) return;
+
 //         socket.emit("deleteChat", {
 //             sender: currentUser,
 //             receiver: userEmail,
 //         });
 
-//         setSentUsers((prevSentUsers) => {
-//             const updatedSentUsers = prevSentUsers.map((u) =>
-//                 u.email === userEmail ? { ...u, deleted: true } : u
-//             );
-//             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
-//             return updatedSentUsers;
-//         });
-
 //         setMessages([]);
 //         setSelectedUser(null);
-
 //         const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
 //         localStorage.removeItem(chatKey);
 
-//         toast.success("Chat deleted from your view.");
+//         toast.success("Chat cleared successfully.");
 //     };
 
 //     const handleFileUpload = async (e) => {
 //         const file = e.target.files[0];
-//         if (!file) {
-//             return;
-//         }
+//         if (!file) return;
 
 //         const formData = new FormData();
 //         formData.append("file", file);
@@ -375,12 +348,12 @@
 //             toast.error("Please select a user to chat with");
 //             return;
 //         }
-
+   
 //         if (!message.trim() && !selectedFile) {
 //             toast.error("Please type a message or upload a file");
 //             return;
 //         }
-
+   
 //         const msgData = {
 //             sender: currentUser,
 //             receiver: selectedUser.email,
@@ -389,34 +362,40 @@
 //             timestamp: new Date().toISOString(),
 //             isRead: false,
 //         };
-
+   
+//         // Emit the message to the server immediately for real-time delivery
+//         socket.emit("sendMessage", msgData);
+   
+//         // Optimistically update local messages state without waiting
 //         setMessages((prevMessages) => {
 //             const updatedMessages = [...prevMessages, msgData];
+//             // Save to local storage in the background
 //             saveMessagesToLocalStorage(updatedMessages);
+//             // Scroll to bottom asynchronously to avoid blocking
 //             setTimeout(() => scrollToBottom(), 0);
 //             return updatedMessages;
 //         });
-
-//         socket.emit("sendMessage", msgData);
-
-//         setMessage("");
-//         setSelectedFile(null);
-//         if (fileInputRef.current) fileInputRef.current.value = null;
-
+   
+//         // Update sentUsers asynchronously
 //         setSentUsers((prevSentUsers) => {
 //             let updatedSentUsers = [...prevSentUsers];
 //             const existingIndex = updatedSentUsers.findIndex((u) => u.email === selectedUser.email);
-
+   
 //             if (existingIndex === -1) {
 //                 updatedSentUsers = [selectedUser, ...updatedSentUsers];
 //             } else {
 //                 const [user] = updatedSentUsers.splice(existingIndex, 1);
 //                 updatedSentUsers = [{ ...user, hasNewMessage: false }, ...updatedSentUsers];
 //             }
-
+   
 //             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
 //             return updatedSentUsers;
 //         });
+   
+//         // Clear input fields immediately
+//         setMessage("");
+//         setSelectedFile(null);
+//         if (fileInputRef.current) fileInputRef.current.value = null;
 //     };
 
 //     const handleKeyPress = (e) => {
@@ -459,7 +438,7 @@
 
 //     const displayedUsers = [
 //         ...allUsers.filter((user) => user.email === currentUser),
-//         ...sentUsers.filter((user) => user.email !== currentUser && !user.deleted),
+//         ...sentUsers.filter((user) => user.email !== currentUser),
 //         ...allUsers.filter(
 //             (user) =>
 //                 user.email !== currentUser && !sentUsers.some((u) => u.email === user.email)
@@ -680,23 +659,14 @@
 //                 fileType = file.type || "unknown";
 //             } else if (fileUrl) {
 //                 const fileName = fileData.name.toLowerCase();
-//                 if (fileName.endsWith(".pdf")) {
-//                     fileType = "application/pdf";
-//                 } else if (fileName.endsWith(".csv")) {
-//                     fileType = "text/csv";
-//                 } else if (fileName.endsWith(".doc")) {
-//                     fileType = "application/msword";
-//                 } else if (fileName.endsWith(".docx")) {
-//                     fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-//                 } else if (fileName.endsWith(".xls")) {
-//                     fileType = "application/vnd.ms-excel";
-//                 } else if (fileName.endsWith(".xlsx")) {
-//                     fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-//                 } else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) {
-//                     fileType = "image";
-//                 } else {
-//                     fileType = "application/octet-stream";
-//                 }
+//                 if (fileName.endsWith(".pdf")) fileType = "application/pdf";
+//                 else if (fileName.endsWith(".csv")) fileType = "text/csv";
+//                 else if (fileName.endsWith(".doc")) fileType = "application/msword";
+//                 else if (fileName.endsWith(".docx")) fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+//                 else if (fileName.endsWith(".xls")) fileType = "application/vnd.ms-excel";
+//                 else if (fileName.endsWith(".xlsx")) fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+//                 else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) fileType = "image";
+//                 else fileType = "application/octet-stream";
 //             } else {
 //                 fileType = "unknown";
 //             }
@@ -776,6 +746,7 @@
 //     );
 // };
 
+
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import Navbar from "./shared/Navbar";
@@ -790,7 +761,7 @@ export default function Chat() {
     const { t } = useTranslation();
     const [allUsers, setAllUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
-    const [messages, setMessages] = useState([]);
+    const [chatMessages, setChatMessages] = useState({}); // Store messages for all chats in memory
     const [message, setMessage] = useState("");
     const [sentUsers, setSentUsers] = useState([]);
     const [showPopup, setShowPopup] = useState(false);
@@ -805,7 +776,6 @@ export default function Chat() {
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
     const storageKey = `sentUsers_${currentUser}`;
-    const chatStorageKey = `chat_${currentUser}`;
     const DUMMY_PHOTO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcToiRnzzyrDtkmRzlAvPPbh77E-Mvsk3brlxQ&s";
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
@@ -825,17 +795,11 @@ export default function Chat() {
         }
     };
 
-    const saveMessagesToLocalStorage = (msgs) => {
-        if (selectedUser) {
-            const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
-            localStorage.setItem(chatKey, JSON.stringify(msgs));
-        }
-    };
-
-    const loadMessagesFromLocalStorage = (userEmail) => {
-        const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
-        const cachedMessages = localStorage.getItem(chatKey);
-        return cachedMessages ? JSON.parse(cachedMessages) : [];
+    // Get messages for the current chat
+    const getCurrentMessages = () => {
+        if (!selectedUser) return [];
+        const chatKey = [currentUser, selectedUser.email].sort().join("_");
+        return chatMessages[chatKey] || [];
     };
 
     useEffect(() => {
@@ -853,7 +817,7 @@ export default function Chat() {
         handleScroll();
 
         return () => container.removeEventListener("scroll", handleScroll);
-    }, [messages]);
+    }, [chatMessages, selectedUser]);
 
     useEffect(() => {
         socket.on("connect", () => {
@@ -890,7 +854,7 @@ export default function Chat() {
             .catch((err) => console.error("Error fetching users:", err));
 
         return () => {
-            socket.disconnect();
+            socket.off("register");
         };
     }, [currentUser, storageKey]);
 
@@ -968,41 +932,41 @@ export default function Chat() {
 
     useEffect(() => {
         socket.on("message", (msg) => {
-            if (
-                (msg.sender === currentUser && msg.receiver === selectedUser?.email) ||
-                (msg.receiver === currentUser && msg.sender === selectedUser?.email)
-            ) {
-                setMessages((prevMessages) => {
-                    const messageExists = prevMessages.some(
-                        (m) =>
-                            (m._id && m._id === msg._id) ||
-                            (m.sender === msg.sender &&
-                                m.receiver === msg.receiver &&
-                                m.text === msg.text &&
-                                m.timestamp === msg.timestamp &&
-                                (m.file ? m.file.name === msg.file?.name : !msg.file))
-                    );
+            const chatKey = [msg.sender, msg.receiver].sort().join("_");
+            setChatMessages((prev) => {
+                const updatedMessages = { ...prev };
+                if (!updatedMessages[chatKey]) {
+                    updatedMessages[chatKey] = [];
+                }
 
-                    if (!messageExists) {
-                        const updatedMessages = [...prevMessages, msg];
-                        saveMessagesToLocalStorage(updatedMessages);
-                        setTimeout(() => scrollToBottom(), 0);
-                        return updatedMessages;
-                    }
-                    return prevMessages;
-                });
+                const messageExists = updatedMessages[chatKey].some(
+                    (m) =>
+                        (m._id && m._id === msg._id) ||
+                        (m.sender === msg.sender &&
+                            m.receiver === msg.receiver &&
+                            m.text === msg.text &&
+                            m.timestamp === msg.timestamp &&
+                            (m.file ? m.file.name === msg.file?.name : !msg.file))
+                );
 
-                if (msg.receiver === currentUser) {
-                    setShowPopup(true);
-                    setTimeout(() => setShowPopup(false), 3000);
-                    if (!firstNewMessageId) {
-                        setFirstNewMessageId(msg._id);
-                        setShowNewMessage(true);
-                        setTimeout(() => {
-                            setShowNewMessage(false);
-                            setFirstNewMessageId(null);
-                        }, 5000);
-                    }
+                if (!messageExists) {
+                    updatedMessages[chatKey] = [...updatedMessages[chatKey], msg];
+                    setTimeout(() => scrollToBottom(), 0);
+                }
+
+                return updatedMessages;
+            });
+
+            if (msg.receiver === currentUser) {
+                setShowPopup(true);
+                setTimeout(() => setShowPopup(false), 3000);
+                if (!firstNewMessageId) {
+                    setFirstNewMessageId(msg._id);
+                    setShowNewMessage(true);
+                    setTimeout(() => {
+                        setShowNewMessage(false);
+                        setFirstNewMessageId(null);
+                    }, 5000);
                 }
             }
 
@@ -1014,13 +978,10 @@ export default function Chat() {
         return () => {
             socket.off("message");
         };
-    }, [selectedUser, currentUser, firstNewMessageId]);
+    }, [currentUser, firstNewMessageId]);
 
     useEffect(() => {
         if (selectedUser) {
-            const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
-            setMessages(cachedMessages);
-
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
@@ -1028,8 +989,11 @@ export default function Chat() {
 
             socket.on("loadMessages", (serverMessages) => {
                 console.log("Loaded messages from server:", serverMessages);
-                setMessages(serverMessages);
-                saveMessagesToLocalStorage(serverMessages);
+                const chatKey = [currentUser, selectedUser.email].sort().join("_");
+                setChatMessages((prev) => ({
+                    ...prev,
+                    [chatKey]: serverMessages,
+                }));
 
                 setUnreadMessages((prev) =>
                     prev.filter((msg) => msg.sender !== selectedUser.email)
@@ -1059,18 +1023,22 @@ export default function Chat() {
 
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
+            const chatKey = [currentUser, receiver].sort().join("_");
+            setChatMessages((prev) => {
+                const updatedMessages = { ...prev };
+                delete updatedMessages[chatKey];
+                return updatedMessages;
+            });
+
             if (selectedUser?.email === receiver) {
-                setMessages([]);
                 setSelectedUser(null);
-                const chatKey = `${chatStorageKey}_${[currentUser, receiver].sort().join("_")}`;
-                localStorage.removeItem(chatKey);
             }
         });
 
         return () => {
             socket.off("chatDeleted");
         };
-    }, [currentUser, selectedUser, chatStorageKey]);
+    }, [currentUser, selectedUser]);
 
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
@@ -1080,11 +1048,14 @@ export default function Chat() {
             receiver: userEmail,
         });
 
-        setMessages([]);
-        setSelectedUser(null);
-        const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
-        localStorage.removeItem(chatKey);
+        const chatKey = [currentUser, userEmail].sort().join("_");
+        setChatMessages((prev) => {
+            const updatedMessages = { ...prev };
+            delete updatedMessages[chatKey];
+            return updatedMessages;
+        });
 
+        setSelectedUser(null);
         toast.success("Chat cleared successfully.");
     };
 
@@ -1124,12 +1095,12 @@ export default function Chat() {
             toast.error("Please select a user to chat with");
             return;
         }
-   
+
         if (!message.trim() && !selectedFile) {
             toast.error("Please type a message or upload a file");
             return;
         }
-   
+
         const msgData = {
             sender: currentUser,
             receiver: selectedUser.email,
@@ -1138,37 +1109,27 @@ export default function Chat() {
             timestamp: new Date().toISOString(),
             isRead: false,
         };
-   
+
         // Emit the message to the server immediately for real-time delivery
         socket.emit("sendMessage", msgData);
-   
-        // Optimistically update local messages state without waiting
-        setMessages((prevMessages) => {
-            const updatedMessages = [...prevMessages, msgData];
-            // Save to local storage in the background
-            saveMessagesToLocalStorage(updatedMessages);
-            // Scroll to bottom asynchronously to avoid blocking
-            setTimeout(() => scrollToBottom(), 0);
-            return updatedMessages;
-        });
-   
-        // Update sentUsers asynchronously
+
+        // Update sentUsers
         setSentUsers((prevSentUsers) => {
             let updatedSentUsers = [...prevSentUsers];
             const existingIndex = updatedSentUsers.findIndex((u) => u.email === selectedUser.email);
-   
+
             if (existingIndex === -1) {
                 updatedSentUsers = [selectedUser, ...updatedSentUsers];
             } else {
                 const [user] = updatedSentUsers.splice(existingIndex, 1);
                 updatedSentUsers = [{ ...user, hasNewMessage: false }, ...updatedSentUsers];
             }
-   
+
             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
             return updatedSentUsers;
         });
-   
-        // Clear input fields immediately
+
+        // Clear input fields
         setMessage("");
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
@@ -1326,7 +1287,7 @@ export default function Chat() {
                                 </button>
                             </div>
                             <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
-                                {messages.map((msg, index) => (
+                                {getCurrentMessages().map((msg, index) => (
                                     <ChatMessage
                                         key={msg._id || index}
                                         message={msg}

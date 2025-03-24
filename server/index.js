@@ -1,3 +1,4 @@
+
 // import express from "express";
 // import cookieParser from "cookie-parser";
 // import cors from "cors";
@@ -443,9 +444,9 @@
 //     isRead: { type: Boolean, default: false },
 // }, {
 //     indexes: [
-//         { key: { sender: 1, receiver: 1 } }, // Index for sender and receiver
-//         { key: { deletedBy: 1 } }, // Index for deletedBy
-//         { key: { timestamp: 1 } } // Index for timestamp
+//         { key: { sender: 1, receiver: 1 } },
+//         { key: { deletedBy: 1 } },
+//         { key: { timestamp: 1 } }
 //     ]
 // });
 // const Message = mongoose.model("Message", messageSchema);
@@ -720,45 +721,59 @@
 
 //     socket.on("sendMessage", async (msgData) => {
 //         const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
-
+    
 //         if (!msgData.text && !fileUrl) {
 //             console.error("Message has no text or fileUrl, discarding:", msgData);
 //             return;
 //         }
-
+    
 //         try {
-//             const newMessage = new Message({
-//                 sender: msgData.sender,
-//                 receiver: msgData.receiver,
-//                 text: msgData.text || "",
-//                 fileUrl: fileUrl,
-//                 isRead: false,
-//                 timestamp: new Date(msgData.timestamp),
-//             });
-//             await newMessage.save();
-
-//             const room = [msgData.sender, msgData.receiver].sort().join("_");
+//             // Create the message object without saving it to DB yet
 //             const messageToSend = {
-//                 _id: newMessage._id,
+//                 _id: new mongoose.Types.ObjectId(), // Generate a temporary ID
 //                 sender: msgData.sender,
 //                 receiver: msgData.receiver,
 //                 text: msgData.text || "",
 //                 file: msgData.file || null,
 //                 fileUrl: fileUrl,
-//                 timestamp: newMessage.timestamp,
+//                 timestamp: new Date(msgData.timestamp),
 //                 isRead: false,
 //             };
-
+    
+//             // Define the chat room
+//             const room = [msgData.sender, msgData.receiver].sort().join("_");
+    
+//             // Emit the message to the room immediately for real-time delivery
 //             io.to(room).emit("message", messageToSend);
-
+    
+//             // Notify the receiver if they are connected
 //             const receiverSocketId = connectedUsers.get(msgData.receiver);
 //             if (receiverSocketId) {
 //                 io.to(receiverSocketId).emit("newMessageNotification", messageToSend);
 //             } else {
 //                 console.warn("Receiver not connected:", msgData.receiver);
 //             }
+    
+//             // Save the message to the database asynchronously without blocking the real-time emit
+//             const newMessage = new Message({
+//                 _id: messageToSend._id, // Use the same ID
+//                 sender: msgData.sender,
+//                 receiver: msgData.receiver,
+//                 text: msgData.text || "",
+//                 fileUrl: fileUrl,
+//                 isRead: false,
+//                 timestamp: messageToSend.timestamp,
+//             });
+//             newMessage.save().catch((error) => {
+//                 console.error("Error saving message to MongoDB after emit:", error);
+//                 // Optionally notify the sender of the failure
+//                 const senderSocketId = connectedUsers.get(msgData.sender);
+//                 if (senderSocketId) {
+//                     io.to(senderSocketId).emit("messageError", { error: "Message sent but failed to save" });
+//                 }
+//             });
 //         } catch (error) {
-//             console.error("Error saving message to MongoDB:", error);
+//             console.error("Error processing sendMessage:", error);
 //             const senderSocketId = connectedUsers.get(msgData.sender);
 //             if (senderSocketId) {
 //                 io.to(senderSocketId).emit("messageError", { error: "Failed to send message" });
@@ -774,6 +789,7 @@
 //                         { sender, receiver },
 //                         { sender: receiver, receiver: sender },
 //                     ],
+//                     deletedBy: { $ne: sender },
 //                 },
 //                 { $addToSet: { deletedBy: sender } }
 //             );
@@ -789,6 +805,10 @@
 //             }
 //         } catch (error) {
 //             console.error("Error deleting chat:", error);
+//             const senderSocketId = connectedUsers.get(sender);
+//             if (senderSocketId) {
+//                 io.to(senderSocketId).emit("chatDeleteError", { error: "Failed to delete chat" });
+//             }
 //         }
 //     });
 
@@ -810,7 +830,6 @@
 // server.listen(PORT, () => {
 //     console.log(`Server running at http://localhost:${PORT}`);
 // });
-
 
 
 import express from "express";
@@ -1506,6 +1525,7 @@ const connectedUsers = new Map();
 io.on("connection", (socket) => {
     socket.on("register", (email) => {
         connectedUsers.set(email, socket.id);
+        console.log(`User ${email} connected with socket ID: ${socket.id}`);
     });
 
     socket.on("joinChat", ({ sender, receiver }) => {
@@ -1535,16 +1555,16 @@ io.on("connection", (socket) => {
 
     socket.on("sendMessage", async (msgData) => {
         const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
-    
+
         if (!msgData.text && !fileUrl) {
             console.error("Message has no text or fileUrl, discarding:", msgData);
             return;
         }
-    
+
         try {
-            // Create the message object without saving it to DB yet
+            // Create the message object with a temporary ID
             const messageToSend = {
-                _id: new mongoose.Types.ObjectId(), // Generate a temporary ID
+                _id: new mongoose.Types.ObjectId(),
                 sender: msgData.sender,
                 receiver: msgData.receiver,
                 text: msgData.text || "",
@@ -1553,13 +1573,13 @@ io.on("connection", (socket) => {
                 timestamp: new Date(msgData.timestamp),
                 isRead: false,
             };
-    
+
             // Define the chat room
             const room = [msgData.sender, msgData.receiver].sort().join("_");
-    
+
             // Emit the message to the room immediately for real-time delivery
             io.to(room).emit("message", messageToSend);
-    
+
             // Notify the receiver if they are connected
             const receiverSocketId = connectedUsers.get(msgData.receiver);
             if (receiverSocketId) {
@@ -1567,10 +1587,10 @@ io.on("connection", (socket) => {
             } else {
                 console.warn("Receiver not connected:", msgData.receiver);
             }
-    
-            // Save the message to the database asynchronously without blocking the real-time emit
+
+            // Save the message to the database asynchronously in the background
             const newMessage = new Message({
-                _id: messageToSend._id, // Use the same ID
+                _id: messageToSend._id,
                 sender: msgData.sender,
                 receiver: msgData.receiver,
                 text: msgData.text || "",
@@ -1580,10 +1600,9 @@ io.on("connection", (socket) => {
             });
             newMessage.save().catch((error) => {
                 console.error("Error saving message to MongoDB after emit:", error);
-                // Optionally notify the sender of the failure
                 const senderSocketId = connectedUsers.get(msgData.sender);
                 if (senderSocketId) {
-                    io.to(senderSocketId).emit("messageError", { error: "Message sent but failed to save" });
+                    io.to(senderSocketId).emit("messageError", { error: "Message sent but failed to save to database" });
                 }
             });
         } catch (error) {
@@ -1626,10 +1645,22 @@ io.on("connection", (socket) => {
         }
     });
 
+    socket.on("markAsRead", async ({ sender, receiver }) => {
+        try {
+            await Message.updateMany(
+                { receiver: receiver, sender: sender, isRead: false },
+                { $set: { isRead: true } }
+            );
+        } catch (error) {
+            console.error("Error marking messages as read:", error);
+        }
+    });
+
     socket.on("disconnect", () => {
         for (let [email, socketId] of connectedUsers.entries()) {
             if (socketId === socket.id) {
                 connectedUsers.delete(email);
+                console.log(`User ${email} disconnected`);
                 break;
             }
         }
