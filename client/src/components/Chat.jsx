@@ -783,10 +783,12 @@ export default function Chat() {
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
 
-    const socket = io("https://joblinker-1.onrender.com", {
-        transports: ["websocket", "polling"],
+    
+    const socketRef = useRef(io("https://joblinker-1.onrender.com", {
+        transports: ["websocket"],
         withCredentials: true,
-    });
+    }));
+    const socket = socketRef.current;
 
     const scrollToBottom = () => {
         if (chatContainerRef.current) {
@@ -932,11 +934,7 @@ export default function Chat() {
             socket.off("newMessageNotification");
         };
     }, [allUsers, currentUser]);
-    const socketRef = useRef(io("https://joblinker-1.onrender.com", {
-        transports: ["websocket"],
-        withCredentials: true,
-    }));
-    const socket = socketRef.current;
+    
     useEffect(() => {
         socket.on("message", (msg) => {
             if (
