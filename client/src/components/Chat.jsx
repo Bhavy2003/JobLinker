@@ -995,7 +995,7 @@ export default function Chat() {
                     setShowNewMessage(true);
                     setTimeout(() => {
                         setShowNewMessage(false);
-                        setFirstNewMessageId(null Ile);
+                        setFirstNewMessageId(null);
                     }, 10000);
                 }
                 socket.emit("markAsRead", {
