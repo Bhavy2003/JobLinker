@@ -1096,12 +1096,12 @@ export default function Chat() {
             toast.error("Please select a user to chat with");
             return;
         }
-
+    
         if (!message.trim() && !selectedFile) {
             toast.error("Please type a message or upload a file");
             return;
         }
-
+    
         const msgData = {
             sender: currentUser,
             receiver: selectedUser.email,
@@ -1110,35 +1110,37 @@ export default function Chat() {
             timestamp: new Date().toISOString(),
             isRead: false,
         };
-
-        // Emit the message immediately to the server
+    
+        // Emit the message to the server immediately for real-time delivery
         socket.emit("sendMessage", msgData);
-
-        // Update local state optimistically
+    
+        // Optimistically update local messages state without waiting
         setMessages((prevMessages) => {
             const updatedMessages = [...prevMessages, msgData];
+            // Save to local storage in the background
             saveMessagesToLocalStorage(updatedMessages);
+            // Scroll to bottom asynchronously to avoid blocking
             setTimeout(() => scrollToBottom(), 0);
             return updatedMessages;
         });
-
-        // Update sentUsers list
+    
+        // Update sentUsers asynchronously
         setSentUsers((prevSentUsers) => {
             let updatedSentUsers = [...prevSentUsers];
             const existingIndex = updatedSentUsers.findIndex((u) => u.email === selectedUser.email);
-
+    
             if (existingIndex === -1) {
                 updatedSentUsers = [selectedUser, ...updatedSentUsers];
             } else {
                 const [user] = updatedSentUsers.splice(existingIndex, 1);
                 updatedSentUsers = [{ ...user, hasNewMessage: false }, ...updatedSentUsers];
             }
-
+    
             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
             return updatedSentUsers;
         });
-
-        // Clear input fields
+    
+        // Clear input fields immediately
         setMessage("");
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
