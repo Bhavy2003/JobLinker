@@ -1,3 +1,4 @@
+
 // import express from "express";
 // import cookieParser from "cookie-parser";
 // import cors from "cors";
@@ -443,9 +444,9 @@
 //     isRead: { type: Boolean, default: false },
 // }, {
 //     indexes: [
-//         { key: { sender: 1, receiver: 1 } }, // Index for sender and receiver
-//         { key: { deletedBy: 1 } }, // Index for deletedBy
-//         { key: { timestamp: 1 } } // Index for timestamp
+//         { key: { sender: 1, receiver: 1 } },
+//         { key: { deletedBy: 1 } },
+//         { key: { timestamp: 1 } }
 //     ]
 // });
 // const Message = mongoose.model("Message", messageSchema);
@@ -774,6 +775,7 @@
 //                         { sender, receiver },
 //                         { sender: receiver, receiver: sender },
 //                     ],
+//                     deletedBy: { $ne: sender },
 //                 },
 //                 { $addToSet: { deletedBy: sender } }
 //             );
@@ -789,6 +791,10 @@
 //             }
 //         } catch (error) {
 //             console.error("Error deleting chat:", error);
+//             const senderSocketId = connectedUsers.get(sender);
+//             if (senderSocketId) {
+//                 io.to(senderSocketId).emit("chatDeleteError", { error: "Failed to delete chat" });
+//             }
 //         }
 //     });
 
@@ -810,6 +816,7 @@
 // server.listen(PORT, () => {
 //     console.log(`Server running at http://localhost:${PORT}`);
 // });
+
 
 import express from "express";
 import cookieParser from "cookie-parser";
@@ -1533,45 +1540,59 @@ io.on("connection", (socket) => {
 
     socket.on("sendMessage", async (msgData) => {
         const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
-
+    
         if (!msgData.text && !fileUrl) {
             console.error("Message has no text or fileUrl, discarding:", msgData);
             return;
         }
-
+    
         try {
-            const newMessage = new Message({
-                sender: msgData.sender,
-                receiver: msgData.receiver,
-                text: msgData.text || "",
-                fileUrl: fileUrl,
-                isRead: false,
-                timestamp: new Date(msgData.timestamp),
-            });
-            await newMessage.save();
-
-            const room = [msgData.sender, msgData.receiver].sort().join("_");
+            // Create the message object without saving it to DB yet
             const messageToSend = {
-                _id: newMessage._id,
+                _id: new mongoose.Types.ObjectId(), // Generate a temporary ID
                 sender: msgData.sender,
                 receiver: msgData.receiver,
                 text: msgData.text || "",
                 file: msgData.file || null,
                 fileUrl: fileUrl,
-                timestamp: newMessage.timestamp,
+                timestamp: new Date(msgData.timestamp),
                 isRead: false,
             };
-
+    
+            // Define the chat room
+            const room = [msgData.sender, msgData.receiver].sort().join("_");
+    
+            // Emit the message to the room immediately for real-time delivery
             io.to(room).emit("message", messageToSend);
-
+    
+            // Notify the receiver if they are connected
             const receiverSocketId = connectedUsers.get(msgData.receiver);
             if (receiverSocketId) {
                 io.to(receiverSocketId).emit("newMessageNotification", messageToSend);
             } else {
                 console.warn("Receiver not connected:", msgData.receiver);
             }
+    
+            // Save the message to the database asynchronously without blocking the real-time emit
+            const newMessage = new Message({
+                _id: messageToSend._id, // Use the same ID
+                sender: msgData.sender,
+                receiver: msgData.receiver,
+                text: msgData.text || "",
+                fileUrl: fileUrl,
+                isRead: false,
+                timestamp: messageToSend.timestamp,
+            });
+            newMessage.save().catch((error) => {
+                console.error("Error saving message to MongoDB after emit:", error);
+                // Optionally notify the sender of the failure
+                const senderSocketId = connectedUsers.get(msgData.sender);
+                if (senderSocketId) {
+                    io.to(senderSocketId).emit("messageError", { error: "Message sent but failed to save" });
+                }
+            });
         } catch (error) {
-            console.error("Error saving message to MongoDB:", error);
+            console.error("Error processing sendMessage:", error);
             const senderSocketId = connectedUsers.get(msgData.sender);
             if (senderSocketId) {
                 io.to(senderSocketId).emit("messageError", { error: "Failed to send message" });
@@ -1628,3 +1649,4 @@ app.get("*", (_req, res) => {
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
+

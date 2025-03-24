@@ -1,3 +1,4 @@
+
 // import React, { useState, useEffect, useRef } from "react";
 // import io from "socket.io-client";
 // import Navbar from "./shared/Navbar";
@@ -104,7 +105,7 @@
 //                 const storedSentUsers = JSON.parse(localStorage.getItem(storageKey)) || [];
 //                 const updatedStoredUsers = storedSentUsers.map((user) => {
 //                     const fullUser = filteredUsers.find((u) => u.email === user.email) || user;
-//                     return { ...fullUser, hasNewMessage: user.hasNewMessage || false, deleted: user.deleted || false };
+//                     return { ...fullUser, hasNewMessage: user.hasNewMessage || false };
 //                 });
 //                 setSentUsers(updatedStoredUsers);
 //                 localStorage.setItem(storageKey, JSON.stringify(updatedStoredUsers));
@@ -249,11 +250,9 @@
 
 //     useEffect(() => {
 //         if (selectedUser) {
-//             // Load messages from localStorage immediately
 //             const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
 //             setMessages(cachedMessages);
 
-//             // Fetch the latest messages from the backend
 //             socket.emit("joinChat", {
 //                 sender: currentUser,
 //                 receiver: selectedUser.email,
@@ -262,7 +261,7 @@
 //             socket.on("loadMessages", (serverMessages) => {
 //                 console.log("Loaded messages from server:", serverMessages);
 //                 setMessages(serverMessages);
-//                 saveMessagesToLocalStorage(serverMessages); // Update localStorage with the latest messages
+//                 saveMessagesToLocalStorage(serverMessages);
 
 //                 setUnreadMessages((prev) =>
 //                     prev.filter((msg) => msg.sender !== selectedUser.email)
@@ -292,14 +291,6 @@
 
 //     useEffect(() => {
 //         socket.on("chatDeleted", ({ receiver }) => {
-//             setSentUsers((prevSentUsers) => {
-//                 const updatedSentUsers = prevSentUsers.map((u) =>
-//                     u.email === receiver ? { ...u, deleted: true } : u
-//                 );
-//                 localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
-//                 return updatedSentUsers;
-//             });
-
 //             if (selectedUser?.email === receiver) {
 //                 setMessages([]);
 //                 setSelectedUser(null);
@@ -315,33 +306,23 @@
 
 //     const deleteChat = (userEmail) => {
 //         if (!selectedUser) return;
+
 //         socket.emit("deleteChat", {
 //             sender: currentUser,
 //             receiver: userEmail,
 //         });
 
-//         setSentUsers((prevSentUsers) => {
-//             const updatedSentUsers = prevSentUsers.map((u) =>
-//                 u.email === userEmail ? { ...u, deleted: true } : u
-//             );
-//             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
-//             return updatedSentUsers;
-//         });
-
 //         setMessages([]);
 //         setSelectedUser(null);
-
 //         const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
 //         localStorage.removeItem(chatKey);
 
-//         toast.success("Chat deleted from your view.");
+//         toast.success("Chat cleared successfully.");
 //     };
 
 //     const handleFileUpload = async (e) => {
 //         const file = e.target.files[0];
-//         if (!file) {
-//             return;
-//         }
+//         if (!file) return;
 
 //         const formData = new FormData();
 //         formData.append("file", file);
@@ -459,7 +440,7 @@
 
 //     const displayedUsers = [
 //         ...allUsers.filter((user) => user.email === currentUser),
-//         ...sentUsers.filter((user) => user.email !== currentUser && !user.deleted),
+//         ...sentUsers.filter((user) => user.email !== currentUser),
 //         ...allUsers.filter(
 //             (user) =>
 //                 user.email !== currentUser && !sentUsers.some((u) => u.email === user.email)
@@ -680,23 +661,14 @@
 //                 fileType = file.type || "unknown";
 //             } else if (fileUrl) {
 //                 const fileName = fileData.name.toLowerCase();
-//                 if (fileName.endsWith(".pdf")) {
-//                     fileType = "application/pdf";
-//                 } else if (fileName.endsWith(".csv")) {
-//                     fileType = "text/csv";
-//                 } else if (fileName.endsWith(".doc")) {
-//                     fileType = "application/msword";
-//                 } else if (fileName.endsWith(".docx")) {
-//                     fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-//                 } else if (fileName.endsWith(".xls")) {
-//                     fileType = "application/vnd.ms-excel";
-//                 } else if (fileName.endsWith(".xlsx")) {
-//                     fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-//                 } else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) {
-//                     fileType = "image";
-//                 } else {
-//                     fileType = "application/octet-stream";
-//                 }
+//                 if (fileName.endsWith(".pdf")) fileType = "application/pdf";
+//                 else if (fileName.endsWith(".csv")) fileType = "text/csv";
+//                 else if (fileName.endsWith(".doc")) fileType = "application/msword";
+//                 else if (fileName.endsWith(".docx")) fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+//                 else if (fileName.endsWith(".xls")) fileType = "application/vnd.ms-excel";
+//                 else if (fileName.endsWith(".xlsx")) fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+//                 else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) fileType = "image";
+//                 else fileType = "application/octet-stream";
 //             } else {
 //                 fileType = "unknown";
 //             }
@@ -986,16 +958,7 @@ export default function Chat() {
                     if (!messageExists) {
                         const updatedMessages = [...prevMessages, msg];
                         saveMessagesToLocalStorage(updatedMessages);
-
-                        const container = chatContainerRef.current;
-                        const wasAtBottom =
-                            container &&
-                            container.scrollHeight - container.scrollTop <= container.clientHeight + 5;
-
-                        if (wasAtBottom) {
-                            setTimeout(() => scrollToBottom(), 0);
-                        }
-
+                        setTimeout(() => scrollToBottom(), 0);
                         return updatedMessages;
                     }
                     return prevMessages;
@@ -1148,6 +1111,10 @@ export default function Chat() {
             isRead: false,
         };
 
+        // Emit the message immediately to the server
+        socket.emit("sendMessage", msgData);
+
+        // Update local state optimistically
         setMessages((prevMessages) => {
             const updatedMessages = [...prevMessages, msgData];
             saveMessagesToLocalStorage(updatedMessages);
@@ -1155,12 +1122,7 @@ export default function Chat() {
             return updatedMessages;
         });
 
-        socket.emit("sendMessage", msgData);
-
-        setMessage("");
-        setSelectedFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = null;
-
+        // Update sentUsers list
         setSentUsers((prevSentUsers) => {
             let updatedSentUsers = [...prevSentUsers];
             const existingIndex = updatedSentUsers.findIndex((u) => u.email === selectedUser.email);
@@ -1175,6 +1137,11 @@ export default function Chat() {
             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
             return updatedSentUsers;
         });
+
+        // Clear input fields
+        setMessage("");
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = null;
     };
 
     const handleKeyPress = (e) => {
