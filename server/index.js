@@ -465,7 +465,7 @@ app.get("/api/unread-messages/:email", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
-import { updateCompany } from './controllers/companyController.js';
+import { updateCompany } from './controllers/company.controller.js';
 app.put('/api/v1/company/update/:id', upload.single('file'), updateCompany);
 app.get("/messages/:user1/:user2", async (req, res) => {
     const { user1, user2 } = req.params;
