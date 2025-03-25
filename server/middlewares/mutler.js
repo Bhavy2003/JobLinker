@@ -64,3 +64,14 @@ export const singleUpload = multer({ storage: memoryStorage }).fields([
     { name: "profilePhoto", maxCount: 1 },
     { name: "resume", maxCount: 1 }
 ]);
+// export const companyLogoUpload = multer({
+//     storage: memoryStorage,
+//     fileFilter,
+//     limits: { fileSize: 5 * 1024 * 1024 },
+// }).any();
+
+export const companyLogoUpload = multer({
+    storage: memoryStorage,
+    fileFilter: companyLogoFileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 },
+}).single("image");
