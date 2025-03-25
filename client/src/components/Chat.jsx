@@ -1894,60 +1894,67 @@ export default function Chat() {
     //         socket.off("loadMessages");
     //     };
     // }, [selectedUser, currentUser, firstNewMessageId]);
-    useEffect(() => {
-        if (selectedUser) {
-            // Load messages from local storage first to display immediately
-            const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
-            setMessages(cachedMessages);
-    
-            socket.emit("joinChat", {
-                sender: currentUser,
-                receiver: selectedUser.email,
-            });
-    
-            socket.on("loadMessages", (serverMessages) => {
-                setMessages((prevMessages) => {
-                    const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
-                    // Filter messages to ensure they are only between currentUser and selectedUser.email
-                    const filteredMessages = serverMessages.filter(
-                        (msg) =>
-                            !existingIds.has(msg._id) &&
-                            ((msg.sender === currentUser && msg.receiver === selectedUser.email) ||
-                             (msg.sender === selectedUser.email && msg.receiver === currentUser))
-                    );
-                    const updatedMessages = [...prevMessages, ...filteredMessages];
-                    saveMessagesToLocalStorage(updatedMessages);
-                    setTimeout(() => scrollToBottom(), 100);
-                    return updatedMessages;
-                });
-    
-                // Update unread messages without causing a refresh
-                setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
-    
-                // Handle "new message" notification without refreshing
-                const firstUnread = serverMessages.find(
-                    (msg) => msg.receiver === currentUser && !msg.isRead
+    // Ensure this function is defined in your Chat component
+const loadMessagesFromLocalStorage = (userEmail) => {
+    const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
+    const cachedMessages = localStorage.getItem(chatKey);
+    return cachedMessages ? JSON.parse(cachedMessages) : [];
+};
+
+useEffect(() => {
+    if (selectedUser) {
+        // Load messages from local storage first to display immediately
+        const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
+        setMessages(cachedMessages);
+
+        socket.emit("joinChat", {
+            sender: currentUser,
+            receiver: selectedUser.email,
+        });
+
+        socket.on("loadMessages", (serverMessages) => {
+            setMessages((prevMessages) => {
+                const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
+                // Filter messages to ensure they are only between currentUser and selectedUser.email
+                const filteredMessages = serverMessages.filter(
+                    (msg) =>
+                        !existingIds.has(msg._id) &&
+                        ((msg.sender === currentUser && msg.receiver === selectedUser.email) ||
+                         (msg.sender === selectedUser.email && msg.receiver === currentUser))
                 );
-                if (firstUnread && !firstNewMessageId) {
-                    setFirstNewMessageId(firstUnread._id);
-                    setShowNewMessage(true);
-                    setTimeout(() => {
-                        setShowNewMessage(false);
-                        setFirstNewMessageId(null);
-                    }, 5000);
-                }
-    
-                socket.emit("markAsRead", {
-                    sender: selectedUser.email,
-                    receiver: currentUser,
-                });
+                const updatedMessages = [...prevMessages, ...filteredMessages];
+                saveMessagesToLocalStorage(updatedMessages);
+                setTimeout(() => scrollToBottom(), 100);
+                return updatedMessages;
             });
-        }
-    
-        return () => {
-            socket.off("loadMessages");
-        };
-    }, [selectedUser, currentUser, firstNewMessageId]);
+
+            // Update unread messages without causing a refresh
+            setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
+
+            // Handle "new message" notification without refreshing
+            const firstUnread = serverMessages.find(
+                (msg) => msg.receiver === currentUser && !msg.isRead
+            );
+            if (firstUnread && !firstNewMessageId) {
+                setFirstNewMessageId(firstUnread._id);
+                setShowNewMessage(true);
+                setTimeout(() => {
+                    setShowNewMessage(false);
+                    setFirstNewMessageId(null);
+                }, 5000);
+            }
+
+            socket.emit("markAsRead", {
+                sender: selectedUser.email,
+                receiver: currentUser,
+            });
+        });
+    }
+
+    return () => {
+        socket.off("loadMessages");
+    };
+}, [selectedUser, currentUser, firstNewMessageId]);
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
             if (selectedUser?.email === receiver) {
