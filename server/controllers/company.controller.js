@@ -75,23 +75,90 @@ export const getCompanyById = async(req, res) => {
     }
 }
 
+// export const updateCompany = async (req, res) => {
+//     try {
+//         const { name, description, website, location , logo} = req.body;
+//         const companyId = req.params.id;  // Extract company ID
+//         const userId = req.id;  // Logged-in user ID (assuming it's stored in req.id)
+
+//         if (!userId) {
+//             return res.status(401).json({
+//                 message: "User is not authenticated.",
+//                 success: false
+//             });
+//         }
+
+//         if (!companyId) {
+//             return res.status(400).json({
+//                 message: "Company ID is required.",
+//                 success: false
+//             });
+//         }
+
+//         // Find company and check ownership
+//         const company = await Company.findOne({ _id: companyId, userId });
+
+//         if (!company) {
+//             return res.status(404).json({
+//                 message: "Company not found or you are not authorized to update it.",
+//                 success: false
+//             });
+//         }
+
+//         // Prepare update data
+//         let updateData = { name, description, website, location,logo };
+
+//         // If file is uploaded, update logo
+//         if (req.file) {
+//             try {
+//                 const file = req.file;
+//                 const fileUri = getDataUri(file);
+//                 const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+//                 updateData.logo = cloudResponse.secure_url;
+//             } catch (uploadError) {
+//                 return res.status(500).json({
+//                     message: "Error uploading logo.",
+//                     success: false
+//                 });
+//             }
+//         }
+
+//         // Update company
+//         const updatedCompany = await Company.findByIdAndUpdate(companyId, updateData, { new: true });
+
+//         return res.status(200).json({
+//             message: "Company information updated successfully.",
+//             success: true,
+//             company: updatedCompany
+//         });
+
+//     } catch (error) {
+//         console.error(error);
+//         return res.status(500).json({
+//             message: "An error occurred while updating company information.",
+//             success: false
+//         });
+//     }
+// };
+
+
 export const updateCompany = async (req, res) => {
     try {
-        const { name, description, website, location , logo} = req.body;
-        const companyId = req.params.id;  // Extract company ID
-        const userId = req.id;  // Logged-in user ID (assuming it's stored in req.id)
+        const { name, description, website, location, logo } = req.body;
+        const companyId = req.params.id; // Extract company ID
+        const userId = req.id; // Logged-in user ID (assuming it's stored in req.id)
 
         if (!userId) {
             return res.status(401).json({
                 message: "User is not authenticated.",
-                success: false
+                success: false,
             });
         }
 
         if (!companyId) {
             return res.status(400).json({
                 message: "Company ID is required.",
-                success: false
+                success: false,
             });
         }
 
@@ -101,24 +168,34 @@ export const updateCompany = async (req, res) => {
         if (!company) {
             return res.status(404).json({
                 message: "Company not found or you are not authorized to update it.",
-                success: false
+                success: false,
             });
         }
 
         // Prepare update data
-        let updateData = { name, description, website, location,logo };
+        let updateData = { name, description, website, location };
 
-        // If file is uploaded, update logo
+        // If a new logo URL is provided in the body (e.g., from a previous upload), use it
+        if (logo) {
+            updateData.logo = logo;
+        }
+
+        // If a file is uploaded, upload it to Cloudinary and update the logo
         if (req.file) {
             try {
                 const file = req.file;
                 const fileUri = getDataUri(file);
-                const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+                const cloudResponse = await cloudinary.v2.uploader.upload(fileUri, {
+                    folder: "company_logos",
+                    resource_type: "image",
+                });
                 updateData.logo = cloudResponse.secure_url;
             } catch (uploadError) {
+                console.error("Cloudinary upload error:", uploadError);
                 return res.status(500).json({
-                    message: "Error uploading logo.",
-                    success: false
+                    message: "Error uploading logo to Cloudinary.",
+                    success: false,
+                    error: uploadError.message,
                 });
             }
         }
@@ -129,14 +206,14 @@ export const updateCompany = async (req, res) => {
         return res.status(200).json({
             message: "Company information updated successfully.",
             success: true,
-            company: updatedCompany
+            company: updatedCompany,
         });
-
     } catch (error) {
-        console.error(error);
+        console.error("Error updating company:", error);
         return res.status(500).json({
             message: "An error occurred while updating company information.",
-            success: false
+            success: false,
+            error: error.message,
         });
     }
 };

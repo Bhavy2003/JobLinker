@@ -1,4 +1,5 @@
 
+
 // import express from "express";
 // import cookieParser from "cookie-parser";
 // import cors from "cors";
@@ -672,6 +673,8 @@
 //         }
 //     }
 // });
+// import { updateCompany } from './controllers/company.controller.js';
+// app.put('/api/v1/company/update/:id', upload.single('file'), updateCompany);
 
 // app.use((err, req, res, next) => {
 //     console.error(err.stack);
@@ -692,14 +695,15 @@
 // io.on("connection", (socket) => {
 //     socket.on("register", (email) => {
 //         connectedUsers.set(email, socket.id);
+//         console.log(`User ${email} connected with socket ID: ${socket.id}`);
 //     });
 
 //     socket.on("joinChat", ({ sender, receiver }) => {
 //         const room = [sender, receiver].sort().join("_");
 //         socket.join(room);
-
+    
 //         console.log(`User ${sender} joined chat with ${receiver}, room: ${room}`);
-
+    
 //         Message.find({
 //             $or: [
 //                 { sender: sender, receiver: receiver },
@@ -728,50 +732,33 @@
 //         }
     
 //         try {
-//             // Create the message object without saving it to DB yet
-//             const messageToSend = {
-//                 _id: new mongoose.Types.ObjectId(), // Generate a temporary ID
+//             // Save the message to the database first
+//             const newMessage = new Message({
 //                 sender: msgData.sender,
 //                 receiver: msgData.receiver,
 //                 text: msgData.text || "",
-//                 file: msgData.file || null,
 //                 fileUrl: fileUrl,
 //                 timestamp: new Date(msgData.timestamp),
 //                 isRead: false,
+//             });
+//             const savedMessage = await newMessage.save();
+    
+//             // Include tempId from client for deduplication
+//             const messageToEmit = {
+//                 ...savedMessage.toObject(),
+//                 tempId: msgData.tempId,
 //             };
     
-//             // Define the chat room
 //             const room = [msgData.sender, msgData.receiver].sort().join("_");
     
-//             // Emit the message to the room immediately for real-time delivery
-//             io.to(room).emit("message", messageToSend);
+//             // Emit the saved message to the room
+//             io.to(room).emit("message", messageToEmit);
     
-//             // Notify the receiver if they are connected
+//             // Notify the receiver only if they are connected
 //             const receiverSocketId = connectedUsers.get(msgData.receiver);
-//             if (receiverSocketId) {
-//                 io.to(receiverSocketId).emit("newMessageNotification", messageToSend);
-//             } else {
-//                 console.warn("Receiver not connected:", msgData.receiver);
+//             if (receiverSocketId && msgData.receiver !== msgData.sender) {
+//                 io.to(receiverSocketId).emit("newMessageNotification", messageToEmit);
 //             }
-    
-//             // Save the message to the database asynchronously without blocking the real-time emit
-//             const newMessage = new Message({
-//                 _id: messageToSend._id, // Use the same ID
-//                 sender: msgData.sender,
-//                 receiver: msgData.receiver,
-//                 text: msgData.text || "",
-//                 fileUrl: fileUrl,
-//                 isRead: false,
-//                 timestamp: messageToSend.timestamp,
-//             });
-//             newMessage.save().catch((error) => {
-//                 console.error("Error saving message to MongoDB after emit:", error);
-//                 // Optionally notify the sender of the failure
-//                 const senderSocketId = connectedUsers.get(msgData.sender);
-//                 if (senderSocketId) {
-//                     io.to(senderSocketId).emit("messageError", { error: "Message sent but failed to save" });
-//                 }
-//             });
 //         } catch (error) {
 //             console.error("Error processing sendMessage:", error);
 //             const senderSocketId = connectedUsers.get(msgData.sender);
@@ -812,10 +799,22 @@
 //         }
 //     });
 
+//     socket.on("markAsRead", async ({ sender, receiver }) => {
+//         try {
+//             await Message.updateMany(
+//                 { sender, receiver, isRead: false },
+//                 { $set: { isRead: true } }
+//             );
+//         } catch (error) {
+//             console.error("Error marking messages as read:", error);
+//         }
+//     });
+
 //     socket.on("disconnect", () => {
 //         for (let [email, socketId] of connectedUsers.entries()) {
 //             if (socketId === socket.id) {
 //                 connectedUsers.delete(email);
+//                 console.log(`User ${email} disconnected`);
 //                 break;
 //             }
 //         }
@@ -830,9 +829,6 @@
 // server.listen(PORT, () => {
 //     console.log(`Server running at http://localhost:${PORT}`);
 // });
-
-
-
 
 import express from "express";
 import cookieParser from "cookie-parser";
@@ -861,6 +857,7 @@ import mammoth from "mammoth";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import tesseract from "node-tesseract-ocr";
 import { fromPath } from "pdf2pic";
+import { updateCompany } from './controllers/company.controller.js';
 
 dotenv.config();
 connectDB();
@@ -1263,6 +1260,14 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
+// Multer configuration for company logo upload (using memoryStorage)
+const memoryStorage = multer.memoryStorage();
+const companyLogoUpload = multer({
+    storage: memoryStorage,
+    fileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
+}).single("logo"); // Expect field name "logo"
+
 const chatFileUpload = multer({
     storage,
     fileFilter,
@@ -1507,8 +1512,27 @@ app.post("/api/parse-resume", upload.single("file"), async (req, res) => {
         }
     }
 });
-import { updateCompany } from './controllers/company.controller.js';
-app.put('/api/v1/company/update/:id', upload.single('file'), updateCompany);
+
+// Update company route with multer error handling
+app.put('/api/v1/company/update/:id', companyLogoUpload, async (req, res, next) => {
+    try {
+        await updateCompany(req, res);
+    } catch (error) {
+        if (error instanceof multer.MulterError) {
+            if (error.code === "LIMIT_UNEXPECTED_FILE") {
+                return res.status(400).json({
+                    message: "Unexpected field in file upload. Expected field name: 'logo'",
+                    success: false,
+                });
+            }
+            return res.status(400).json({
+                message: error.message,
+                success: false,
+            });
+        }
+        next(error);
+    }
+});
 
 app.use((err, req, res, next) => {
     console.error(err.stack);
