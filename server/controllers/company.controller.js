@@ -147,9 +147,9 @@ export const getCompanyById = async(req, res) => {
 // Utility function to convert file buffer to Data URI
 
 
-import { Company } from "../models/company.model.js"; // Adjust the import based on your project structure
-import mongoose from "mongoose";
-import cloudinary from "cloudinary";
+
+
+
 
 export const updateCompany = async (req, res) => {
     try {
