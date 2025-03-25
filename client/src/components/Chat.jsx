@@ -2223,7 +2223,11 @@ useEffect(() => {
                     {t("Deletechat")}
                 </button>
             </div>
-            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
+            {/* Add max height for small screens to constrain the chat container */}
+            <div
+                ref={chatContainerRef}
+                className="flex-1 overflow-y-auto p-4 max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-200px)] md:max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-200px)] xl:max-h-[calc(100vh-200px)]"
+            >
                 {messages.map((msg, index) => (
                     <ChatMessage
                         key={msg._id || msg.tempId || index}
@@ -2233,7 +2237,7 @@ useEffect(() => {
                     />
                 ))}
             </div>
-            {/* Add Scroll to Bottom button for both mobile and desktop views */}
+            {/* Scroll to Bottom button for both mobile and desktop views */}
             {selectedUser && showScrollButton && (
                 <button
                     onClick={scrollToBottom}
