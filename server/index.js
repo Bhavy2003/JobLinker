@@ -858,7 +858,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import tesseract from "node-tesseract-ocr";
 import { fromPath } from "pdf2pic";
 import { updateCompany } from './controllers/company.controller.js';
-
+import { companyLogoUpload } from "./middlewares/mutler.js";
 dotenv.config();
 connectDB();
 
