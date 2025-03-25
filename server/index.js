@@ -1513,19 +1513,14 @@ const companyLogoUpload = multer({
     storage: memoryStorage,
     fileFilter,
     limits: { fileSize: 5 * 1024 * 1024 },
-}).single("logo");
+}).any();
 
 app.put('/api/v1/company/update/:id', companyLogoUpload, async (req, res, next) => {
+    console.log("Received files in route:", req.files);
     try {
         await updateCompany(req, res);
     } catch (error) {
         if (error instanceof multer.MulterError) {
-            if (error.code === "LIMIT_UNEXPECTED_FILE") {
-                return res.status(400).json({
-                    message: "Unexpected field in file upload. Expected field name: 'logo'",
-                    success: false,
-                });
-            }
             return res.status(400).json({
                 message: error.message,
                 success: false,
