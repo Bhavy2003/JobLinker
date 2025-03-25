@@ -150,8 +150,12 @@ export const getCompanyById = async(req, res) => {
 export const updateCompany = async (req, res) => {
     try {
         const { name, description, website, location, logo } = req.body;
-        const companyId = req.params.id; // Extract company ID
-        const userId = req.id; // Logged-in user ID (assuming it's stored in req.id)
+        const companyId = req.params.id;
+        const userId = req.id;
+
+        console.log("Updating company with ID:", companyId, "by user:", userId);
+        console.log("Request body:", req.body);
+        console.log("Uploaded files:", req.files);
 
         if (!userId) {
             return res.status(401).json({
@@ -167,8 +171,16 @@ export const updateCompany = async (req, res) => {
             });
         }
 
-        // Find company and check ownership
+        // Validate companyId
+        if (!mongoose.Types.ObjectId.isValid(companyId)) {
+            return res.status(400).json({
+                message: "Invalid company ID.",
+                success: false,
+            });
+        }
+
         const company = await Company.findOne({ _id: companyId, userId });
+        console.log("Found company:", company);
 
         if (!company) {
             return res.status(404).json({
@@ -177,18 +189,23 @@ export const updateCompany = async (req, res) => {
             });
         }
 
-        // Prepare update data
         let updateData = { name, description, website, location };
 
-        // If a new logo URL is provided in the body (e.g., from a previous upload), use it
         if (logo) {
             updateData.logo = logo;
+            console.log("Using logo URL from request body:", logo);
         }
 
-        // If files are uploaded, process the first image file
         if (req.files && req.files.length > 0) {
             try {
-                const file = req.files[0]; // Take the first file
+                const file = req.files[0];
+                console.log("Processing file:", file.originalname, "MIME type:", file.mimetype, "Size:", file.size);
+
+                // Verify file buffer
+                if (!file.buffer || file.buffer.length === 0) {
+                    throw new Error("File buffer is empty or missing.");
+                }
+
                 const fileUri = getDataUri(file);
                 const cloudResponse = await cloudinary.v2.uploader.upload(fileUri, {
                     folder: "company_logos",
@@ -197,26 +214,34 @@ export const updateCompany = async (req, res) => {
                         { width: 150, height: 150, crop: "fit" },
                         { quality: "auto" },
                     ],
+                    timeout: 10000, // 10 seconds timeout
                 });
+                console.log("Cloudinary upload response:", cloudResponse);
+
                 updateData.logo = cloudResponse.secure_url;
 
-                // Optionally, delete the old logo from Cloudinary if it exists
-                if (company.logo) {
+                if (company.logo && typeof company.logo === "string") {
                     const publicId = company.logo.split("/").pop().split(".")[0];
-                    await cloudinary.v2.uploader.destroy(`company_logos/${publicId}`);
+                    console.log("Deleting old logo with publicId:", publicId);
+                    try {
+                        await cloudinary.v2.uploader.destroy(`company_logos/${publicId}`);
+                    } catch (destroyError) {
+                        console.error("Failed to delete old logo from Cloudinary:", destroyError);
+                        // Continue even if deletion fails
+                    }
                 }
             } catch (uploadError) {
                 console.error("Cloudinary upload error:", uploadError);
                 return res.status(500).json({
-                    message: "Error uploading logo to Cloudinary.",
+                    message: "Error uploading image to Cloudinary.",
                     success: false,
                     error: uploadError.message,
                 });
             }
         }
 
-        // Update company
         const updatedCompany = await Company.findByIdAndUpdate(companyId, updateData, { new: true });
+        console.log("Updated company:", updatedCompany);
 
         return res.status(200).json({
             message: "Company information updated successfully.",
