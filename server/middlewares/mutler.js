@@ -72,6 +72,6 @@ export const singleUpload = multer({ storage: memoryStorage }).fields([
 
 export const companyLogoUpload = multer({
     storage: memoryStorage,
-    fileFilter: companyLogoFileFilter,
+    fileFilter,
     limits: { fileSize: 5 * 1024 * 1024 },
 }).single("image");
