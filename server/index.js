@@ -1262,11 +1262,7 @@ const fileFilter = (req, file, cb) => {
 
 // Multer configuration for company logo upload (using memoryStorage)
 const memoryStorage = multer.memoryStorage();
-const companyLogoUpload = multer({
-    storage: memoryStorage,
-    fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
-}).single("logo"); // Expect field name "logo"
+ // Expect field name "logo"
 
 const chatFileUpload = multer({
     storage,
@@ -1513,7 +1509,12 @@ app.post("/api/parse-resume", upload.single("file"), async (req, res) => {
     }
 });
 
-// Update company route with multer error handling
+const companyLogoUpload = multer({
+    storage: memoryStorage,
+    fileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 },
+}).single("logo");
+
 app.put('/api/v1/company/update/:id', companyLogoUpload, async (req, res, next) => {
     try {
         await updateCompany(req, res);

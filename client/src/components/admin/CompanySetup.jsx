@@ -233,7 +233,7 @@ const CompanySetup = () => {
         description: "",
         website: "",
         location: "",
-        logo: null, // Changed from "file" to "logo" for clarity
+        image: null, // Changed from "logo" to "image" for clarity
     });
     const { singleCompany } = useSelector((store) => store.company);
     const [loading, setLoading] = useState(false);
@@ -246,7 +246,7 @@ const CompanySetup = () => {
     const changeFileHandler = (e) => {
         const file = e.target.files?.[0];
         if (file) {
-            setInput({ ...input, logo: file }); // Changed from "file" to "logo"
+            setInput({ ...input, image: file }); // Changed from "logo" to "image"
         }
     };
 
@@ -257,8 +257,9 @@ const CompanySetup = () => {
         formData.append("description", input.description);
         formData.append("website", input.website);
         formData.append("location", input.location);
-        if (input.logo) {
-            formData.append("logo", input.logo); // Changed field name to "logo" to match backend
+        if (input.image) {
+            formData.append("image", input.image); // Changed field name to "image"
+            console.log("Uploading file with field name 'image':", input.image.name);
         }
 
         try {
@@ -274,6 +275,7 @@ const CompanySetup = () => {
                 navigate("/admin/companies");
             }
         } catch (error) {
+            console.error("Error updating company:", error.response?.data || error.message);
             toast.error(error.response?.data?.message || t("ErrorUpdatingCompany"));
         } finally {
             setLoading(false);
@@ -305,7 +307,7 @@ const CompanySetup = () => {
                 description: singleCompany?.description || "",
                 website: singleCompany?.website || "",
                 location: singleCompany?.location || "",
-                logo: null, // Reset logo to null; we'll display the current logo separately
+                image: null, // Changed from "logo" to "image"
             });
         }
     }, [singleCompany]);
@@ -374,26 +376,27 @@ const CompanySetup = () => {
                             />
                         </div>
                         <div className="col-span-2">
-                            <Label className="text-gray-700 font-semibold">{t("Logo")}</Label>
-                            {singleCompany?.logo && !input.logo && (
+                            <Label className="text-gray-700 font-semibold">{t("CompanyImage")}</Label>
+                            {singleCompany?.logo && !input.image && (
                                 <div className="my-2">
                                     <img
                                         src={singleCompany.logo}
-                                        alt={`${singleCompany.name} logo`}
+                                        alt={`${singleCompany.name} image`}
                                         className="w-24 h-24 object-contain border border-gray-300 rounded-md"
                                     />
-                                    <p className="text-sm text-gray-500 mt-1">{t("CurrentLogo")}</p>
+                                    <p className="text-sm text-gray-500 mt-1">{t("CurrentImage")}</p>
                                 </div>
                             )}
                             <Input
                                 type="file"
+                                name="image" // Changed to "image"
                                 accept="image/*"
                                 onChange={changeFileHandler}
                                 className="border border-gray-300 rounded-md shadow-sm transition duration-200"
                             />
-                            {input.logo && (
+                            {input.image && (
                                 <p className="text-sm text-gray-500 mt-1">
-                                    {t("SelectedFile")}: {input.logo.name}
+                                    {t("SelectedFile")}: {input.image.name}
                                 </p>
                             )}
                         </div>

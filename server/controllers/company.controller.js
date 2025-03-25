@@ -142,6 +142,11 @@ export const getCompanyById = async(req, res) => {
 // };
 
 
+
+
+// Utility function to convert file buffer to Data URI
+
+
 export const updateCompany = async (req, res) => {
     try {
         const { name, description, website, location, logo } = req.body;
@@ -180,16 +185,26 @@ export const updateCompany = async (req, res) => {
             updateData.logo = logo;
         }
 
-        // If a file is uploaded, upload it to Cloudinary and update the logo
-        if (req.file) {
+        // If files are uploaded, process the first image file
+        if (req.files && req.files.length > 0) {
             try {
-                const file = req.file;
+                const file = req.files[0]; // Take the first file
                 const fileUri = getDataUri(file);
                 const cloudResponse = await cloudinary.v2.uploader.upload(fileUri, {
                     folder: "company_logos",
                     resource_type: "image",
+                    transformation: [
+                        { width: 150, height: 150, crop: "fit" },
+                        { quality: "auto" },
+                    ],
                 });
                 updateData.logo = cloudResponse.secure_url;
+
+                // Optionally, delete the old logo from Cloudinary if it exists
+                if (company.logo) {
+                    const publicId = company.logo.split("/").pop().split(".")[0];
+                    await cloudinary.v2.uploader.destroy(`company_logos/${publicId}`);
+                }
             } catch (uploadError) {
                 console.error("Cloudinary upload error:", uploadError);
                 return res.status(500).json({
