@@ -1509,11 +1509,7 @@ app.post("/api/parse-resume", upload.single("file"), async (req, res) => {
     }
 });
 
-const companyLogoUpload = multer({
-    storage: memoryStorage,
-    fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 },
-}).any();
+
 
 app.put('/api/v1/company/update/:id', companyLogoUpload, async (req, res, next) => {
     console.log("Received files in route:", req.files);
