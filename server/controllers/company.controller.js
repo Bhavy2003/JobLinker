@@ -1,6 +1,6 @@
 import { Company } from "../models/company.model.js";
 import getDataUri from "../utils/datauri.js";
-import cloudinary from "../utils/cloudinary.js";
+// import cloudinary from "../utils/cloudinary.js";
 import {Job} from "../models/job.model.js";
 
 import { v2 as cloudinary } from "cloudinary";
