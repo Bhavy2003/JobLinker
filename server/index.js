@@ -699,9 +699,9 @@ io.on("connection", (socket) => {
     socket.on("joinChat", ({ sender, receiver }) => {
         const room = [sender, receiver].sort().join("_");
         socket.join(room);
-
+    
         console.log(`User ${sender} joined chat with ${receiver}, room: ${room}`);
-
+    
         Message.find({
             $or: [
                 { sender: sender, receiver: receiver },

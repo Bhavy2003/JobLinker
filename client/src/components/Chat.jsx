@@ -1645,9 +1645,9 @@ export default function Chat() {
                     const senderDetails = allUsers.find((user) => user.email === msgData.sender);
                     if (!senderDetails) return prevSentUsers;
                     const existingIndex = updatedSentUsers.findIndex((u) => u.email === msgData.sender);
-
+    
                     toast.info(`New message from ${msgData.sender}: ${msgData.text || "File"}`);
-
+    
                     if (existingIndex === -1) {
                         updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
                     } else {
@@ -1656,7 +1656,7 @@ export default function Chat() {
                     }
                     return updatedSentUsers;
                 });
-
+    
                 setUnreadMessages((prev) => {
                     const exists = prev.some((m) => m.tempId === msgData.tempId || m._id === msgData._id);
                     if (!exists) {
@@ -1666,7 +1666,7 @@ export default function Chat() {
                 });
             }
         });
-
+    
         return () => {
             socket.off("newMessageNotification");
         };
@@ -1690,7 +1690,7 @@ export default function Chat() {
                         updatedMessages = [...prevMessages];
                         updatedMessages[messageIndex] = msg;
                     } else {
-                        // If it's a new message (e.g., from the other user), append it
+                        // If it's a new message, append it
                         updatedMessages = [...prevMessages, msg];
                     }
     
@@ -1734,21 +1734,30 @@ export default function Chat() {
 
     useEffect(() => {
         if (selectedUser) {
+            // Clear messages when switching users to ensure only relevant messages are shown
+            setMessages([]);
+    
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
             });
-
+    
             socket.on("loadMessages", (serverMessages) => {
                 setMessages((prevMessages) => {
                     const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
-                    const newMessages = serverMessages.filter((msg) => !existingIds.has(msg._id));
-                    const updatedMessages = [...prevMessages, ...newMessages];
+                    // Filter messages to ensure they are only between currentUser and selectedUser.email
+                    const filteredMessages = serverMessages.filter(
+                        (msg) =>
+                            !existingIds.has(msg._id) &&
+                            ((msg.sender === currentUser && msg.receiver === selectedUser.email) ||
+                             (msg.sender === selectedUser.email && msg.receiver === currentUser))
+                    );
+                    const updatedMessages = [...prevMessages, ...filteredMessages];
                     saveMessagesToLocalStorage(updatedMessages);
-                    setTimeout(() => scrollToBottom(), 100); // Delay to ensure DOM update
+                    setTimeout(() => scrollToBottom(), 100);
                     return updatedMessages;
                 });
-
+    
                 setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
                 const firstUnread = serverMessages.find(
                     (msg) => msg.receiver === currentUser && !msg.isRead
@@ -1767,7 +1776,7 @@ export default function Chat() {
                 });
             });
         }
-
+    
         return () => {
             socket.off("loadMessages");
         };
