@@ -1679,22 +1679,30 @@ export default function Chat() {
                 (msg.receiver === currentUser && msg.sender === selectedUser?.email)
             ) {
                 setMessages((prevMessages) => {
-                    const messageExists = prevMessages.some(
+                    // Check if the message already exists (either by tempId or _id)
+                    const messageIndex = prevMessages.findIndex(
                         (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
                     );
-                    if (!messageExists) {
-                        const updatedMessages = [...prevMessages, msg];
-                        saveMessagesToLocalStorage(updatedMessages);
-                        const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
-                        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-                        if (isNearBottom) {
-                            setTimeout(() => scrollToBottom(), 0);
-                        }
-                        return updatedMessages;
+    
+                    let updatedMessages;
+                    if (messageIndex !== -1) {
+                        // Replace the existing message (optimistic) with the server-confirmed one
+                        updatedMessages = [...prevMessages];
+                        updatedMessages[messageIndex] = msg;
+                    } else {
+                        // If it's a new message (e.g., from the other user), append it
+                        updatedMessages = [...prevMessages, msg];
                     }
-                    return prevMessages;
+    
+                    saveMessagesToLocalStorage(updatedMessages);
+                    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
+                    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+                    if (isNearBottom) {
+                        setTimeout(() => scrollToBottom(), 0);
+                    }
+                    return updatedMessages;
                 });
-
+    
                 if (msg.receiver === currentUser && !msg.isRead) {
                     setShowPopup(true);
                     setTimeout(() => setShowPopup(false), 3000);
@@ -1718,7 +1726,7 @@ export default function Chat() {
                 }
             }
         });
-
+    
         return () => {
             socket.off("message");
         };
