@@ -2203,114 +2203,116 @@ useEffect(() => {
                 </div>
 
                 <div className="w-full sm:w-1/4 md:w-2/4 lg:w-3/4 xl:w-3/4 flex flex-col relative flex-1">
-                    {selectedUser ? (
-                        <>
-                            <div className="p-4 border-b flex justify-between items-center">
-                                <div className="flex items-center">
-                                    <img
-                                        src={selectedUser.profile?.profilePhoto || DUMMY_PHOTO_URL}
-                                        alt=""
-                                        className="w-10 h-10 rounded-full inline-block mr-2"
-                                    />
-                                    <h2 className="text-xl ml-2 pl-2 font-bold">
-                                        {selectedUser.email === currentUser ? "You" : selectedUser.fullname} ({selectedUser.email})
-                                    </h2>
-                                </div>
-                                <button
-                                    className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
-                                    onClick={() => deleteChat(selectedUser.email)}
-                                >
-                                    {t("Deletechat")}
-                                </button>
-                            </div>
-                            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
-                                {messages.map((msg, index) => (
-                                    <ChatMessage
-                                        key={msg._id || msg.tempId || index}
-                                        message={msg}
-                                        user={currentUser}
-                                        isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
-                                    />
-                                ))}
-                            </div>
-                            {selectedUser && showScrollButton && (
-                                <button
-                                    onClick={scrollToBottom}
-                                    className="absolute bottom-[20%] right-4 bg-indigo-400 hover:bg-indigo-300 p-2 rounded-full shadow-lg"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-6 w-6 text-white"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </button>
-                            )}
-                            <div className="p-4 border-t flex items-center relative">
-                                <button
-                                    onClick={toggleEmojiPicker}
-                                    className="mr-2 text-white hover:text-indigo-300"
-                                >
-                                    <BsEmojiSmile size={24} />
-                                </button>
-                                {showEmojiPicker && (
-                                    <div ref={emojiPickerRef} className="absolute bottom-16 left-0 z-10">
-                                        <EmojiPicker onEmojiClick={onEmojiClick} />
-                                    </div>
-                                )}
-                                <button
-                                    onClick={() => fileInputRef.current.click()}
-                                    className="mr-2 text-white hover:text-indigo-300"
-                                >
-                                    <BsPaperclip size={24} />
-                                </button>
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    className="hidden"
-                                    onChange={handleFileUpload}
-                                    accept="image/*,.pdf,.doc,.docx,.csv,.xls,.xlsx"
-                                />
-                                <div className="flex-1 flex items-center">
-                                    <textarea
-                                        className="flex-1 p-1 border rounded text-black resize-none"
-                                        placeholder={`${t("Type")}...`}
-                                        value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
-                                        onKeyDown={handleKeyPress}
-                                        rows={2}
-                                    />
-                                    {selectedFile && (
-                                        <div className="ml-2 flex items-center bg-gray-700 p-2 rounded">
-                                            <span className="text-white truncate max-w-[150px]">
-                                                {selectedFile.name}
-                                            </span>
-                                            <button
-                                                onClick={clearSelectedFile}
-                                                className="ml-2 text-red-500 text-lg hover:text-red-300"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                <button
-                                    className="ml-2 bg-indigo-500 text-white text-lg p-4 rounded hover:bg-blue-800"
-                                    onClick={sendMessage}
-                                >
-                                    {t("Sends")}
-                                </button>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="flex items-center justify-center flex-1 text-gray-500">
-                            Select a user to start chatting
+    {selectedUser ? (
+        <>
+            <div className="p-4 border-b flex justify-between items-center">
+                <div className="flex items-center">
+                    <img
+                        src={selectedUser.profile?.profilePhoto || DUMMY_PHOTO_URL}
+                        alt=""
+                        className="w-10 h-10 rounded-full inline-block mr-2"
+                    />
+                    <h2 className="text-xl ml-2 pl-2 font-bold">
+                        {selectedUser.email === currentUser ? "You" : selectedUser.fullname} ({selectedUser.email})
+                    </h2>
+                </div>
+                <button
+                    className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
+                    onClick={() => deleteChat(selectedUser.email)}
+                >
+                    {t("Deletechat")}
+                </button>
+            </div>
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
+                {messages.map((msg, index) => (
+                    <ChatMessage
+                        key={msg._id || msg.tempId || index}
+                        message={msg}
+                        user={currentUser}
+                        isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
+                    />
+                ))}
+            </div>
+            {/* Add Scroll to Bottom button for both mobile and desktop views */}
+            {selectedUser && showScrollButton && (
+                <button
+                    onClick={scrollToBottom}
+                    className="absolute bottom-[20%] right-4 sm:right-4 bg-indigo-400 hover:bg-indigo-300 p-2 rounded-full shadow-lg sm:p-2"
+                    style={{ zIndex: 10 }}
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-6 w-6 text-white sm:h-6 sm:w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+            )}
+            <div className="p-4 border-t flex items-center relative">
+                <button
+                    onClick={toggleEmojiPicker}
+                    className="mr-2 text-white hover:text-indigo-300"
+                >
+                    <BsEmojiSmile size={24} />
+                </button>
+                {showEmojiPicker && (
+                    <div ref={emojiPickerRef} className="absolute bottom-16 left-0 z-10">
+                        <EmojiPicker onEmojiClick={onEmojiClick} />
+                    </div>
+                )}
+                <button
+                    onClick={() => fileInputRef.current.click()}
+                    className="mr-2 text-white hover:text-indigo-300"
+                >
+                    <BsPaperclip size={24} />
+                </button>
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    accept="image/*,.pdf,.doc,.docx,.csv,.xls,.xlsx"
+                />
+                <div className="flex-1 flex items-center">
+                    <textarea
+                        className="flex-1 p-1 border rounded text-black resize-none"
+                        placeholder={`${t("Type")}...`}
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        rows={2}
+                    />
+                    {selectedFile && (
+                        <div className="ml-2 flex items-center bg-gray-700 p-2 rounded">
+                            <span className="text-white truncate max-w-[150px]">
+                                {selectedFile.name}
+                            </span>
+                            <button
+                                onClick={clearSelectedFile}
+                                className="ml-2 text-red-500 text-lg hover:text-red-300"
+                            >
+                                ×
+                            </button>
                         </div>
                     )}
                 </div>
+                <button
+                    className="ml-2 bg-indigo-500 text-white text-lg p-4 rounded hover:bg-blue-800"
+                    onClick={sendMessage}
+                >
+                    {t("Sends")}
+                </button>
+            </div>
+        </>
+    ) : (
+        <div className="flex items-center justify-center flex-1 text-gray-500">
+            Select a user to start chatting
+        </div>
+    )}
+</div>
             </div>
             <Footer />
         </>
