@@ -721,46 +721,65 @@ io.on("connection", (socket) => {
             .catch((error) => console.error("Error fetching messages:", error));
     });
 
-    socket.on("sendMessage", async (msgData) => {
-        const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
+    useEffect(() => {
+        socket.on("message", (msg) => {
+            if (
+                (msg.sender === currentUser && msg.receiver === selectedUser?.email) ||
+                (msg.receiver === currentUser && msg.sender === selectedUser?.email)
+            ) {
+                setMessages((prevMessages) => {
+                    // Check if the message already exists (either by tempId or _id)
+                    const messageIndex = prevMessages.findIndex(
+                        (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
+                    );
     
-        if (!msgData.text && !fileUrl) {
-            console.error("Message has no text or fileUrl, discarding:", msgData);
-            return;
-        }
+                    let updatedMessages;
+                    if (messageIndex !== -1) {
+                        // Replace the existing message (optimistic) with the server-confirmed one
+                        updatedMessages = [...prevMessages];
+                        updatedMessages[messageIndex] = msg;
+                    } else {
+                        // If it's a new message (e.g., from the other user), append it
+                        updatedMessages = [...prevMessages, msg];
+                    }
     
-        try {
-            const newMessage = new Message({
-                sender: msgData.sender,
-                receiver: msgData.receiver,
-                text: msgData.text || "",
-                fileUrl: fileUrl,
-                timestamp: new Date(msgData.timestamp),
-                isRead: false,
-            });
-            const savedMessage = await newMessage.save();
+                    saveMessagesToLocalStorage(updatedMessages);
+                    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
+                    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+                    if (isNearBottom) {
+                        setTimeout(() => scrollToBottom(), 0);
+                    }
+                    return updatedMessages;
+                });
     
-            // Include tempId from client for deduplication
-            savedMessage.tempId = msgData.tempId;
-    
-            const room = [msgData.sender, msgData.receiver].sort().join("_");
-    
-            // Emit the saved message to the room (both sender and receiver)
-            io.to(room).emit("message", savedMessage);
-    
-            // Notify the receiver only if they are not the sender
-            const receiverSocketId = connectedUsers.get(msgData.receiver);
-            if (receiverSocketId && msgData.receiver !== msgData.sender) {
-                io.to(receiverSocketId).emit("newMessageNotification", savedMessage);
+                if (msg.receiver === currentUser && !msg.isRead) {
+                    setShowPopup(true);
+                    setTimeout(() => setShowPopup(false), 3000);
+                    if (!firstNewMessageId) {
+                        setFirstNewMessageId(msg._id || msg.tempId);
+                        setShowNewMessage(true);
+                        setTimeout(() => {
+                            setShowNewMessage(false);
+                            setFirstNewMessageId(null);
+                        }, 5000);
+                    }
+                    setUnreadMessages((prev) => {
+                        const exists = prev.some(
+                            (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
+                        );
+                        if (!exists) {
+                            return [...prev, msg];
+                        }
+                        return prev;
+                    });
+                }
             }
-        } catch (error) {
-            console.error("Error processing sendMessage:", error);
-            const senderSocketId = connectedUsers.get(msgData.sender);
-            if (senderSocketId) {
-                io.to(senderSocketId).emit("messageError", { error: "Failed to send message" });
-            }
-        }
-    });
+        });
+    
+        return () => {
+            socket.off("message");
+        };
+    }, [selectedUser, currentUser, firstNewMessageId]);
 
     socket.on("deleteChat", async ({ sender, receiver }) => {
         try {

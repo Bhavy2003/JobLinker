@@ -1692,10 +1692,9 @@ export default function Chat() {
                         }
                         return updatedMessages;
                     }
-                    // If the message exists (e.g., sent by this client), replace it with the server version
-                    return prevMessages.map((m) => (m.tempId === msg.tempId ? msg : m));
+                    return prevMessages;
                 });
-    
+
                 if (msg.receiver === currentUser && !msg.isRead) {
                     setShowPopup(true);
                     setTimeout(() => setShowPopup(false), 3000);
@@ -1719,7 +1718,7 @@ export default function Chat() {
                 }
             }
         });
-    
+
         return () => {
             socket.off("message");
         };
@@ -1727,29 +1726,21 @@ export default function Chat() {
 
     useEffect(() => {
         if (selectedUser) {
-            // Clear messages when switching users to ensure only relevant messages are shown
-            setMessages([]);
-    
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
             });
-    
+
             socket.on("loadMessages", (serverMessages) => {
                 setMessages((prevMessages) => {
                     const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
-                    const filteredMessages = serverMessages.filter(
-                        (msg) =>
-                            !existingIds.has(msg._id) &&
-                            ((msg.sender === currentUser && msg.receiver === selectedUser.email) ||
-                             (msg.sender === selectedUser.email && msg.receiver === currentUser))
-                    );
-                    const updatedMessages = [...prevMessages, ...filteredMessages];
+                    const newMessages = serverMessages.filter((msg) => !existingIds.has(msg._id));
+                    const updatedMessages = [...prevMessages, ...newMessages];
                     saveMessagesToLocalStorage(updatedMessages);
-                    setTimeout(() => scrollToBottom(), 100);
+                    setTimeout(() => scrollToBottom(), 100); // Delay to ensure DOM update
                     return updatedMessages;
                 });
-    
+
                 setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
                 const firstUnread = serverMessages.find(
                     (msg) => msg.receiver === currentUser && !msg.isRead
@@ -1768,7 +1759,7 @@ export default function Chat() {
                 });
             });
         }
-    
+
         return () => {
             socket.off("loadMessages");
         };
@@ -1847,7 +1838,7 @@ export default function Chat() {
             return;
         }
     
-        const tempId = uuidv4(); // Generate a unique temporary ID
+        const tempId = uuidv4(); // Generate a temporary ID for deduplication
         const msgData = {
             sender: currentUser,
             receiver: selectedUser.email,
@@ -1855,7 +1846,7 @@ export default function Chat() {
             file: selectedFile || null,
             timestamp: new Date().toISOString(),
             isRead: false,
-            tempId, // Unique temp ID for deduplication
+            tempId, // Add temporary ID
         };
     
         // Optimistically add the message to the UI only if it doesn't exist
