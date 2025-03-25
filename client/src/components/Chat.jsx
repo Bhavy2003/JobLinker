@@ -1692,9 +1692,10 @@ export default function Chat() {
                         }
                         return updatedMessages;
                     }
-                    return prevMessages;
+                    // If the message exists (e.g., sent by this client), replace it with the server version
+                    return prevMessages.map((m) => (m.tempId === msg.tempId ? msg : m));
                 });
-
+    
                 if (msg.receiver === currentUser && !msg.isRead) {
                     setShowPopup(true);
                     setTimeout(() => setShowPopup(false), 3000);
@@ -1718,7 +1719,7 @@ export default function Chat() {
                 }
             }
         });
-
+    
         return () => {
             socket.off("message");
         };
@@ -1726,21 +1727,29 @@ export default function Chat() {
 
     useEffect(() => {
         if (selectedUser) {
+            // Clear messages when switching users to ensure only relevant messages are shown
+            setMessages([]);
+    
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
             });
-
+    
             socket.on("loadMessages", (serverMessages) => {
                 setMessages((prevMessages) => {
                     const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
-                    const newMessages = serverMessages.filter((msg) => !existingIds.has(msg._id));
-                    const updatedMessages = [...prevMessages, ...newMessages];
+                    const filteredMessages = serverMessages.filter(
+                        (msg) =>
+                            !existingIds.has(msg._id) &&
+                            ((msg.sender === currentUser && msg.receiver === selectedUser.email) ||
+                             (msg.sender === selectedUser.email && msg.receiver === currentUser))
+                    );
+                    const updatedMessages = [...prevMessages, ...filteredMessages];
                     saveMessagesToLocalStorage(updatedMessages);
-                    setTimeout(() => scrollToBottom(), 100); // Delay to ensure DOM update
+                    setTimeout(() => scrollToBottom(), 100);
                     return updatedMessages;
                 });
-
+    
                 setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
                 const firstUnread = serverMessages.find(
                     (msg) => msg.receiver === currentUser && !msg.isRead
@@ -1759,7 +1768,7 @@ export default function Chat() {
                 });
             });
         }
-
+    
         return () => {
             socket.off("loadMessages");
         };
@@ -1832,13 +1841,13 @@ export default function Chat() {
             toast.error("Please select a user to chat with");
             return;
         }
-
+    
         if (!message.trim() && !selectedFile) {
             toast.error("Please type a message or upload a file");
             return;
         }
-
-        const tempId = uuidv4(); // Generate a temporary ID for deduplication
+    
+        const tempId = uuidv4(); // Generate a unique temporary ID
         const msgData = {
             sender: currentUser,
             receiver: selectedUser.email,
@@ -1846,20 +1855,23 @@ export default function Chat() {
             file: selectedFile || null,
             timestamp: new Date().toISOString(),
             isRead: false,
-            tempId, // Add temporary ID
+            tempId, // Unique temp ID for deduplication
         };
-
-        // Optimistically add the message to the UI
+    
+        // Optimistically add the message to the UI only if it doesn't exist
         setMessages((prevMessages) => {
+            if (prevMessages.some((m) => m.tempId === tempId)) {
+                return prevMessages; // Prevent duplicate from optimistic update
+            }
             const updatedMessages = [...prevMessages, msgData];
             saveMessagesToLocalStorage(updatedMessages);
             setTimeout(() => scrollToBottom(), 0);
             return updatedMessages;
         });
-
+    
         // Emit the message to the server
         socket.emit("sendMessage", msgData);
-
+    
         // Update sentUsers
         setSentUsers((prevSentUsers) => {
             let updatedSentUsers = [...prevSentUsers];
@@ -1873,7 +1885,7 @@ export default function Chat() {
             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
             return updatedSentUsers;
         });
-
+    
         // Clear input
         setMessage("");
         setSelectedFile(null);

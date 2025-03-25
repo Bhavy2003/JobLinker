@@ -723,14 +723,13 @@ io.on("connection", (socket) => {
 
     socket.on("sendMessage", async (msgData) => {
         const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
-
+    
         if (!msgData.text && !fileUrl) {
             console.error("Message has no text or fileUrl, discarding:", msgData);
             return;
         }
-
+    
         try {
-            // Save the message to the database first
             const newMessage = new Message({
                 sender: msgData.sender,
                 receiver: msgData.receiver,
@@ -740,16 +739,16 @@ io.on("connection", (socket) => {
                 isRead: false,
             });
             const savedMessage = await newMessage.save();
-
-            // Add the tempId to the saved message for deduplication
+    
+            // Include tempId from client for deduplication
             savedMessage.tempId = msgData.tempId;
-
+    
             const room = [msgData.sender, msgData.receiver].sort().join("_");
-
-            // Emit the saved message to the room
+    
+            // Emit the saved message to the room (both sender and receiver)
             io.to(room).emit("message", savedMessage);
-
-            // Notify the receiver only if they are connected
+    
+            // Notify the receiver only if they are not the sender
             const receiverSocketId = connectedUsers.get(msgData.receiver);
             if (receiverSocketId && msgData.receiver !== msgData.sender) {
                 io.to(receiverSocketId).emit("newMessageNotification", savedMessage);
