@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import Navbar from "./shared/Navbar";
@@ -9,6 +8,7 @@ import EmojiPicker from "emoji-picker-react";
 import { BsEmojiSmile, BsPaperclip } from "react-icons/bs";
 import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
+import { v4 as uuidv4 } from "uuid"; // Add uuid for unique message IDs
 
 export default function Chat() {
     const { t } = useTranslation();
@@ -35,10 +35,13 @@ export default function Chat() {
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
 
-    const socket = io("https://joblinker-1.onrender.com", {
-        transports: ["websocket", "polling"],
-        withCredentials: true,
-    });
+    const socketRef = useRef(
+        io("https://joblinker-1.onrender.com", {
+            transports: ["websocket"],
+            withCredentials: true,
+        })
+    );
+    const socket = socketRef.current;
 
     const scrollToBottom = () => {
         if (chatContainerRef.current) {
@@ -56,19 +59,12 @@ export default function Chat() {
         }
     };
 
-    const loadMessagesFromLocalStorage = (userEmail) => {
-        const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
-        const cachedMessages = localStorage.getItem(chatKey);
-        return cachedMessages ? JSON.parse(cachedMessages) : [];
-    };
-
     useEffect(() => {
         const container = chatContainerRef.current;
         if (!container) return;
 
         const handleScroll = () => {
-            const isAtBottom =
-                container.scrollHeight - container.scrollTop <= container.clientHeight + 5;
+            const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 5;
             const isOverflowing = container.scrollHeight > container.clientHeight;
             setShowScrollButton(!isAtBottom && isOverflowing);
         };
@@ -114,7 +110,7 @@ export default function Chat() {
             .catch((err) => console.error("Error fetching users:", err));
 
         return () => {
-            socket.disconnect();
+            socket.off("register");
         };
     }, [currentUser, storageKey]);
 
@@ -157,26 +153,20 @@ export default function Chat() {
                     const senderDetails = allUsers.find((user) => user.email === msgData.sender);
                     if (!senderDetails) return prevSentUsers;
                     const existingIndex = updatedSentUsers.findIndex((u) => u.email === msgData.sender);
-
+    
                     toast.info(`New message from ${msgData.sender}: ${msgData.text || "File"}`);
-
+    
                     if (existingIndex === -1) {
                         updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
                     } else {
                         const [user] = updatedSentUsers.splice(existingIndex, 1);
                         updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
                     }
-
-                    localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
                     return updatedSentUsers;
                 });
-
+    
                 setUnreadMessages((prev) => {
-                    const exists = prev.some(
-                        (msg) =>
-                            msg.timestamp === msgData.timestamp &&
-                            (msg.text === msgData.text || (msg.file && msgData.file && msg.file.name === msgData.file.name))
-                    );
+                    const exists = prev.some((m) => m.tempId === msgData.tempId || m._id === msgData._id);
                     if (!exists) {
                         return [...prev, { ...msgData, isRead: false }];
                     }
@@ -184,12 +174,71 @@ export default function Chat() {
                 });
             }
         });
-
+    
         return () => {
             socket.off("newMessageNotification");
         };
-    }, [allUsers, currentUser, storageKey]);
+    }, [allUsers, currentUser]);
 
+    // useEffect(() => {
+    //     socket.on("message", (msg) => {
+    //         if (
+    //             (msg.sender === currentUser && msg.receiver === selectedUser?.email) ||
+    //             (msg.receiver === currentUser && msg.sender === selectedUser?.email)
+    //         ) {
+    //             setMessages((prevMessages) => {
+    //                 // Check if the message already exists (either by tempId or _id)
+    //                 const messageIndex = prevMessages.findIndex(
+    //                     (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
+    //                 );
+    
+    //                 let updatedMessages;
+    //                 if (messageIndex !== -1) {
+    //                     // Replace the existing message (optimistic) with the server-confirmed one
+    //                     updatedMessages = [...prevMessages];
+    //                     updatedMessages[messageIndex] = msg;
+    //                 } else {
+    //                     // If it's a new message, append it
+    //                     updatedMessages = [...prevMessages, msg];
+    //                 }
+    
+    //                 saveMessagesToLocalStorage(updatedMessages);
+    //                 const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
+    //                 const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    //                 if (isNearBottom) {
+    //                     setTimeout(() => scrollToBottom(), 0);
+    //                 }
+    //                 return updatedMessages;
+    //             });
+    
+    //             if (msg.receiver === currentUser && !msg.isRead) {
+    //                 setShowPopup(true);
+    //                 setTimeout(() => setShowPopup(false), 3000);
+    //                 if (!firstNewMessageId) {
+    //                     setFirstNewMessageId(msg._id || msg.tempId);
+    //                     setShowNewMessage(true);
+    //                     setTimeout(() => {
+    //                         setShowNewMessage(false);
+    //                         setFirstNewMessageId(null);
+    //                     }, 5000);
+    //                 }
+    //                 setUnreadMessages((prev) => {
+    //                     const exists = prev.some(
+    //                         (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
+    //                     );
+    //                     if (!exists) {
+    //                         return [...prev, msg];
+    //                     }
+    //                     return prev;
+    //                 });
+    //             }
+    //         }
+    //     });
+    
+    //     return () => {
+    //         socket.off("message");
+    //     };
+    // }, [selectedUser, currentUser, firstNewMessageId]);
     useEffect(() => {
         socket.on("message", (msg) => {
             if (
@@ -197,90 +246,223 @@ export default function Chat() {
                 (msg.receiver === currentUser && msg.sender === selectedUser?.email)
             ) {
                 setMessages((prevMessages) => {
-                    const messageExists = prevMessages.some(
-                        (m) =>
-                            (m._id && m._id === msg._id) ||
-                            (m.sender === msg.sender &&
-                                m.receiver === msg.receiver &&
-                                m.text === msg.text &&
-                                m.timestamp === msg.timestamp &&
-                                (m.file ? m.file.name === msg.file?.name : !msg.file))
+                    // Check if the message already exists (either by tempId or _id)
+                    const messageIndex = prevMessages.findIndex(
+                        (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
                     );
-
-                    if (!messageExists) {
-                        const updatedMessages = [...prevMessages, msg];
-                        saveMessagesToLocalStorage(updatedMessages);
-                        setTimeout(() => scrollToBottom(), 0);
-                        return updatedMessages;
+    
+                    let updatedMessages;
+                    if (messageIndex !== -1) {
+                        // Replace the existing message (optimistic update) with the server-confirmed one
+                        updatedMessages = [...prevMessages];
+                        updatedMessages[messageIndex] = msg;
+                    } else {
+                        // If it's a new message, append it without causing a refresh
+                        updatedMessages = [...prevMessages, msg];
                     }
-                    return prevMessages;
+    
+                    // Save to local storage without triggering a refresh
+                    saveMessagesToLocalStorage(updatedMessages);
+    
+                    // Scroll to bottom only if the user is near the bottom
+                    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
+                    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+                    if (isNearBottom) {
+                        setTimeout(() => scrollToBottom(), 0);
+                    }
+    
+                    return updatedMessages;
                 });
-
-                if (msg.receiver === currentUser) {
+    
+                // Handle new message notification for the receiver
+                if (msg.receiver === currentUser && !msg.isRead) {
                     setShowPopup(true);
                     setTimeout(() => setShowPopup(false), 3000);
                     if (!firstNewMessageId) {
-                        setFirstNewMessageId(msg._id);
+                        setFirstNewMessageId(msg._id || msg.tempId);
                         setShowNewMessage(true);
                         setTimeout(() => {
                             setShowNewMessage(false);
                             setFirstNewMessageId(null);
                         }, 5000);
                     }
+                    setUnreadMessages((prev) => {
+                        const exists = prev.some(
+                            (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
+                        );
+                        if (!exists) {
+                            return [...prev, msg];
+                        }
+                        return prev;
+                    });
                 }
             }
-
-            if (msg.receiver === currentUser && !msg.isRead) {
-                setUnreadMessages((prev) => [...prev, msg]);
-            }
         });
-
+    
         return () => {
             socket.off("message");
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
+    // useEffect(() => {
+    //     if (selectedUser) {
+    //         // Clear messages when switching users to ensure only relevant messages are shown
+    //         setMessages([]);
+    
+    //         socket.emit("joinChat", {
+    //             sender: currentUser,
+    //             receiver: selectedUser.email,
+    //         });
+    
+    //         socket.on("loadMessages", (serverMessages) => {
+    //             setMessages((prevMessages) => {
+    //                 const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
+    //                 // Filter messages to ensure they are only between currentUser and selectedUser.email
+    //                 const filteredMessages = serverMessages.filter(
+    //                     (msg) =>
+    //                         !existingIds.has(msg._id) &&
+    //                         ((msg.sender === currentUser && msg.receiver === selectedUser.email) ||
+    //                          (msg.sender === selectedUser.email && msg.receiver === currentUser))
+    //                 );
+    //                 const updatedMessages = [...prevMessages, ...filteredMessages];
+    //                 saveMessagesToLocalStorage(updatedMessages);
+    //                 setTimeout(() => scrollToBottom(), 100);
+    //                 return updatedMessages;
+    //             });
+    
+    //             setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
+    //             const firstUnread = serverMessages.find(
+    //                 (msg) => msg.receiver === currentUser && !msg.isRead
+    //             );
+    //             if (firstUnread && !firstNewMessageId) {
+    //                 setFirstNewMessageId(firstUnread._id);
+    //                 setShowNewMessage(true);
+    //                 setTimeout(() => {
+    //                     setShowNewMessage(false);
+    //                     setFirstNewMessageId(null);
+    //                 }, 5000);
+    //             }
+    //             socket.emit("markAsRead", {
+    //                 sender: selectedUser.email,
+    //                 receiver: currentUser,
+    //             });
+    //         });
+    //     }
+    
+    //     return () => {
+    //         socket.off("loadMessages");
+    //     };
+    // }, [selectedUser, currentUser, firstNewMessageId]);
+    // useEffect(() => {
+    //     if (selectedUser) {
+    //         socket.emit("joinChat", {
+    //             sender: currentUser,
+    //             receiver: selectedUser.email,
+    //         });
+    
+    //         socket.on("loadMessages", (serverMessages) => {
+    //             setMessages((prevMessages) => {
+    //                 const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
+    //                 // Filter messages to ensure they are only between currentUser and selectedUser.email
+    //                 const filteredMessages = serverMessages.filter(
+    //                     (msg) =>
+    //                         !existingIds.has(msg._id) &&
+    //                         ((msg.sender === currentUser && msg.receiver === selectedUser.email) ||
+    //                          (msg.sender === selectedUser.email && msg.receiver === currentUser))
+    //                 );
+    //                 const updatedMessages = [...prevMessages, ...filteredMessages];
+    //                 saveMessagesToLocalStorage(updatedMessages);
+    //                 setTimeout(() => scrollToBottom(), 100);
+    //                 return updatedMessages;
+    //             });
+    
+    //             // Update unread messages without causing a refresh
+    //             setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
+    
+    //             // Handle "new message" notification without refreshing
+    //             const firstUnread = serverMessages.find(
+    //                 (msg) => msg.receiver === currentUser && !msg.isRead
+    //             );
+    //             if (firstUnread && !firstNewMessageId) {
+    //                 setFirstNewMessageId(firstUnread._id);
+    //                 setShowNewMessage(true);
+    //                 setTimeout(() => {
+    //                     setShowNewMessage(false);
+    //                     setFirstNewMessageId(null);
+    //                 }, 5000);
+    //             }
+    
+    //             socket.emit("markAsRead", {
+    //                 sender: selectedUser.email,
+    //                 receiver: currentUser,
+    //             });
+    //         });
+    //     }
+    
+    //     return () => {
+    //         socket.off("loadMessages");
+    //     };
+    // }, [selectedUser, currentUser, firstNewMessageId]);
+    // Ensure this function is defined in your Chat component
+const loadMessagesFromLocalStorage = (userEmail) => {
+    const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
+    const cachedMessages = localStorage.getItem(chatKey);
+    return cachedMessages ? JSON.parse(cachedMessages) : [];
+};
 
-    useEffect(() => {
-        if (selectedUser) {
-            const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
-            setMessages(cachedMessages);
+useEffect(() => {
+    if (selectedUser) {
+        // Load messages from local storage first to display immediately
+        const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
+        setMessages(cachedMessages);
 
-            socket.emit("joinChat", {
-                sender: currentUser,
-                receiver: selectedUser.email,
+        socket.emit("joinChat", {
+            sender: currentUser,
+            receiver: selectedUser.email,
+        });
+
+        socket.on("loadMessages", (serverMessages) => {
+            setMessages((prevMessages) => {
+                const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
+                // Filter messages to ensure they are only between currentUser and selectedUser.email
+                const filteredMessages = serverMessages.filter(
+                    (msg) =>
+                        !existingIds.has(msg._id) &&
+                        ((msg.sender === currentUser && msg.receiver === selectedUser.email) ||
+                         (msg.sender === selectedUser.email && msg.receiver === currentUser))
+                );
+                const updatedMessages = [...prevMessages, ...filteredMessages];
+                saveMessagesToLocalStorage(updatedMessages);
+                setTimeout(() => scrollToBottom(), 100);
+                return updatedMessages;
             });
 
-            socket.on("loadMessages", (serverMessages) => {
-                console.log("Loaded messages from server:", serverMessages);
-                setMessages(serverMessages);
-                saveMessagesToLocalStorage(serverMessages);
+            // Update unread messages without causing a refresh
+            setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
 
-                setUnreadMessages((prev) =>
-                    prev.filter((msg) => msg.sender !== selectedUser.email)
-                );
-                const firstUnread = serverMessages.find(
-                    (msg) => msg.receiver === currentUser && !msg.isRead
-                );
-                if (firstUnread && !firstNewMessageId) {
-                    setFirstNewMessageId(firstUnread._id);
-                    setShowNewMessage(true);
-                    setTimeout(() => {
-                        setShowNewMessage(false);
-                        setFirstNewMessageId(null);
-                    }, 10000);
-                }
-                socket.emit("markAsRead", {
-                    sender: selectedUser.email,
-                    receiver: currentUser,
-                });
+            // Handle "new message" notification without refreshing
+            const firstUnread = serverMessages.find(
+                (msg) => msg.receiver === currentUser && !msg.isRead
+            );
+            if (firstUnread && !firstNewMessageId) {
+                setFirstNewMessageId(firstUnread._id);
+                setShowNewMessage(true);
+                setTimeout(() => {
+                    setShowNewMessage(false);
+                    setFirstNewMessageId(null);
+                }, 5000);
+            }
+
+            socket.emit("markAsRead", {
+                sender: selectedUser.email,
+                receiver: currentUser,
             });
-        }
+        });
+    }
 
-        return () => {
-            socket.off("loadMessages");
-        };
-    }, [selectedUser, currentUser, firstNewMessageId]);
-
+    return () => {
+        socket.off("loadMessages");
+    };
+}, [selectedUser, currentUser, firstNewMessageId]);
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
             if (selectedUser?.email === receiver) {
@@ -348,12 +530,13 @@ export default function Chat() {
             toast.error("Please select a user to chat with");
             return;
         }
-   
+    
         if (!message.trim() && !selectedFile) {
             toast.error("Please type a message or upload a file");
             return;
         }
-   
+    
+        const tempId = uuidv4(); // Generate a temporary ID for deduplication
         const msgData = {
             sender: currentUser,
             receiver: selectedUser.email,
@@ -361,38 +544,38 @@ export default function Chat() {
             file: selectedFile || null,
             timestamp: new Date().toISOString(),
             isRead: false,
+            tempId, // Add temporary ID
         };
-   
-        // Emit the message to the server immediately for real-time delivery
-        socket.emit("sendMessage", msgData);
-   
-        // Optimistically update local messages state without waiting
+    
+        // Optimistically add the message to the UI only if it doesn't exist
         setMessages((prevMessages) => {
+            if (prevMessages.some((m) => m.tempId === tempId)) {
+                return prevMessages; // Prevent duplicate from optimistic update
+            }
             const updatedMessages = [...prevMessages, msgData];
-            // Save to local storage in the background
             saveMessagesToLocalStorage(updatedMessages);
-            // Scroll to bottom asynchronously to avoid blocking
             setTimeout(() => scrollToBottom(), 0);
             return updatedMessages;
         });
-   
-        // Update sentUsers asynchronously
+    
+        // Emit the message to the server
+        socket.emit("sendMessage", msgData);
+    
+        // Update sentUsers
         setSentUsers((prevSentUsers) => {
             let updatedSentUsers = [...prevSentUsers];
             const existingIndex = updatedSentUsers.findIndex((u) => u.email === selectedUser.email);
-   
             if (existingIndex === -1) {
                 updatedSentUsers = [selectedUser, ...updatedSentUsers];
             } else {
                 const [user] = updatedSentUsers.splice(existingIndex, 1);
                 updatedSentUsers = [{ ...user, hasNewMessage: false }, ...updatedSentUsers];
             }
-   
             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
             return updatedSentUsers;
         });
-   
-        // Clear input fields immediately
+    
+        // Clear input
         setMessage("");
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
@@ -440,8 +623,7 @@ export default function Chat() {
         ...allUsers.filter((user) => user.email === currentUser),
         ...sentUsers.filter((user) => user.email !== currentUser),
         ...allUsers.filter(
-            (user) =>
-                user.email !== currentUser && !sentUsers.some((u) => u.email === user.email)
+            (user) => user.email !== currentUser && !sentUsers.some((u) => u.email === user.email)
         ),
     ];
 
@@ -529,114 +711,120 @@ export default function Chat() {
                 </div>
 
                 <div className="w-full sm:w-1/4 md:w-2/4 lg:w-3/4 xl:w-3/4 flex flex-col relative flex-1">
-                    {selectedUser ? (
-                        <>
-                            <div className="p-4 border-b flex justify-between items-center">
-                                <div className="flex items-center">
-                                    <img
-                                        src={selectedUser.profile?.profilePhoto || DUMMY_PHOTO_URL}
-                                        alt=""
-                                        className="w-10 h-10 rounded-full inline-block mr-2"
-                                    />
-                                    <h2 className="text-xl ml-2 pl-2 font-bold">
-                                        {selectedUser.email === currentUser ? "You" : selectedUser.fullname} ({selectedUser.email})
-                                    </h2>
-                                </div>
-                                <button
-                                    className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
-                                    onClick={() => deleteChat(selectedUser.email)}
-                                >
-                                    {t("Deletechat")}
-                                </button>
-                            </div>
-                            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
-                                {messages.map((msg, index) => (
-                                    <ChatMessage
-                                        key={msg._id || index}
-                                        message={msg}
-                                        user={currentUser}
-                                        isFirstNew={showNewMessage && msg._id === firstNewMessageId}
-                                    />
-                                ))}
-                            </div>
-                            {selectedUser && showScrollButton && (
-                                <button
-                                    onClick={scrollToBottom}
-                                    className="absolute bottom-[20%] right-4 bg-indigo-400 hover:bg-indigo-300 p-2 rounded-full shadow-lg"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-6 w-6 text-white"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </button>
-                            )}
-                            <div className="p-4 border-t flex items-center relative">
-                                <button
-                                    onClick={toggleEmojiPicker}
-                                    className="mr-2 text-white hover:text-indigo-300"
-                                >
-                                    <BsEmojiSmile size={24} />
-                                </button>
-                                {showEmojiPicker && (
-                                    <div ref={emojiPickerRef} className="absolute bottom-16 left-0 z-10">
-                                        <EmojiPicker onEmojiClick={onEmojiClick} />
-                                    </div>
-                                )}
-                                <button
-                                    onClick={() => fileInputRef.current.click()}
-                                    className="mr-2 text-white hover:text-indigo-300"
-                                >
-                                    <BsPaperclip size={24} />
-                                </button>
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    className="hidden"
-                                    onChange={handleFileUpload}
-                                    accept="image/*,.pdf,.doc,.docx,.csv,.xls,.xlsx"
-                                />
-                                <div className="flex-1 flex items-center">
-                                    <textarea
-                                        className="flex-1 p-1 border rounded text-black resize-none"
-                                        placeholder={`${t("Type")}...`}
-                                        value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
-                                        onKeyDown={handleKeyPress}
-                                        rows={2}
-                                    />
-                                    {selectedFile && (
-                                        <div className="ml-2 flex items-center bg-gray-700 p-2 rounded">
-                                            <span className="text-white truncate max-w-[150px]">
-                                                {selectedFile.name}
-                                            </span>
-                                            <button
-                                                onClick={clearSelectedFile}
-                                                className="ml-2 text-red-500 text-lg hover:text-red-300"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                <button
-                                    className="ml-2 bg-indigo-500 text-white text-lg p-4 rounded hover:bg-blue-800"
-                                    onClick={sendMessage}
-                                >
-                                    {t("Sends")}
-                                </button>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="flex items-center justify-center flex-1 text-gray-500">
-                            Select a user to start chatting
+    {selectedUser ? (
+        <>
+            <div className="p-4 border-b flex justify-between items-center">
+                <div className="flex items-center">
+                    <img
+                        src={selectedUser.profile?.profilePhoto || DUMMY_PHOTO_URL}
+                        alt=""
+                        className="w-10 h-10 rounded-full inline-block mr-2"
+                    />
+                    <h2 className="text-xl ml-2 pl-2 font-bold">
+                        {selectedUser.email === currentUser ? "You" : selectedUser.fullname} ({selectedUser.email})
+                    </h2>
+                </div>
+                <button
+                    className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
+                    onClick={() => deleteChat(selectedUser.email)}
+                >
+                    {t("Deletechat")}
+                </button>
+            </div>
+            {/* Add max height for small screens to constrain the chat container */}
+            <div
+                ref={chatContainerRef}
+                className="flex-1 overflow-y-auto p-4 max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-200px)] md:max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-200px)] xl:max-h-[calc(100vh-200px)]"
+            >
+                {messages.map((msg, index) => (
+                    <ChatMessage
+                        key={msg._id || msg.tempId || index}
+                        message={msg}
+                        user={currentUser}
+                        isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
+                    />
+                ))}
+            </div>
+            {/* Scroll to Bottom button for both mobile and desktop views */}
+            {selectedUser && showScrollButton && (
+                <button
+                    onClick={scrollToBottom}
+                    className="absolute bottom-[20%] right-4 sm:right-4 bg-indigo-400 hover:bg-indigo-300 p-2 rounded-full shadow-lg sm:p-2"
+                    style={{ zIndex: 10 }}
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-6 w-6 text-white sm:h-6 sm:w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+            )}
+            <div className="p-4 border-t flex items-center relative">
+                <button
+                    onClick={toggleEmojiPicker}
+                    className="mr-2 text-white hover:text-indigo-300"
+                >
+                    <BsEmojiSmile size={24} />
+                </button>
+                {showEmojiPicker && (
+                    <div ref={emojiPickerRef} className="absolute bottom-16 left-0 z-10">
+                        <EmojiPicker onEmojiClick={onEmojiClick} />
+                    </div>
+                )}
+                <button
+                    onClick={() => fileInputRef.current.click()}
+                    className="mr-2 text-white hover:text-indigo-300"
+                >
+                    <BsPaperclip size={24} />
+                </button>
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    accept="image/*,.pdf,.doc,.docx,.csv,.xls,.xlsx"
+                />
+                <div className="flex-1 flex items-center">
+                    <textarea
+                        className="flex-1 p-1 border rounded text-black resize-none"
+                        placeholder={`${t("Type")}...`}
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        rows={2}
+                    />
+                    {selectedFile && (
+                        <div className="ml-2 flex items-center bg-gray-700 p-2 rounded">
+                            <span className="text-white truncate max-w-[150px]">
+                                {selectedFile.name}
+                            </span>
+                            <button
+                                onClick={clearSelectedFile}
+                                className="ml-2 text-red-500 text-lg hover:text-red-300"
+                            >
+                                ×
+                            </button>
                         </div>
                     )}
                 </div>
+                <button
+                    className="ml-2 bg-indigo-500 text-white text-lg p-4 rounded hover:bg-blue-800"
+                    onClick={sendMessage}
+                >
+                    {t("Sends")}
+                </button>
+            </div>
+        </>
+    ) : (
+        <div className="flex items-center justify-center flex-1 text-gray-500">
+            Select a user to start chatting
+        </div>
+    )}
+</div>
             </div>
             <Footer />
         </>
