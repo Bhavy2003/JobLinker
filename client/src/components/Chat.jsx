@@ -1672,6 +1672,65 @@ export default function Chat() {
         };
     }, [allUsers, currentUser]);
 
+    // useEffect(() => {
+    //     socket.on("message", (msg) => {
+    //         if (
+    //             (msg.sender === currentUser && msg.receiver === selectedUser?.email) ||
+    //             (msg.receiver === currentUser && msg.sender === selectedUser?.email)
+    //         ) {
+    //             setMessages((prevMessages) => {
+    //                 // Check if the message already exists (either by tempId or _id)
+    //                 const messageIndex = prevMessages.findIndex(
+    //                     (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
+    //                 );
+    
+    //                 let updatedMessages;
+    //                 if (messageIndex !== -1) {
+    //                     // Replace the existing message (optimistic) with the server-confirmed one
+    //                     updatedMessages = [...prevMessages];
+    //                     updatedMessages[messageIndex] = msg;
+    //                 } else {
+    //                     // If it's a new message, append it
+    //                     updatedMessages = [...prevMessages, msg];
+    //                 }
+    
+    //                 saveMessagesToLocalStorage(updatedMessages);
+    //                 const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
+    //                 const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    //                 if (isNearBottom) {
+    //                     setTimeout(() => scrollToBottom(), 0);
+    //                 }
+    //                 return updatedMessages;
+    //             });
+    
+    //             if (msg.receiver === currentUser && !msg.isRead) {
+    //                 setShowPopup(true);
+    //                 setTimeout(() => setShowPopup(false), 3000);
+    //                 if (!firstNewMessageId) {
+    //                     setFirstNewMessageId(msg._id || msg.tempId);
+    //                     setShowNewMessage(true);
+    //                     setTimeout(() => {
+    //                         setShowNewMessage(false);
+    //                         setFirstNewMessageId(null);
+    //                     }, 5000);
+    //                 }
+    //                 setUnreadMessages((prev) => {
+    //                     const exists = prev.some(
+    //                         (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
+    //                     );
+    //                     if (!exists) {
+    //                         return [...prev, msg];
+    //                     }
+    //                     return prev;
+    //                 });
+    //             }
+    //         }
+    //     });
+    
+    //     return () => {
+    //         socket.off("message");
+    //     };
+    // }, [selectedUser, currentUser, firstNewMessageId]);
     useEffect(() => {
         socket.on("message", (msg) => {
             if (
@@ -1686,23 +1745,28 @@ export default function Chat() {
     
                     let updatedMessages;
                     if (messageIndex !== -1) {
-                        // Replace the existing message (optimistic) with the server-confirmed one
+                        // Replace the existing message (optimistic update) with the server-confirmed one
                         updatedMessages = [...prevMessages];
                         updatedMessages[messageIndex] = msg;
                     } else {
-                        // If it's a new message, append it
+                        // If it's a new message, append it without causing a refresh
                         updatedMessages = [...prevMessages, msg];
                     }
     
+                    // Save to local storage without triggering a refresh
                     saveMessagesToLocalStorage(updatedMessages);
+    
+                    // Scroll to bottom only if the user is near the bottom
                     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
                     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
                     if (isNearBottom) {
                         setTimeout(() => scrollToBottom(), 0);
                     }
+    
                     return updatedMessages;
                 });
     
+                // Handle new message notification for the receiver
                 if (msg.receiver === currentUser && !msg.isRead) {
                     setShowPopup(true);
                     setTimeout(() => setShowPopup(false), 3000);
@@ -1731,12 +1795,57 @@ export default function Chat() {
             socket.off("message");
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
-
+    // useEffect(() => {
+    //     if (selectedUser) {
+    //         // Clear messages when switching users to ensure only relevant messages are shown
+    //         setMessages([]);
+    
+    //         socket.emit("joinChat", {
+    //             sender: currentUser,
+    //             receiver: selectedUser.email,
+    //         });
+    
+    //         socket.on("loadMessages", (serverMessages) => {
+    //             setMessages((prevMessages) => {
+    //                 const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
+    //                 // Filter messages to ensure they are only between currentUser and selectedUser.email
+    //                 const filteredMessages = serverMessages.filter(
+    //                     (msg) =>
+    //                         !existingIds.has(msg._id) &&
+    //                         ((msg.sender === currentUser && msg.receiver === selectedUser.email) ||
+    //                          (msg.sender === selectedUser.email && msg.receiver === currentUser))
+    //                 );
+    //                 const updatedMessages = [...prevMessages, ...filteredMessages];
+    //                 saveMessagesToLocalStorage(updatedMessages);
+    //                 setTimeout(() => scrollToBottom(), 100);
+    //                 return updatedMessages;
+    //             });
+    
+    //             setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
+    //             const firstUnread = serverMessages.find(
+    //                 (msg) => msg.receiver === currentUser && !msg.isRead
+    //             );
+    //             if (firstUnread && !firstNewMessageId) {
+    //                 setFirstNewMessageId(firstUnread._id);
+    //                 setShowNewMessage(true);
+    //                 setTimeout(() => {
+    //                     setShowNewMessage(false);
+    //                     setFirstNewMessageId(null);
+    //                 }, 5000);
+    //             }
+    //             socket.emit("markAsRead", {
+    //                 sender: selectedUser.email,
+    //                 receiver: currentUser,
+    //             });
+    //         });
+    //     }
+    
+    //     return () => {
+    //         socket.off("loadMessages");
+    //     };
+    // }, [selectedUser, currentUser, firstNewMessageId]);
     useEffect(() => {
         if (selectedUser) {
-            // Clear messages when switching users to ensure only relevant messages are shown
-            setMessages([]);
-    
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
@@ -1758,7 +1867,10 @@ export default function Chat() {
                     return updatedMessages;
                 });
     
+                // Update unread messages without causing a refresh
                 setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
+    
+                // Handle "new message" notification without refreshing
                 const firstUnread = serverMessages.find(
                     (msg) => msg.receiver === currentUser && !msg.isRead
                 );
@@ -1770,6 +1882,7 @@ export default function Chat() {
                         setFirstNewMessageId(null);
                     }, 5000);
                 }
+    
                 socket.emit("markAsRead", {
                     sender: selectedUser.email,
                     receiver: currentUser,
@@ -1781,7 +1894,6 @@ export default function Chat() {
             socket.off("loadMessages");
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
-
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
             if (selectedUser?.email === receiver) {
