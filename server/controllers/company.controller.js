@@ -3,7 +3,7 @@ import getDataUri from "../utils/datauri.js";
 import cloudinary from "../utils/cloudinary.js";
 import {Job} from "../models/job.model.js";
 
-
+import { v2 as cloudinary } from "cloudinary";
 export const registerCompany = async (req, res) => {
     try {
         const { companyName, description, website, location, email,logo } = req.body;
@@ -272,6 +272,7 @@ export const getCompanyById = async(req, res) => {
 //         });
 //     }
 // };
+
 export const updateCompany = async (req, res) => {
     try {
         const { name, description, website, location, logo } = req.body;
@@ -329,7 +330,7 @@ export const updateCompany = async (req, res) => {
                 }
 
                 const cloudResponse = await new Promise((resolve, reject) => {
-                    const uploadStream = cloudinary.v2.uploader.upload_stream(
+                    const uploadStream = cloudinary.uploader.upload_stream( // Use cloudinary.uploader (v2)
                         {
                             folder: "company_logos",
                             resource_type: "image",
@@ -359,7 +360,7 @@ export const updateCompany = async (req, res) => {
                     const publicId = company.logo.split("/").pop().split(".")[0];
                     console.log("Deleting old logo with publicId:", publicId);
                     try {
-                        await cloudinary.v2.uploader.destroy(`company_logos/${publicId}`);
+                        await cloudinary.uploader.destroy(`company_logos/${publicId}`); // Use cloudinary.uploader (v2)
                     } catch (destroyError) {
                         console.error("Failed to delete old logo from Cloudinary:", destroyError);
                     }
