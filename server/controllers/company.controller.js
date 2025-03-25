@@ -147,6 +147,10 @@ export const getCompanyById = async(req, res) => {
 // Utility function to convert file buffer to Data URI
 
 
+import { Company } from "../models/company.model.js"; // Adjust the import based on your project structure
+import mongoose from "mongoose";
+import cloudinary from "cloudinary";
+
 export const updateCompany = async (req, res) => {
     try {
         const { name, description, website, location, logo } = req.body;
@@ -155,7 +159,7 @@ export const updateCompany = async (req, res) => {
 
         console.log("Updating company with ID:", companyId, "by user:", userId);
         console.log("Request body:", req.body);
-        console.log("Uploaded files:", req.files);
+        console.log("Received files:", req.files);
 
         if (!userId) {
             return res.status(401).json({
@@ -206,20 +210,32 @@ export const updateCompany = async (req, res) => {
                     throw new Error("File buffer is empty or missing.");
                 }
 
-                const fileUri = getDataUri(file);
-                const cloudResponse = await cloudinary.v2.uploader.upload(fileUri, {
-                    folder: "company_logos",
-                    resource_type: "image",
-                    transformation: [
-                        { width: 150, height: 150, crop: "fit" },
-                        { quality: "auto" },
-                    ],
-                    timeout: 10000, // 10 seconds timeout
+                // Upload the file directly to Cloudinary using the buffer
+                const cloudResponse = await new Promise((resolve, reject) => {
+                    const uploadStream = cloudinary.v2.uploader.upload_stream(
+                        {
+                            folder: "company_logos",
+                            resource_type: "image",
+                            transformation: [
+                                { width: 150, height: 150, crop: "fit" },
+                                { quality: "auto" },
+                            ],
+                        },
+                        (error, result) => {
+                            if (error) {
+                                reject(error);
+                            } else {
+                                resolve(result);
+                            }
+                        }
+                    );
+                    uploadStream.end(file.buffer);
                 });
-                console.log("Cloudinary upload response:", cloudResponse);
 
+                console.log("Cloudinary upload response:", cloudResponse);
                 updateData.logo = cloudResponse.secure_url;
 
+                // Delete the old logo from Cloudinary if it exists
                 if (company.logo && typeof company.logo === "string") {
                     const publicId = company.logo.split("/").pop().split(".")[0];
                     console.log("Deleting old logo with publicId:", publicId);
@@ -227,7 +243,6 @@ export const updateCompany = async (req, res) => {
                         await cloudinary.v2.uploader.destroy(`company_logos/${publicId}`);
                     } catch (destroyError) {
                         console.error("Failed to delete old logo from Cloudinary:", destroyError);
-                        // Continue even if deletion fails
                     }
                 }
             } catch (uploadError) {

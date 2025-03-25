@@ -77,7 +77,7 @@
 //                     Authorization: `Bearer ${localStorage.getItem("token")}` // If using token auth
 //                 }
 //             });
-    
+
 //             if (res.data.success) {
 //                 toast.success(res.data.message);
 //                 navigate("/admin/companies");
@@ -86,8 +86,8 @@
 //             toast.error(error.response?.data?.message || "Error deleting company");
 //         }
 //     };
-    
-    
+
+
 
 //     useEffect(() => {
 //         if (singleCompany) {
@@ -100,7 +100,7 @@
 //             });
 //         }
 //     }, [singleCompany]);
-    
+
 
 //     return (
 //         <motion.div
@@ -383,13 +383,16 @@ const CompanySetup = () => {
                                         src={singleCompany.logo}
                                         alt={`${singleCompany.name} image`}
                                         className="w-24 h-24 object-contain border border-gray-300 rounded-md"
+                                        onError={(e) => {
+                                            e.target.src = "/placeholder-image.png"; // Fallback image if Cloudinary URL fails
+                                        }}
                                     />
                                     <p className="text-sm text-gray-500 mt-1">{t("CurrentImage")}</p>
                                 </div>
                             )}
                             <Input
                                 type="file"
-                                name="image" // Changed to "image"
+                                name="image"
                                 accept="image/*"
                                 onChange={changeFileHandler}
                                 className="border border-gray-300 rounded-md shadow-sm transition duration-200"
