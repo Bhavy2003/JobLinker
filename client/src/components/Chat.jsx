@@ -1889,8 +1889,10 @@ const ChatMessage = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: isSender ? "flex-end" : "flex-start",
-                margin: "10px 0",
+                margin: "5px 0",
                 padding: "0",
+                display: "flex",
+
             }}
         >
             {isFirstNew && message.receiver === user && (
@@ -1926,9 +1928,8 @@ const ChatMessage = ({
                         wordBreak: "break-word",
                         whiteSpace: "pre-wrap",
                         overflowWrap: "break-word",
-                        // boxShadow: "0 10px 20px rgba(0, 0, 0, 0.2)",
-                        boxShadow: "0 10px 20px rgba(0, 0, 0, 0.2), 0 0 0 100vw rgba(0, 0, 0, 0.1) inset",
-                        
+                        boxShadow: "0 10px 20px rgba(0, 0, 0, 0.2)",
+                        alignSelf: isSender ? "flex-end" : "flex-start",                 
                         
                     }}
                 >
