@@ -273,133 +273,230 @@ export const getCompanyById = async(req, res) => {
 //     }
 // };
 
+// export const updateCompany = async (req, res) => {
+//     try {
+//         const { name, description, website, location, logo } = req.body;
+//         const companyId = req.params.id;
+//         const userId = req.id;
+
+//         console.log("Updating company with ID:", companyId, "by user:", userId);
+//         console.log("Request body:", req.body);
+//         console.log("Received file:", req.file);
+
+//         if (!userId) {
+//             return res.status(401).json({
+//                 message: "User is not authenticated.",
+//                 success: false,
+//             });
+//         }
+
+//         if (!companyId) {
+//             return res.status(400).json({
+//                 message: "Company ID is required.",
+//                 success: false,
+//             });
+//         }
+
+//         if (!mongoose.Types.ObjectId.isValid(companyId)) {
+//             return res.status(400).json({
+//                 message: "Invalid company ID.",
+//                 success: false,
+//             });
+//         }
+
+//         const company = await Company.findOne({ _id: companyId, userId });
+//         console.log("Found company:", company);
+
+//         if (!company) {
+//             return res.status(404).json({
+//                 message: "Company not found or you are not authorized to update it.",
+//                 success: false,
+//             });
+//         }
+
+//         let updateData = { name, description, website, location };
+
+//         if (logo) {
+//             updateData.logo = logo;
+//             console.log("Using logo URL from request body:", logo);
+//         }
+
+//         if (req.file) {
+//             try {
+//                 console.log("Processing file:", req.file.originalname, "MIME type:", req.file.mimetype, "Size:", req.file.size);
+
+//                 if (!req.file.buffer || req.file.buffer.length === 0) {
+//                     throw new Error("File buffer is empty or missing.");
+//                 }
+
+//                 const cloudResponse = await new Promise((resolve, reject) => {
+//                     const uploadStream = cloudinary.uploader.upload_stream( // Use cloudinary.uploader (v2)
+//                         {
+//                             folder: "company_logos",
+//                             resource_type: "image",
+//                             transformation: [
+//                                 { width: 150, height: 150, crop: "fit" },
+//                                 { quality: "auto" },
+//                             ],
+//                         },
+//                         (error, result) => {
+//                             if (error) {
+//                                 reject(error);
+//                             } else {
+//                                 resolve(result);
+//                             }
+//                         }
+//                     );
+//                     uploadStream.end(req.file.buffer);
+//                 });
+
+//                 console.log("Cloudinary upload response:", cloudResponse);
+//                 if (!cloudResponse.secure_url) {
+//                     throw new Error("Cloudinary upload failed: No secure_url returned.");
+//                 }
+//                 updateData.logo = cloudResponse.secure_url;
+
+//                 if (company.logo && typeof company.logo === "string") {
+//                     const publicId = company.logo.split("/").pop().split(".")[0];
+//                     console.log("Deleting old logo with publicId:", publicId);
+//                     try {
+//                         await cloudinary.uploader.destroy(`company_logos/${publicId}`); // Use cloudinary.uploader (v2)
+//                     } catch (destroyError) {
+//                         console.error("Failed to delete old logo from Cloudinary:", destroyError);
+//                     }
+//                 }
+//             } catch (uploadError) {
+//                 console.error("Cloudinary upload error:", uploadError);
+//                 return res.status(500).json({
+//                     message: "Error uploading image to Cloudinary.",
+//                     success: false,
+//                     error: uploadError.message,
+//                 });
+//             }
+//         }
+
+//         const updatedCompany = await Company.findByIdAndUpdate(companyId, updateData, { new: true });
+//         console.log("Updated company:", updatedCompany);
+
+//         if (!updatedCompany) {
+//             return res.status(500).json({
+//                 message: "Failed to update company in the database.",
+//                 success: false,
+//             });
+//         }
+
+//         return res.status(200).json({
+//             message: "Company information updated successfully.",
+//             success: true,
+//             company: updatedCompany,
+//         });
+//     } catch (error) {
+//         console.error("Error updating company:", error);
+//         return res.status(500).json({
+//             message: "An error occurred while updating company information.",
+//             success: false,
+//             error: error.message,
+//         });
+//     }
+// };
 export const updateCompany = async (req, res) => {
     try {
-        const { name, description, website, location, logo } = req.body;
-        const companyId = req.params.id;
-        const userId = req.id;
-
-        console.log("Updating company with ID:", companyId, "by user:", userId);
-        console.log("Request body:", req.body);
-        console.log("Received file:", req.file);
-
-        if (!userId) {
-            return res.status(401).json({
-                message: "User is not authenticated.",
-                success: false,
-            });
-        }
-
-        if (!companyId) {
+      const { name, description, website, location } = req.body;
+      const companyId = req.params.id;
+      const userId = req.id;
+  
+      if (!userId) {
+        return res.status(401).json({
+          message: "User is not authenticated.",
+          success: false,
+        });
+      }
+  
+      if (!companyId) {
+        return res.status(400).json({
+          message: "Company ID is required.",
+          success: false,
+        });
+      }
+  
+      const company = await Company.findOne({ _id: companyId, userId });
+      if (!company) {
+        return res.status(404).json({
+          message: "Company not found or you are not authorized to update it.",
+          success: false,
+        });
+      }
+  
+      let updateData = { name, description, website, location };
+  
+      if (req.file) {
+        try {
+          const file = req.file;
+          if (!file) {
             return res.status(400).json({
-                message: "Company ID is required.",
-                success: false,
+              message: "No file provided.",
+              success: false,
             });
-        }
-
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({
-                message: "Invalid company ID.",
-                success: false,
-            });
-        }
-
-        const company = await Company.findOne({ _id: companyId, userId });
-        console.log("Found company:", company);
-
-        if (!company) {
-            return res.status(404).json({
-                message: "Company not found or you are not authorized to update it.",
-                success: false,
-            });
-        }
-
-        let updateData = { name, description, website, location };
-
-        if (logo) {
-            updateData.logo = logo;
-            console.log("Using logo URL from request body:", logo);
-        }
-
-        if (req.file) {
-            try {
-                console.log("Processing file:", req.file.originalname, "MIME type:", req.file.mimetype, "Size:", req.file.size);
-
-                if (!req.file.buffer || req.file.buffer.length === 0) {
-                    throw new Error("File buffer is empty or missing.");
-                }
-
-                const cloudResponse = await new Promise((resolve, reject) => {
-                    const uploadStream = cloudinary.uploader.upload_stream( // Use cloudinary.uploader (v2)
-                        {
-                            folder: "company_logos",
-                            resource_type: "image",
-                            transformation: [
-                                { width: 150, height: 150, crop: "fit" },
-                                { quality: "auto" },
-                            ],
-                        },
-                        (error, result) => {
-                            if (error) {
-                                reject(error);
-                            } else {
-                                resolve(result);
-                            }
-                        }
-                    );
-                    uploadStream.end(req.file.buffer);
-                });
-
-                console.log("Cloudinary upload response:", cloudResponse);
-                if (!cloudResponse.secure_url) {
-                    throw new Error("Cloudinary upload failed: No secure_url returned.");
-                }
-                updateData.logo = cloudResponse.secure_url;
-
-                if (company.logo && typeof company.logo === "string") {
-                    const publicId = company.logo.split("/").pop().split(".")[0];
-                    console.log("Deleting old logo with publicId:", publicId);
-                    try {
-                        await cloudinary.uploader.destroy(`company_logos/${publicId}`); // Use cloudinary.uploader (v2)
-                    } catch (destroyError) {
-                        console.error("Failed to delete old logo from Cloudinary:", destroyError);
-                    }
-                }
-            } catch (uploadError) {
-                console.error("Cloudinary upload error:", uploadError);
-                return res.status(500).json({
-                    message: "Error uploading image to Cloudinary.",
-                    success: false,
-                    error: uploadError.message,
-                });
-            }
-        }
-
-        const updatedCompany = await Company.findByIdAndUpdate(companyId, updateData, { new: true });
-        console.log("Updated company:", updatedCompany);
-
-        if (!updatedCompany) {
+          }
+          const fileUri = getDataUri(file);
+          if (!fileUri) {
             return res.status(500).json({
-                message: "Failed to update company in the database.",
-                success: false,
+              message: "Error processing file.",
+              success: false,
             });
-        }
-
-        return res.status(200).json({
-            message: "Company information updated successfully.",
-            success: true,
-            company: updatedCompany,
-        });
-    } catch (error) {
-        console.error("Error updating company:", error);
-        return res.status(500).json({
-            message: "An error occurred while updating company information.",
+          }
+          const publicId = `company_logos/${companyId}_${Date.now()}`;
+          console.log("Uploading logo with public_id:", publicId);
+          const cloudResponse = await cloudinary.uploader.upload(fileUri.content, {
+            resource_type: "image",
+            public_id: publicId,
+            folder: "company_logos",
+          });
+          console.log("Cloudinary response:", cloudResponse);
+          if (!cloudResponse?.secure_url) {
+            return res.status(500).json({
+              message: "Failed to upload logo to Cloudinary.",
+              success: false,
+            });
+          }
+          if (company.logo) {
+            const oldPublicId = company.logo.split('/').pop().split('.')[0];
+            await cloudinary.uploader.destroy(`company_logos/${oldPublicId}`).catch(err => {
+              console.error("Error deleting old logo from Cloudinary:", err);
+            });
+          }
+          updateData.logo = cloudResponse.secure_url;
+        } catch (uploadError) {
+          console.error("Cloudinary upload error:", uploadError);
+          return res.status(500).json({
+            message: "Error uploading logo to Cloudinary.",
             success: false,
-            error: error.message,
+          });
+        }
+      }
+  
+      const updatedCompany = await Company.findByIdAndUpdate(companyId, updateData, { new: true });
+      console.log("Updated company with new logo:", updatedCompany);
+      if (!updatedCompany) {
+        return res.status(500).json({
+          message: "Failed to update company.",
+          success: false,
         });
+      }
+  
+      return res.status(200).json({
+        message: "Company information updated successfully.",
+        success: true,
+        company: updatedCompany,
+      });
+    } catch (error) {
+      console.error("Update company error:", error);
+      return res.status(500).json({
+        message: "An error occurred while updating company information.",
+        success: false,
+      });
     }
-};
-
+  };
 import mongoose from "mongoose";
 
 export const deleteCompany = async (req, res) => {

@@ -123,6 +123,7 @@ const ReviewCarousel = () => {
           const sortedReviews = response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
           const filteredReviews = sortedReviews.filter(review => review.companyId?.name);
           setReviews(filteredReviews);
+          console.log("Fetched reviews:", filteredReviews);
         } else {
           console.warn("Unexpected response format:", response);
           setReviews([]);
@@ -187,13 +188,13 @@ const ReviewCarousel = () => {
                         <div className="flex items-center">
                           {review.logo ? (
                             <img
-                              src={`${review.logo}?t=${new Date().getTime()}`}
+                              src={review.logo}
                               alt={review.companyId.name}
                               className="w-8 h-8 rounded-full mr-2"
                               onError={(e) => {
                                 console.error(`Failed to load logo for ${review.companyId.name}: ${review.logo}`);
                                 e.target.onerror = null;
-                                e.target.src = "/default-logo.png"; // Fallback image
+                                e.target.src = "/default-logo.png";
                               }}
                             />
                           ) : (

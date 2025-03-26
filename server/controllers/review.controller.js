@@ -17,13 +17,35 @@ export const submitContactFormNew = async (req, res) => {
     res.status(500).json({ message: "Server error. Try again later!" });
   }
 };
+// export const getReviews = async (req, res) => {
+//     try {
+//       // Fetch all reviews
+//       const reviews = await Review.find().populate('companyId', 'name'); // Populate company name
+//       res.status(200).json(reviews); // Send the reviews in response
+//     } catch (error) {
+//       console.error(error);
+//       res.status(500).json({ message: "Server error. Try again later!" });
+//     }
+//   };
+
 export const getReviews = async (req, res) => {
-    try {
-      // Fetch all reviews
-      const reviews = await Review.find().populate('companyId', 'name'); // Populate company name
-      res.status(200).json(reviews); // Send the reviews in response
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Server error. Try again later!" });
-    }
-  };
+  try {
+    const reviews = await Review.find().populate("companyId", "name logo");
+
+    const transformedReviews = reviews.map(review => {
+      const logoUrl = review.companyId?.logo || "";
+      // Append a version parameter to force Cloudinary to serve the latest image
+      const versionedLogoUrl = logoUrl ? `${logoUrl}?v=${Date.now()}` : "";
+      return {
+        ...review.toObject(),
+        logo: versionedLogoUrl,
+      };
+    });
+
+    res.set("Cache-Control", "no-store");
+    res.status(200).json(transformedReviews);
+  } catch (error) {
+    console.error("Error fetching reviews:", error);
+    res.status(500).json({ message: "Server error. Try again later!" });
+  }
+};
