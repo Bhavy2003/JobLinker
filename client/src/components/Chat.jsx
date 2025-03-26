@@ -965,7 +965,9 @@ export default function Chat() {
     const [selectedFile, setSelectedFile] = useState(null);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedMessages, setSelectedMessages] = useState([]);
-
+    const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+    const [confirmAction, setConfirmAction] = useState(null); // Will store the action to confirm ("deleteMessages" or "deleteChat")
+    const [confirmData, setConfirmData] = useState(null);
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
     const storageKey = `sentUsers_${currentUser}`;
@@ -1280,7 +1282,9 @@ export default function Chat() {
         setSelectedUser(null);
         const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
         localStorage.removeItem(chatKey);
-
+        setConfirmAction("deleteChat");
+        setConfirmData(userEmail);
+        setShowConfirmPopup(true);
         toast.success("Chat cleared successfully.");
     };
 
@@ -1310,6 +1314,9 @@ export default function Chat() {
                 saveMessagesToLocalStorage(updatedMessages);
                 return updatedMessages;
             });
+            setConfirmAction("deleteMessages");
+        setConfirmData(messageIds);
+        setShowConfirmPopup(true);
 
             toast.success(`${messageIds.length} message(s) deleted permanently`);
             setSelectedMessages([]);
@@ -1318,6 +1325,63 @@ export default function Chat() {
             console.error("Error deleting messages:", error.message);
             toast.error(`Failed to delete messages: ${error.message}`);
         }
+    };
+    const handleConfirm = async () => {
+        if (confirmAction === "deleteMessages") {
+            const messageIds = confirmData;
+            try {
+                const response = await fetch("https://joblinker-1.onrender.com/api/messages/delete", {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ messageIds }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Failed to delete messages");
+                }
+
+                setMessages((prevMessages) => {
+                    const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
+                    saveMessagesToLocalStorage(updatedMessages);
+                    return updatedMessages;
+                });
+
+                toast.success(`${messageIds.length} message(s) deleted permanently`);
+                setSelectedMessages([]);
+                setIsSelectionMode(false);
+            } catch (error) {
+                console.error("Error deleting messages:", error.message);
+                toast.error(`Failed to delete messages: ${error.message}`);
+            }
+        } else if (confirmAction === "deleteChat") {
+            const userEmail = confirmData;
+            socket.emit("deleteChat", {
+                sender: currentUser,
+                receiver: userEmail,
+            });
+
+            setMessages([]);
+            setSelectedUser(null);
+            const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
+            localStorage.removeItem(chatKey);
+
+            toast.success("Chat cleared successfully.");
+        }
+
+        // Close the popup after action
+        setShowConfirmPopup(false);
+        setConfirmAction(null);
+        setConfirmData(null);
+    };
+
+    // New function to handle cancellation of confirmation
+    const handleCancel = () => {
+        setShowConfirmPopup(false);
+        setConfirmAction(null);
+        setConfirmData(null);
     };
 
     const handleFileUpload = async (e) => {
@@ -1694,10 +1758,50 @@ export default function Chat() {
                     )}
                 </div>
             </div>
+            {showConfirmPopup && (
+                <ConfirmationPopup
+                    action={confirmAction}
+                    data={confirmData}
+                    onConfirm={handleConfirm}
+                    onCancel={handleCancel}
+                    t={t}
+                />
+            )}
             <Footer />
         </>
     );
 }
+const ConfirmationPopup = ({ action, data, onConfirm, onCancel, t }) => {
+    const message =
+        action === "deleteMessages"
+            ? `Are you sure you want to delete ${data.length} message(s)? This action cannot be undone.`
+            : `Are you sure you want to delete this chat? This action cannot be undone.`;
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="bg-gray-800 rounded-lg p-6 w-11/12 max-w-md">
+                <h3 className="text-lg font-bold text-white mb-4">
+                    {action === "deleteMessages" ? "Delete Messages" : "Delete Chat"}
+                </h3>
+                <p className="text-gray-300 mb-6">{message}</p>
+                <div className="flex justify-end space-x-3">
+                    <button
+                        onClick={onCancel}
+                        className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
+                    >
+                        {t("Cancel")}
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+                    >
+                        {t("Delete")}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const ChatMessage = ({ 
     message, 
@@ -1813,16 +1917,19 @@ const ChatMessage = ({
                 <div
                     style={{
                         backgroundColor: isSender ? "#1E40AF" : "#374151",
-                        padding: "8px 12px",
+                        padding: "10px",
                         borderRadius: "12px",
                         maxWidth: "60%",
-                        width: "max-content",
+                        width: "fit-content",
                         textAlign: isSender ? "right" : "left",
                         color: "white",
                         wordBreak: "break-word",
                         whiteSpace: "pre-wrap",
                         overflowWrap: "break-word",
-                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
+                        // boxShadow: "0 10px 20px rgba(0, 0, 0, 0.2)",
+                        boxShadow: "0 10px 20px rgba(0, 0, 0, 0.2), 0 0 0 100vw rgba(0, 0, 0, 0.1) inset",
+                        
+                        
                     }}
                 >
                     {message.text && <div>{message.text}</div>}
