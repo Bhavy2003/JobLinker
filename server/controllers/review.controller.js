@@ -2,9 +2,9 @@ import Review from "../models/review.model.js";
 
 export const submitContactFormNew = async (req, res) => {
   try {
-    const { name,review,rating,companyId } = req.body;
+    const { name,review,rating,companyId,logo} = req.body;
 
-    if (!name || !review || !rating || !companyId) {
+    if (!name || !review || !rating || !companyId ||!logo) {
       return res.status(400).json({ message: "All fields are required!" });
     }
 
@@ -20,7 +20,7 @@ export const submitContactFormNew = async (req, res) => {
 export const getReviews = async (req, res) => {
     try {
       // Fetch all reviews
-      const reviews = await Review.find().populate('companyId', 'name logo'); // Populate company name
+      const reviews = await Review.find().populate('companyId', 'name'); // Populate company name
       res.status(200).json(reviews); // Send the reviews in response
     } catch (error) {
       console.error(error);
