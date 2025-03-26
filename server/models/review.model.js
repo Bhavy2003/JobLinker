@@ -18,10 +18,10 @@ const reviewSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    logo: { type: String, 
-        default:""
+    // logo: { type: String, 
+    //     default:""
         
-    },
+    // },
 }, { timestamps: true });
 
 
