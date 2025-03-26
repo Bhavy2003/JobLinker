@@ -27,7 +27,8 @@
 // import { GoogleGenerativeAI } from "@google/generative-ai";
 // import tesseract from "node-tesseract-ocr";
 // import { fromPath } from "pdf2pic";
-
+// import { updateCompany } from './controllers/company.controller.js';
+// import { companyLogoUpload } from "./middlewares/mutler.js";
 // dotenv.config();
 // connectDB();
 
@@ -429,6 +430,10 @@
 //     }
 // };
 
+// // Multer configuration for company logo upload (using memoryStorage)
+// const memoryStorage = multer.memoryStorage();
+//  // Expect field name "logo"
+
 // const chatFileUpload = multer({
 //     storage,
 //     fileFilter,
@@ -673,8 +678,23 @@
 //         }
 //     }
 // });
-// import { updateCompany } from './controllers/company.controller.js';
-// app.put('/api/v1/company/update/:id', upload.single('file'), updateCompany);
+
+
+
+// app.put('/api/v1/company/update/:id', companyLogoUpload, async (req, res, next) => {
+//     console.log("Received files in route:", req.files);
+//     try {
+//         await updateCompany(req, res);
+//     } catch (error) {
+//         if (error instanceof multer.MulterError) {
+//             return res.status(400).json({
+//                 message: error.message,
+//                 success: false,
+//             });
+//         }
+//         next(error);
+//     }
+// });
 
 // app.use((err, req, res, next) => {
 //     console.error(err.stack);
@@ -829,6 +849,9 @@
 // server.listen(PORT, () => {
 //     console.log(`Server running at http://localhost:${PORT}`);
 // });
+
+
+
 
 import express from "express";
 import cookieParser from "cookie-parser";
@@ -1618,36 +1641,102 @@ io.on("connection", (socket) => {
         }
     });
 
-    socket.on("deleteChat", async ({ sender, receiver }) => {
-        try {
-            await Message.updateMany(
-                {
-                    $or: [
-                        { sender, receiver },
-                        { sender: receiver, receiver: sender },
-                    ],
-                    deletedBy: { $ne: sender },
-                },
-                { $addToSet: { deletedBy: sender } }
-            );
+    // Inside io.on("connection", (socket) => { ... })
 
-            const senderSocketId = connectedUsers.get(sender);
-            if (senderSocketId) {
-                io.to(senderSocketId).emit("chatDeleted", { receiver });
-            }
+// Delete specific messages
+socket.on("deleteMessages", async ({ sender, messageIds }) => {
+    try {
+        // Mark messages as deleted for the sender
+        await Message.updateMany(
+            { _id: { $in: messageIds } },
+            { $addToSet: { deletedBy: sender } }
+        );
 
-            const receiverSocketId = connectedUsers.get(receiver);
-            if (receiverSocketId) {
-                io.to(receiverSocketId).emit("chatUpdated", { sender });
-            }
-        } catch (error) {
-            console.error("Error deleting chat:", error);
-            const senderSocketId = connectedUsers.get(sender);
-            if (senderSocketId) {
-                io.to(senderSocketId).emit("chatDeleteError", { error: "Failed to delete chat" });
-            }
+        // Fetch updated messages for the sender
+        const room = [sender, socket.handshake.query.receiver].sort().join("_");
+        const updatedMessages = await Message.find({
+            $or: [
+                { sender: sender, receiver: socket.handshake.query.receiver },
+                { sender: socket.handshake.query.receiver, receiver: sender },
+            ],
+            deletedBy: { $ne: sender },
+        }).sort("timestamp");
+
+        // Emit updated messages to the sender
+        const senderSocketId = connectedUsers.get(sender);
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("messagesUpdated", updatedMessages);
         }
-    });
+
+        // Notify the other user (receiver) to update their chat
+        const receiver = socket.handshake.query.receiver;
+        const receiverSocketId = connectedUsers.get(receiver);
+        if (receiverSocketId) {
+            const receiverMessages = await Message.find({
+                $or: [
+                    { sender: sender, receiver: receiver },
+                    { sender: receiver, receiver: sender },
+                ],
+                deletedBy: { $ne: receiver },
+            }).sort("timestamp");
+            io.to(receiverSocketId).emit("messagesUpdated", receiverMessages);
+        }
+    } catch (error) {
+        console.error("Error deleting messages:", error);
+        const senderSocketId = connectedUsers.get(sender);
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("messageDeleteError", { error: "Failed to delete messages" });
+        }
+    }
+});
+
+// Add a reaction to a message
+socket.on("addReaction", async ({ messageId, emoji, user }) => {
+    try {
+        const message = await Message.findById(messageId);
+        if (!message) {
+            throw new Error("Message not found");
+        }
+
+        // Add the reaction
+        message.reactions.push({ emoji, user, timestamp: new Date() });
+        await message.save();
+
+        // Emit the updated message to both users
+        const room = [message.sender, message.receiver].sort().join("_");
+        io.to(room).emit("messageUpdated", message);
+    } catch (error) {
+        console.error("Error adding reaction:", error);
+        const senderSocketId = connectedUsers.get(user);
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("reactionError", { error: "Failed to add reaction" });
+        }
+    }
+});
+
+// Remove a reaction from a message
+socket.on("removeReaction", async ({ messageId, user }) => {
+    try {
+        const message = await Message.findById(messageId);
+        if (!message) {
+            throw new Error("Message not found");
+        }
+
+        // Remove the reaction by the user
+        message.reactions = message.reactions.filter((reaction) => reaction.user !== user);
+        await message.save();
+
+        // Emit the updated message to both users
+        const room = [message.sender, message.receiver].sort().join("_");
+        io.to(room).emit("messageUpdated", message);
+    } catch (error) {
+        console.error("Error removing reaction:", error);
+        const senderSocketId = connectedUsers.get(user);
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("reactionError", { error: "Failed to remove reaction" });
+        }
+    }
+});
 
     socket.on("markAsRead", async ({ sender, receiver }) => {
         try {

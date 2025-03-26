@@ -35,7 +35,7 @@ const TopJobs = () => {
                     className="lg:w-1/2 w-full flex justify-center lg:justify-start mb-8 pt-6 lg:mb-0"
                     initial={{ opacity: 0, x: -30 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3, duration: 0.6 }}
+                    transition={{ delay: 0.4, duration: 0.6 }}
                 >
                     <img
                         src={Image}
@@ -49,7 +49,7 @@ const TopJobs = () => {
                     className="lg:w-1/2 w-full grid grid-cols-1 sm:grid-cols-2 -ml-6 gap-8"
                     initial={{ opacity: 0, x: 30 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
+                    transition={{ duration: 0.4, delay: 0.6 }}
                 >
                     {topJobs?.length > 0 ? (
                         topJobs.map((job, index) => (

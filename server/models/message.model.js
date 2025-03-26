@@ -4,6 +4,13 @@ const messageSchema = new mongoose.Schema({
     sender: String,
     receiver: String,
     text: String,
+    reactions: [
+      {
+          emoji: String,
+          user: String, // Email of the user who reacted
+          timestamp: { type: Date, default: Date.now },
+      },
+  ],
     file: {
       name: String,
       type: String,
