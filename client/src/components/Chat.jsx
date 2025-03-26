@@ -1922,7 +1922,7 @@ const ChatMessage = ({
                         padding: "10px",
                         borderRadius: "12px",
                         maxWidth: "70%",
-                        position: "relative",
+                       
                         // width: "100%",
                         textAlign: isSender ? "right" : "left",
                         color: "white",
