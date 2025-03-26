@@ -936,6 +936,7 @@
 
 
 // Chat.jsx
+
 // Chat.jsx
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
@@ -1284,6 +1285,11 @@ export default function Chat() {
 
     const deleteMessages = async (messageIds) => {
         console.log("Deleting messages with IDs:", messageIds); // Debug log
+        if (!messageIds || messageIds.length === 0) {
+            toast.error("No messages selected to delete");
+            return;
+        }
+
         try {
             const response = await fetch("https://joblinker-1.onrender.com/api/messages/delete", {
                 method: "DELETE",
@@ -1422,7 +1428,7 @@ export default function Chat() {
     };
 
     const selectAllMessages = () => {
-        setSelectedMessages(messages.map((msg) => msg._id));
+        setSelectedMessages(messages.map((msg) => msg._id).filter((id) => id)); // Only include defined IDs
     };
 
     const displayedUsers = [
@@ -1751,8 +1757,8 @@ const ChatMessage = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: isSender ? "flex-end" : "flex-start",
-                margin: "5px 0",
-                position: "relative",
+                margin: "10px 0", // Increased margin for better spacing
+                padding: "0 10px", // Add padding to align with WhatsApp
             }}
         >
             {isFirstNew && message.receiver === user && (
@@ -1762,6 +1768,7 @@ const ChatMessage = ({
                         fontSize: "12px",
                         fontWeight: "bold",
                         marginBottom: "5px",
+                        alignSelf: "center",
                     }}
                 >
                     New Message
@@ -1772,22 +1779,21 @@ const ChatMessage = ({
                 onClick={() => {
                     if (isSelectionMode) {
                         toggleSelection();
-                    } else {
-                        setShowReactionPicker(message._id || message.tempId);
                     }
                 }}
             >
                 <div
                     style={{
                         backgroundColor: isSender ? "#1E40AF" : "#374151",
-                        padding: "10px",
-                        borderRadius: "10px",
-                        maxWidth: "60%",
+                        padding: "8px 12px", // Adjusted padding to match WhatsApp
+                        borderRadius: "12px", // More rounded corners
+                        maxWidth: "70%", // Narrower max width to match WhatsApp
                         textAlign: isSender ? "right" : "left",
                         color: "white",
                         wordBreak: "break-word",
                         whiteSpace: "pre-wrap",
                         overflowWrap: "break-word",
+                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.2)", // Add subtle shadow
                     }}
                 >
                     {message.text && <div>{message.text}</div>}
@@ -1798,19 +1804,29 @@ const ChatMessage = ({
                         <span className="text-xs text-gray-300">
                             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        {renderTicks()} {/* Ticks are always visible */}
+                        {renderTicks()}
                     </div>
                 </div>
                 {isSelectionMode ? (
-                    <button
-                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 text-blue-500 hover:text-blue-700`}
+                    <div
+                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelected ? "bg-blue-500" : "bg-transparent"}`}
                         onClick={(e) => {
                             e.stopPropagation();
                             toggleSelection();
                         }}
                     >
-                        <BsCheck2Square size={16} />
-                    </button>
+                        {isSelected && (
+                            <svg
+                                className="w-3 h-3 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        )}
+                    </div>
                 ) : (
                     <button
                         onClick={(e) => {
@@ -1823,32 +1839,6 @@ const ChatMessage = ({
                     </button>
                 )}
             </div>
-            {message.reactions && message.reactions.length > 0 && (
-                <div className="flex mt-1 space-x-1">
-                    {message.reactions.map((reaction, index) => (
-                        <span key={index} className="text-lg">
-                            {reaction.emoji}
-                        </span>
-                    ))}
-                </div>
-            )}
-            {showReactionPicker && !isSelectionMode && (
-                <div
-                    ref={reactionPickerRef}
-                    className="reaction-picker absolute z-10 bg-gray-800 p-2 rounded-lg"
-                    style={{
-                        [isSender ? 'right' : 'left']: '0',
-                        top: '-40px'
-                    }}
-                >
-                    <EmojiPicker
-                        onEmojiClick={handleReactionClick}
-                        emojiStyle="native"
-                        width={300}
-                        height={200}
-                    />
-                </div>
-            )}
         </div>
     );
 };
