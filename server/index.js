@@ -1569,30 +1569,34 @@ const connectedUsers = new Map();
 // index.js
 // ... (previous imports remain the same)
 
+// index.js
+// ... (previous imports remain the same)
+
 app.delete("/api/messages/delete", async (req, res) => {
     const { messageIds } = req.body;
 
     if (!Array.isArray(messageIds) || messageIds.length === 0) {
+        console.log("Invalid or empty message IDs:", messageIds);
         return res.status(400).json({ error: "Invalid or empty message IDs" });
     }
 
     try {
-        // Permanently delete the messages from the database
-        const result = await Message.deleteMany({ _id: { $in: messageIds } });
-
-        if (result.deletedCount === 0) {
+        console.log("Attempting to delete messages with IDs:", messageIds);
+        const messages = await Message.find({ _id: { $in: messageIds } });
+        if (messages.length === 0) {
+            console.log("No messages found for IDs:", messageIds);
             return res.status(404).json({ error: "No messages found to delete" });
         }
 
-        // Find the sender and receiver of the deleted messages to notify them
-        const deletedMessages = await Message.find({ _id: { $in: messageIds } }).lean();
+        const result = await Message.deleteMany({ _id: { $in: messageIds } });
+        console.log(`Deleted ${result.deletedCount} messages`);
+
         const rooms = new Set();
-        deletedMessages.forEach((msg) => {
+        messages.forEach((msg) => {
             const room = [msg.sender, msg.receiver].sort().join("_");
             rooms.add(room);
         });
 
-        // Notify all affected rooms
         rooms.forEach((room) => {
             io.to(room).emit("messageDeleted", { messageIds });
         });
@@ -1600,38 +1604,6 @@ app.delete("/api/messages/delete", async (req, res) => {
         res.json({ success: true, message: `${result.deletedCount} message(s) deleted permanently` });
     } catch (error) {
         console.error("Error deleting messages:", error);
-        res.status(500).json({ error: "Server error" });
-    }
-});
-
-app.post("/api/message/:messageId/react", async (req, res) => {
-    const { messageId } = req.params;
-    const { userEmail, emoji } = req.body;
-
-    try {
-        const message = await Message.findById(messageId);
-        if (!message) {
-            return res.status(404).json({ error: "Message not found" });
-        }
-
-        await Message.findByIdAndUpdate(messageId, {
-            $push: {
-                reactions: {
-                    user: userEmail,
-                    emoji,
-                    timestamp: new Date()
-                }
-            }
-        });
-
-        const updatedMessage = await Message.findById(messageId);
-        
-        const room = [message.sender, message.receiver].sort().join("_");
-        io.to(room).emit("messageReacted", updatedMessage);
-
-        res.json({ success: true, message: "Reaction added successfully" });
-    } catch (error) {
-        console.error("Error adding reaction:", error);
         res.status(500).json({ error: "Server error" });
     }
 });
@@ -1785,6 +1757,8 @@ io.on("connection", (socket) => {
         }
     });
 });
+
+// ... (rest of the index.js file remains the same)
 
 // ... (rest of the index.js file remains the same)
 

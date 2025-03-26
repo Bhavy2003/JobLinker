@@ -936,13 +936,13 @@
 
 
 // Chat.jsx
+// Chat.jsx
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import Navbar from "./shared/Navbar";
 import Footer from "./shared/Footer";
 import { toast } from "react-toastify";
-import EmojiPicker from "emoji-picker-react";
-import { BsEmojiSmile, BsPaperclip, BsTrash, BsCheck2Square } from "react-icons/bs";
+import { BsPaperclip, BsTrash } from "react-icons/bs";
 import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
 import { v4 as uuidv4 } from "uuid";
@@ -960,11 +960,9 @@ export default function Chat() {
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [firstNewMessageId, setFirstNewMessageId] = useState(null);
     const [showNewMessage, setShowNewMessage] = useState(false);
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
-    const [showReactionPicker, setShowReactionPicker] = useState(null);
-    const [isSelectionMode, setIsSelectionMode] = useState(false); // For multi-select mode
-    const [selectedMessages, setSelectedMessages] = useState([]); // Track selected messages
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedMessages, setSelectedMessages] = useState([]);
 
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
@@ -973,7 +971,6 @@ export default function Chat() {
     const DUMMY_PHOTO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcToiRnzzyrDtkmRzlAvPPbh77E-Mvsk3brlxQ&s";
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
-    const emojiPickerRef = useRef(null);
 
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
@@ -1129,16 +1126,6 @@ export default function Chat() {
             });
         });
 
-        socket.on("messageReacted", (updatedMessage) => {
-            setMessages((prevMessages) => {
-                const updatedMessages = prevMessages.map((msg) =>
-                    msg._id === updatedMessage._id ? updatedMessage : msg
-                );
-                saveMessagesToLocalStorage(updatedMessages);
-                return updatedMessages;
-            });
-        });
-
         socket.on("messageStatusUpdated", (updatedMessage) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.map((msg) =>
@@ -1152,7 +1139,6 @@ export default function Chat() {
         return () => {
             socket.off("newMessageNotification");
             socket.off("messageDeleted");
-            socket.off("messageReacted");
             socket.off("messageStatusUpdated");
         };
     }, [allUsers, currentUser]);
@@ -1297,6 +1283,7 @@ export default function Chat() {
     };
 
     const deleteMessages = async (messageIds) => {
+        console.log("Deleting messages with IDs:", messageIds); // Debug log
         try {
             const response = await fetch("https://joblinker-1.onrender.com/api/messages/delete", {
                 method: "DELETE",
@@ -1312,37 +1299,11 @@ export default function Chat() {
             }
 
             toast.success(`${messageIds.length} message(s) deleted permanently`);
-            setSelectedMessages([]); // Clear selection
-            setIsSelectionMode(false); // Exit selection mode
+            setSelectedMessages([]);
+            setIsSelectionMode(false);
         } catch (error) {
             console.error("Error deleting messages:", error.message);
             toast.error(`Failed to delete messages: ${error.message}`);
-        }
-    };
-
-    const addReaction = async (messageId, emoji) => {
-        try {
-            const response = await fetch(`https://joblinker-1.onrender.com/api/message/${messageId}/react`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    userEmail: currentUser,
-                    emoji,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || "Failed to add reaction");
-            }
-
-            setShowReactionPicker(null);
-            toast.success("Reaction added!");
-        } catch (error) {
-            console.error("Error adding reaction:", error.message);
-            toast.error(`Failed to add reaction: ${error.message}`);
         }
     };
 
@@ -1440,13 +1401,6 @@ export default function Chat() {
         }
     };
 
-    const toggleEmojiPicker = () => setShowEmojiPicker(!showEmojiPicker);
-
-    const onEmojiClick = (emojiObject) => {
-        setMessage((prev) => prev + emojiObject.emoji);
-        setShowEmojiPicker(false);
-    };
-
     const clearSelectedFile = () => {
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
@@ -1454,7 +1408,7 @@ export default function Chat() {
 
     const toggleSelectionMode = () => {
         setIsSelectionMode(!isSelectionMode);
-        setSelectedMessages([]); // Clear selection when toggling mode
+        setSelectedMessages([]);
     };
 
     const toggleMessageSelection = (messageId) => {
@@ -1467,21 +1421,9 @@ export default function Chat() {
         });
     };
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
-                setShowEmojiPicker(false);
-            }
-            if (showReactionPicker && !event.target.closest('.reaction-picker')) {
-                setShowReactionPicker(null);
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [showEmojiPicker, showReactionPicker]);
+    const selectAllMessages = () => {
+        setSelectedMessages(messages.map((msg) => msg._id));
+    };
 
     const displayedUsers = [
         ...allUsers.filter((user) => user.email === currentUser),
@@ -1577,7 +1519,7 @@ export default function Chat() {
                 <div className="w-full sm:w-1/4 md:w-2/4 lg:w-3/4 xl:w-3/4 flex flex-col relative flex-1">
                     {selectedUser ? (
                         <>
-                            <div className="p-4 border-b flex justify-between items-center">
+                            <div className="p-4 border-b flex justify-between items-center bg-gray-800">
                                 <div className="flex items-center">
                                     <img
                                         src={selectedUser.profile?.profilePhoto || DUMMY_PHOTO_URL}
@@ -1589,26 +1531,45 @@ export default function Chat() {
                                     </h2>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <button
-                                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-700"
-                                        onClick={toggleSelectionMode}
-                                    >
-                                        {isSelectionMode ? "Cancel" : "Select"}
-                                    </button>
-                                    {isSelectionMode && selectedMessages.length > 0 && (
-                                        <button
-                                            className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
-                                            onClick={() => deleteMessages(selectedMessages)}
-                                        >
-                                            Delete ({selectedMessages.length})
-                                        </button>
+                                    {isSelectionMode ? (
+                                        <>
+                                            <button
+                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition"
+                                                onClick={selectAllMessages}
+                                            >
+                                                Select All
+                                            </button>
+                                            <button
+                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition"
+                                                onClick={toggleSelectionMode}
+                                            >
+                                                Cancel
+                                            </button>
+                                            {selectedMessages.length > 0 && (
+                                                <button
+                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                                                    onClick={() => deleteMessages(selectedMessages)}
+                                                >
+                                                    Delete ({selectedMessages.length})
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                                                onClick={toggleSelectionMode}
+                                            >
+                                                Select
+                                            </button>
+                                            <button
+                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                                                onClick={() => deleteChat(selectedUser.email)}
+                                            >
+                                                {t("Deletechat")}
+                                            </button>
+                                        </>
                                     )}
-                                    <button
-                                        className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
-                                        onClick={() => deleteChat(selectedUser.email)}
-                                    >
-                                        {t("Deletechat")}
-                                    </button>
                                 </div>
                             </div>
                             <div
@@ -1622,9 +1583,6 @@ export default function Chat() {
                                         user={currentUser}
                                         isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
                                         onDelete={deleteMessages}
-                                        onReact={(messageId, emoji) => addReaction(messageId, emoji)}
-                                        showReactionPicker={showReactionPicker === (msg._id || msg.tempId)}
-                                        setShowReactionPicker={setShowReactionPicker}
                                         isSelectionMode={isSelectionMode}
                                         isSelected={selectedMessages.includes(msg._id)}
                                         toggleSelection={() => toggleMessageSelection(msg._id)}
@@ -1650,17 +1608,6 @@ export default function Chat() {
                             )}
                             <div className="p-4 border-t flex items-center relative">
                                 <button
-                                    onClick={toggleEmojiPicker}
-                                    className="mr-2 text-white hover:text-indigo-300"
-                                >
-                                    <BsEmojiSmile size={24} />
-                                </button>
-                                {showEmojiPicker && (
-                                    <div ref={emojiPickerRef} className="absolute bottom-16 left-0 z-10">
-                                        <EmojiPicker onEmojiClick={onEmojiClick} />
-                                    </div>
-                                )}
-                                <button
                                     onClick={() => fileInputRef.current.click()}
                                     className="mr-2 text-white hover:text-indigo-300"
                                 >
@@ -1676,7 +1623,7 @@ export default function Chat() {
                                 <div className="flex-1 flex items-center space-x-2">
                                     <textarea
                                         className="w-full p-2 border rounded text-black resize-none"
-                                        style={{ minWidth: "80%" }} // Increased width
+                                        style={{ minWidth: "80%" }}
                                         placeholder={`${t("Type")}...`}
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
@@ -1722,19 +1669,11 @@ const ChatMessage = ({
     user, 
     isFirstNew, 
     onDelete, 
-    onReact, 
-    showReactionPicker, 
-    setShowReactionPicker, 
     isSelectionMode, 
     isSelected, 
     toggleSelection 
 }) => {
     const isSender = message.sender === user;
-    const reactionPickerRef = useRef(null);
-
-    const handleReactionClick = (emojiObject) => {
-        onReact(message._id, emojiObject.emoji);
-    };
 
     const renderFile = (file, fileUrl) => {
         if (file || fileUrl) {
@@ -1796,7 +1735,6 @@ const ChatMessage = ({
     const renderTicks = () => {
         if (!isSender) return null;
 
-        // Always show ticks with clear visibility
         if (message.status === 'sent') {
             return <span className="text-white ml-2">✓</span>;
         } else if (message.status === 'delivered') {

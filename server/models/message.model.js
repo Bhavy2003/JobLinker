@@ -18,6 +18,7 @@
 // export default mongoose.model("Message", messageSchema);
 
 // message.model.js
+// message.model.js
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
@@ -32,18 +33,11 @@ const messageSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now },
     deletedBy: [{ type: String, default: [] }],
     isRead: { type: Boolean, default: false },
-    // Add status for ticks
     status: { 
         type: String, 
         enum: ['sent', 'delivered', 'read'], 
         default: 'sent' 
     },
-    // Add reactions
-    reactions: [{
-        user: String,
-        emoji: String,
-        timestamp: { type: Date, default: Date.now }
-    }],
 }, {
     indexes: [
         { key: { sender: 1, receiver: 1 } },
