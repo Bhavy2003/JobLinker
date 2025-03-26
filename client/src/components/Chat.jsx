@@ -938,12 +938,13 @@
 // Chat.jsx
 
 // Chat.jsx
+// Chat.jsx
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import Navbar from "./shared/Navbar";
 import Footer from "./shared/Footer";
 import { toast } from "react-toastify";
-import { BsPaperclip } from "react-icons/bs"; // Removed BsTrash
+import { BsPaperclip } from "react-icons/bs";
 import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
 import { v4 as uuidv4 } from "uuid";
@@ -1304,7 +1305,6 @@ export default function Chat() {
                 throw new Error(errorData.error || "Failed to delete messages");
             }
 
-            // Update the UI by removing the deleted messages
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
                 saveMessagesToLocalStorage(updatedMessages);
@@ -1453,6 +1453,21 @@ export default function Chat() {
         user.email.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Group messages by date for rendering
+    const groupedMessages = messages.reduce((acc, msg, index) => {
+        const messageDate = new Date(msg.timestamp).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+        if (!acc[messageDate]) {
+            acc[messageDate] = [];
+        }
+        acc[messageDate].push({ ...msg, index });
+        return acc;
+    }, {});
+
     return (
         <>
             <Navbar />
@@ -1589,17 +1604,24 @@ export default function Chat() {
                                 ref={chatContainerRef}
                                 className="flex-1 overflow-y-auto p-4 max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-200px)] md:max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-200px)] xl:max-h-[calc(100vh-200px)]"
                             >
-                                {messages.map((msg, index) => (
-                                    <ChatMessage
-                                        key={msg._id || msg.tempId || index}
-                                        message={msg}
-                                        user={currentUser}
-                                        isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
-                                        onDelete={deleteMessages}
-                                        isSelectionMode={isSelectionMode}
-                                        isSelected={selectedMessages.includes(msg._id)}
-                                        toggleSelection={() => toggleMessageSelection(msg._id)}
-                                    />
+                                {Object.keys(groupedMessages).map((date) => (
+                                    <div key={date}>
+                                        <div className="text-center text-gray-400 my-2">
+                                            {date}
+                                        </div>
+                                        {groupedMessages[date].map((msg) => (
+                                            <ChatMessage
+                                                key={msg._id || msg.tempId || msg.index}
+                                                message={msg}
+                                                user={currentUser}
+                                                isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
+                                                onDelete={deleteMessages}
+                                                isSelectionMode={isSelectionMode}
+                                                isSelected={selectedMessages.includes(msg._id)}
+                                                toggleSelection={() => toggleMessageSelection(msg._id)}
+                                            />
+                                        ))}
+                                    </div>
                                 ))}
                             </div>
                             {selectedUser && showScrollButton && (
@@ -1746,8 +1768,7 @@ const ChatMessage = ({
     };
 
     const renderTicks = () => {
-        if (!isSender) return null;
-
+        // Show ticks for all messages, not just sender's
         if (message.status === 'sent') {
             return <span className="text-white ml-2">✓</span>;
         } else if (message.status === 'delivered') {
@@ -1765,7 +1786,7 @@ const ChatMessage = ({
                 flexDirection: "column",
                 alignItems: isSender ? "flex-end" : "flex-start",
                 margin: "10px 0",
-                padding: "0", // Removed side padding to take full space
+                padding: "0",
             }}
         >
             {isFirstNew && message.receiver === user && (
@@ -1794,8 +1815,8 @@ const ChatMessage = ({
                         backgroundColor: isSender ? "#1E40AF" : "#374151",
                         padding: "8px 12px",
                         borderRadius: "12px",
-                        maxWidth: "100%", // Take full width
-                        width: "fit-content", // Adjust width to content
+                        maxWidth: "60%",
+                        width: "fit-content",
                         textAlign: isSender ? "right" : "left",
                         color: "white",
                         wordBreak: "break-word",

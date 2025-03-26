@@ -1566,11 +1566,7 @@ const io = new Server(server, {
 });
 
 const connectedUsers = new Map();
-// index.js
-// ... (previous imports remain the same)
 
-// index.js
-// ... (previous imports remain the same)
 
 app.delete("/api/messages/delete", async (req, res) => {
     const { messageIds } = req.body;
@@ -1608,6 +1604,162 @@ app.delete("/api/messages/delete", async (req, res) => {
     }
 });
 
+// io.on("connection", (socket) => {
+//     socket.on("register", (email) => {
+//         connectedUsers.set(email, socket.id);
+//         console.log(`User ${email} connected with socket ID: ${socket.id}`);
+//     });
+
+//     socket.on("joinChat", ({ sender, receiver }) => {
+//         const room = [sender, receiver].sort().join("_");
+//         socket.join(room);
+    
+//         console.log(`User ${sender} joined chat with ${receiver}, room: ${room}`);
+    
+//         Message.find({
+//             $or: [
+//                 { sender: sender, receiver: receiver },
+//                 { sender: receiver, receiver: sender },
+//             ],
+//             deletedBy: { $ne: sender },
+//         })
+//             .sort("timestamp")
+//             .then(async (messages) => {
+//                 console.log(`Loaded ${messages.length} messages for ${sender} and ${receiver}`);
+//                 await Message.updateMany(
+//                     { 
+//                         receiver: sender, 
+//                         sender: receiver, 
+//                         status: 'sent' 
+//                     },
+//                     { $set: { status: 'delivered' } }
+//                 );
+//                 await Message.updateMany(
+//                     { 
+//                         receiver: sender, 
+//                         sender: receiver, 
+//                         status: { $in: ['sent', 'delivered'] }
+//                     },
+//                     { $set: { status: 'read', isRead: true } }
+//                 );
+//                 const updatedMessages = await Message.find({
+//                     $or: [
+//                         { sender: sender, receiver: receiver },
+//                         { sender: receiver, receiver: sender },
+//                     ],
+//                     deletedBy: { $ne: sender },
+//                 }).sort("timestamp");
+//                 socket.emit("loadMessages", updatedMessages);
+//             })
+//             .catch((error) => console.error("Error fetching messages:", error));
+//     });
+
+//     socket.on("sendMessage", async (msgData) => {
+//         const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
+    
+//         if (!msgData.text && !fileUrl) {
+//             console.error("Message has no text or fileUrl, discarding:", msgData);
+//             return;
+//         }
+    
+//         try {
+//             const newMessage = new Message({
+//                 sender: msgData.sender,
+//                 receiver: msgData.receiver,
+//                 text: msgData.text || "",
+//                 fileUrl: fileUrl,
+//                 timestamp: new Date(msgData.timestamp),
+//                 status: 'sent',
+//                 isRead: false,
+//             });
+//             const savedMessage = await newMessage.save();
+//             console.log(`Saved message with ID: ${savedMessage._id} for sender: ${msgData.sender}, receiver: ${msgData.receiver}`);
+    
+//             const messageToEmit = {
+//                 ...savedMessage.toObject(),
+//                 tempId: msgData.tempId,
+//             };
+    
+//             const room = [msgData.sender, msgData.receiver].sort().join("_");
+//             io.to(room).emit("message", messageToEmit);
+    
+//             const receiverSocketId = connectedUsers.get(msgData.receiver);
+//             if (receiverSocketId && msgData.receiver !== msgData.sender) {
+//                 await Message.findByIdAndUpdate(savedMessage._id, {
+//                     $set: { status: 'delivered' }
+//                 });
+//                 const updatedMessage = await Message.findById(savedMessage._id);
+//                 io.to(room).emit("messageStatusUpdated", updatedMessage);
+//                 io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
+//             }
+//         } catch (error) {
+//             console.error("Error processing sendMessage:", error);
+//             const senderSocketId = connectedUsers.get(msgData.sender);
+//             if (senderSocketId) {
+//                 io.to(senderSocketId).emit("messageError", { error: "Failed to send message" });
+//             }
+//         }
+//     });
+
+//     socket.on("deleteChat", async ({ sender, receiver }) => {
+//         try {
+//             await Message.updateMany(
+//                 {
+//                     $or: [
+//                         { sender, receiver },
+//                         { sender: receiver, receiver: sender },
+//                     ],
+//                     deletedBy: { $ne: sender },
+//                 },
+//                 { $addToSet: { deletedBy: sender } }
+//             );
+
+//             const senderSocketId = connectedUsers.get(sender);
+//             if (senderSocketId) {
+//                 io.to(senderSocketId).emit("chatDeleted", { receiver });
+//             }
+
+//             const receiverSocketId = connectedUsers.get(receiver);
+//             if (receiverSocketId) {
+//                 io.to(receiverSocketId).emit("chatUpdated", { sender });
+//             }
+//         } catch (error) {
+//             console.error("Error deleting chat:", error);
+//             const senderSocketId = connectedUsers.get(sender);
+//             if (senderSocketId) {
+//                 io.to(senderSocketId).emit("chatDeleteError", { error: "Failed to delete chat" });
+//             }
+//         }
+//     });
+
+//     socket.on("markAsRead", async ({ sender, receiver }) => {
+//         try {
+//             await Message.updateMany(
+//                 { sender, receiver, isRead: false },
+//                 { $set: { isRead: true } }
+//             );
+//         } catch (error) {
+//             console.error("Error marking messages as read:", error);
+//         }
+//     });
+
+//     socket.on("disconnect", () => {
+//         for (let [email, socketId] of connectedUsers.entries()) {
+//             if (socketId === socket.id) {
+//                 connectedUsers.delete(email);
+//                 console.log(`User ${email} disconnected`);
+//                 break;
+//             }
+//         }
+//     });
+// });
+
+// ... (rest of the index.js file remains the same)
+
+// ... (rest of the index.js file remains the same)
+// index.js
+// ... (previous imports remain the same)
+
 io.on("connection", (socket) => {
     socket.on("register", (email) => {
         connectedUsers.set(email, socket.id);
@@ -1630,6 +1782,7 @@ io.on("connection", (socket) => {
             .sort("timestamp")
             .then(async (messages) => {
                 console.log(`Loaded ${messages.length} messages for ${sender} and ${receiver}`);
+                // Update status to 'delivered' for messages sent to the sender
                 await Message.updateMany(
                     { 
                         receiver: sender, 
@@ -1638,6 +1791,7 @@ io.on("connection", (socket) => {
                     },
                     { $set: { status: 'delivered' } }
                 );
+                // Update status to 'read' for messages that the sender is viewing
                 await Message.updateMany(
                     { 
                         receiver: sender, 
@@ -1653,7 +1807,16 @@ io.on("connection", (socket) => {
                     ],
                     deletedBy: { $ne: sender },
                 }).sort("timestamp");
+
+                // Emit updated messages to the client
                 socket.emit("loadMessages", updatedMessages);
+
+                // Notify all clients in the room about the status updates
+                updatedMessages.forEach((msg) => {
+                    if (msg.status !== 'sent') {
+                        io.to(room).emit("messageStatusUpdated", msg);
+                    }
+                });
             })
             .catch((error) => console.error("Error fetching messages:", error));
     });
@@ -1738,10 +1901,20 @@ io.on("connection", (socket) => {
 
     socket.on("markAsRead", async ({ sender, receiver }) => {
         try {
-            await Message.updateMany(
+            const updatedMessages = await Message.updateMany(
                 { sender, receiver, isRead: false },
-                { $set: { isRead: true } }
+                { $set: { isRead: true, status: 'read' } },
+                { new: true }
             );
+            const messages = await Message.find({
+                sender,
+                receiver,
+                isRead: true,
+            });
+            const room = [sender, receiver].sort().join("_");
+            messages.forEach((msg) => {
+                io.to(room).emit("messageStatusUpdated", msg);
+            });
         } catch (error) {
             console.error("Error marking messages as read:", error);
         }
@@ -1759,9 +1932,6 @@ io.on("connection", (socket) => {
 });
 
 // ... (rest of the index.js file remains the same)
-
-// ... (rest of the index.js file remains the same)
-
 app.use(express.static(path.join(__dirname, "client", "dist")));
 app.get("*", (_req, res) => {
     res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
