@@ -990,18 +990,18 @@ export default function Chat() {
         }
     };
 
-    const saveMessagesToLocalStorage = (msgs) => {
-        if (selectedUser) {
-            const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
-            localStorage.setItem(chatKey, JSON.stringify(msgs));
-        }
-    };
+  const saveMessagesToLocalStorage = (msgs) => {
+    if (selectedUser) {
+        const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
+        localStorage.setItem(chatKey, JSON.stringify(msgs));
+    }
+};
 
-    const loadMessagesFromLocalStorage = (userEmail) => {
-        const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
-        const cachedMessages = localStorage.getItem(chatKey);
-        return cachedMessages ? JSON.parse(cachedMessages) : [];
-    };
+const loadMessagesFromLocalStorage = (userEmail) => {
+    const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
+    const cachedMessages = localStorage.getItem(chatKey);
+    return cachedMessages ? JSON.parse(cachedMessages) : [];
+};
 
     useEffect(() => {
         const container = chatContainerRef.current;

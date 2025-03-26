@@ -1568,7 +1568,7 @@ const io = new Server(server, {
 const connectedUsers = new Map();
 app.delete("/api/message/:messageId", async (req, res) => {
     const { messageId } = req.params;
-    const userEmail = req.query.userEmail; // Get user email from query
+    const userEmail = req.query.userEmail;
 
     try {
         const message = await Message.findById(messageId);
@@ -1576,12 +1576,10 @@ app.delete("/api/message/:messageId", async (req, res) => {
             return res.status(404).json({ error: "Message not found" });
         }
 
-        // Add user to deletedBy array
         await Message.findByIdAndUpdate(messageId, {
             $addToSet: { deletedBy: userEmail }
         });
 
-        // Notify both users
         const room = [message.sender, message.receiver].sort().join("_");
         io.to(room).emit("messageDeleted", { messageId, userEmail });
 
@@ -1601,7 +1599,6 @@ app.post("/api/message/:messageId/react", async (req, res) => {
             return res.status(404).json({ error: "Message not found" });
         }
 
-        // Add reaction
         await Message.findByIdAndUpdate(messageId, {
             $push: {
                 reactions: {
@@ -1614,7 +1611,6 @@ app.post("/api/message/:messageId/react", async (req, res) => {
 
         const updatedMessage = await Message.findById(messageId);
         
-        // Notify both users
         const room = [message.sender, message.receiver].sort().join("_");
         io.to(room).emit("messageReacted", updatedMessage);
 
@@ -1623,6 +1619,7 @@ app.post("/api/message/:messageId/react", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
+
 io.on("connection", (socket) => {
     socket.on("register", (email) => {
         connectedUsers.set(email, socket.id);
@@ -1645,7 +1642,6 @@ io.on("connection", (socket) => {
             .sort("timestamp")
             .then(async (messages) => {
                 console.log(`Loaded ${messages.length} messages for ${sender} and ${receiver}`);
-                // Update status to delivered for messages sent to this user
                 await Message.updateMany(
                     { 
                         receiver: sender, 
@@ -1654,7 +1650,6 @@ io.on("connection", (socket) => {
                     },
                     { $set: { status: 'delivered' } }
                 );
-                // Update status to read for messages that are unread
                 await Message.updateMany(
                     { 
                         receiver: sender, 
@@ -1694,6 +1689,7 @@ io.on("connection", (socket) => {
                 isRead: false,
             });
             const savedMessage = await newMessage.save();
+            console.log(`Saved message with ID: ${savedMessage._id} for sender: ${msgData.sender}, receiver: ${msgData.receiver}`);
     
             const messageToEmit = {
                 ...savedMessage.toObject(),
@@ -1705,7 +1701,6 @@ io.on("connection", (socket) => {
     
             const receiverSocketId = connectedUsers.get(msgData.receiver);
             if (receiverSocketId && msgData.receiver !== msgData.sender) {
-                // Update status to delivered if receiver is online
                 await Message.findByIdAndUpdate(savedMessage._id, {
                     $set: { status: 'delivered' }
                 });
