@@ -4,13 +4,6 @@ const messageSchema = new mongoose.Schema({
     sender: String,
     receiver: String,
     text: String,
-    reactions: [
-      {
-          emoji: String,
-          user: String, // Email of the user who reacted
-          timestamp: { type: Date, default: Date.now },
-      },
-  ],
     file: {
       name: String,
       type: String,
@@ -19,6 +12,19 @@ const messageSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now },
     deletedBy: [{ type: String, default: [] }],
     isRead: { type: Boolean, default: false },
-  });
+    reactions: [
+      {
+          emoji: String,
+          users: [{ type: String }], // List of user emails who reacted with this emoji
+          timestamp: { type: Date, default: Date.now },
+      },
+  ],
+}, {
+  indexes: [
+      { key: { sender: 1, receiver: 1 } },
+      { key: { deletedBy: 1 } },
+      { key: { timestamp: 1 } },
+  ],
+});
 
 export default mongoose.model("Message", messageSchema);

@@ -934,12 +934,12 @@
 //     );
 // };
 
+
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import Navbar from "./shared/Navbar";
 import Footer from "./shared/Footer";
 import { toast } from "react-toastify";
-import EmojiPicker from "emoji-picker-react";
 import { BsEmojiSmile, BsPaperclip } from "react-icons/bs";
 import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
@@ -958,10 +958,9 @@ export default function Chat() {
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [firstNewMessageId, setFirstNewMessageId] = useState(null);
     const [showNewMessage, setShowNewMessage] = useState(false);
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
-    const [selectedMessages, setSelectedMessages] = useState([]); // For selecting messages to delete
-    const [isSelecting, setIsSelecting] = useState(false); // Toggle selection mode
+    const [selectedMessages, setSelectedMessages] = useState([]);
+    const [isSelecting, setIsSelecting] = useState(false);
 
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
@@ -970,7 +969,6 @@ export default function Chat() {
     const DUMMY_PHOTO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcToiRnzzyrDtkmRzlAvPPbh77E-Mvsk3brlxQ&s";
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
-    const emojiPickerRef = useRef(null);
 
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
@@ -1175,15 +1173,13 @@ export default function Chat() {
             }
         });
 
-        // Listen for updated messages (e.g., after deletion or reaction)
         socket.on("messagesUpdated", (updatedMessages) => {
             setMessages(updatedMessages);
             saveMessagesToLocalStorage(updatedMessages);
-            setSelectedMessages([]); // Clear selection after deletion
-            setIsSelecting(false); // Exit selection mode
+            setSelectedMessages([]);
+            setIsSelecting(false);
         });
 
-        // Listen for a single message update (e.g., after adding/removing a reaction)
         socket.on("messageUpdated", (updatedMessage) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.map((msg) =>
@@ -1307,21 +1303,6 @@ export default function Chat() {
         );
     };
 
-    const addReaction = (messageId, emoji) => {
-        socket.emit("addReaction", {
-            messageId,
-            emoji,
-            user: currentUser,
-        });
-    };
-
-    const removeReaction = (messageId) => {
-        socket.emit("removeReaction", {
-            messageId,
-            user: currentUser,
-        });
-    };
-
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -1415,33 +1396,10 @@ export default function Chat() {
         }
     };
 
-    const toggleEmojiPicker = () => setShowEmojiPicker(!showEmojiPicker);
-
-    const onEmojiClick = (emojiObject) => {
-        setMessage((prev) => prev + emojiObject.emoji);
-        setShowEmojiPicker(false);
-    };
-
     const clearSelectedFile = () => {
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
     };
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
-                setShowEmojiPicker(false);
-            }
-        };
-
-        if (showEmojiPicker) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [showEmojiPicker]);
 
     const displayedUsers = [
         ...allUsers.filter((user) => user.email === currentUser),
@@ -1584,8 +1542,6 @@ export default function Chat() {
                                         isSelecting={isSelecting}
                                         isSelected={selectedMessages.includes(msg._id || msg.tempId)}
                                         onSelect={toggleMessageSelection}
-                                        onAddReaction={addReaction}
-                                        onRemoveReaction={removeReaction}
                                     />
                                 ))}
                             </div>
@@ -1607,17 +1563,6 @@ export default function Chat() {
                                 </button>
                             )}
                             <div className="p-4 border-t flex items-center relative">
-                                <button
-                                    onClick={toggleEmojiPicker}
-                                    className="mr-2 text-white hover:text-indigo-300"
-                                >
-                                    <BsEmojiSmile size={24} />
-                                </button>
-                                {showEmojiPicker && (
-                                    <div ref={emojiPickerRef} className="absolute bottom-16 left-0 z-10">
-                                        <EmojiPicker onEmojiClick={onEmojiClick} />
-                                    </div>
-                                )}
                                 <button
                                     onClick={() => fileInputRef.current.click()}
                                     className="mr-2 text-white hover:text-indigo-300"
@@ -1674,10 +1619,16 @@ export default function Chat() {
     );
 }
 
-const ChatMessage = ({ message, user, isFirstNew, isSelecting, isSelected, onSelect, onAddReaction, onRemoveReaction }) => {
+const ChatMessage = ({ message, user, isFirstNew, isSelecting, isSelected, onSelect }) => {
     const isSender = message.sender === user;
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const emojiPickerRef = useRef(null);
+    const [showReactionBar, setShowReactionBar] = useState(false);
+    const [showReactionTooltip, setShowReactionTooltip] = useState(null);
+    const reactionBarRef = useRef(null);
+
+    const socket = io("https://joblinker-1.onrender.com", {
+        transports: ["websocket"],
+        withCredentials: true,
+    });
 
     const renderFile = (file, fileUrl) => {
         if (file || fileUrl) {
@@ -1736,32 +1687,40 @@ const ChatMessage = ({ message, user, isFirstNew, isSelecting, isSelected, onSel
         return <div>File not available</div>;
     };
 
-    const handleEmojiClick = (emojiObject) => {
-        onAddReaction(message._id || message.tempId, emojiObject.emoji);
-        setShowEmojiPicker(false);
+    const handleAddReaction = (emoji) => {
+        socket.emit("addReaction", {
+            messageId: message._id || message.tempId,
+            emoji,
+            user,
+        });
+        setShowReactionBar(false);
     };
 
-    const handleRemoveReaction = () => {
-        onRemoveReaction(message._id || message.tempId);
+    const handleRemoveReaction = (emoji) => {
+        socket.emit("removeReaction", {
+            messageId: message._id || message.tempId,
+            emoji,
+            user,
+        });
     };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
-                setShowEmojiPicker(false);
+            if (reactionBarRef.current && !reactionBarRef.current.contains(event.target)) {
+                setShowReactionBar(false);
             }
         };
 
-        if (showEmojiPicker) {
+        if (showReactionBar) {
             document.addEventListener("mousedown", handleClickOutside);
         }
 
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, [showEmojiPicker]);
+    }, [showReactionBar]);
 
-    const userReaction = message.reactions?.find((reaction) => reaction.user === user);
+    const reactionEmojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
     return (
         <div
@@ -1774,6 +1733,9 @@ const ChatMessage = ({ message, user, isFirstNew, isSelecting, isSelected, onSel
                 padding: isSelecting ? "5px" : "0",
                 borderRadius: isSelecting ? "5px" : "0",
             }}
+            className="relative"
+            onMouseEnter={() => !isSelecting && setShowReactionBar(true)}
+            onMouseLeave={() => !isSelecting && setShowReactionBar(false)}
         >
             {isFirstNew && message.receiver === user && (
                 <span
@@ -1814,33 +1776,55 @@ const ChatMessage = ({ message, user, isFirstNew, isSelecting, isSelected, onSel
                         <div>{renderFile(message.file, message.fileUrl)}</div>
                     )}
                 </div>
-                {!isSelecting && (
-                    <div className="relative ml-2">
-                        <button
-                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                            className="text-white hover:text-indigo-300"
-                        >
-                            <BsEmojiSmile size={20} />
-                        </button>
-                        {showEmojiPicker && (
-                            <div ref={emojiPickerRef} className="absolute bottom-0 right-0 z-10">
-                                <EmojiPicker onEmojiClick={handleEmojiClick} />
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
-            {message.reactions?.length > 0 && (
-                <div className="flex space-x-2 mt-1">
-                    {message.reactions.map((reaction, index) => (
-                        <span
-                            key={index}
-                            className="text-sm cursor-pointer"
-                            onClick={() => reaction.user === user && handleRemoveReaction()}
-                            title={`${reaction.user} reacted with ${reaction.emoji}`}
+            {showReactionBar && !isSelecting && (
+                <div
+                    ref={reactionBarRef}
+                    className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-full p-2 flex space-x-2 shadow-lg z-10`}
+                >
+                    {reactionEmojis.map((emoji) => (
+                        <button
+                            key={emoji}
+                            onClick={() => handleAddReaction(emoji)}
+                            className="text-2xl hover:bg-gray-600 rounded-full p-1"
                         >
-                            {reaction.emoji}
-                        </span>
+                            {emoji}
+                        </button>
+                    ))}
+                </div>
+            )}
+            {message.reactions?.length > 0 && (
+                <div className={`flex space-x-2 mt-1 ${isSender ? "justify-end" : "justify-start"}`}>
+                    {message.reactions.map((reaction, index) => (
+                        <div
+                            key={index}
+                            className="relative flex items-center bg-gray-600 rounded-full px-2 py-1 text-sm cursor-pointer"
+                            onClick={() => setShowReactionTooltip(reaction.emoji)}
+                            onMouseLeave={() => setShowReactionTooltip(null)}
+                        >
+                            <span>{reaction.emoji}</span>
+                            {reaction.users.length > 1 && (
+                                <span className="ml-1">{reaction.users.length}</span>
+                            )}
+                            {showReactionTooltip === reaction.emoji && (
+                                <div
+                                    className={`absolute ${isSender ? "right-0" : "left-0"} top-[-50px] bg-gray-800 text-white p-2 rounded shadow-lg z-20`}
+                                >
+                                    <p className="font-bold">Reacted by:</p>
+                                    {reaction.users.map((u, i) => (
+                                        <p key={i}>{u}</p>
+                                    ))}
+                                    {reaction.users.includes(user) && (
+                                        <button
+                                            onClick={() => handleRemoveReaction(reaction.emoji)}
+                                            className="text-red-500 mt-1"
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     ))}
                 </div>
             )}

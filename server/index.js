@@ -1644,6 +1644,9 @@ io.on("connection", (socket) => {
     // Inside io.on("connection", (socket) => { ... })
 
 // Delete specific messages
+// Inside io.on("connection", (socket) => { ... })
+
+// Delete specific messages
 socket.on("deleteMessages", async ({ sender, messageIds }) => {
     try {
         // Mark messages as deleted for the sender
@@ -1698,8 +1701,22 @@ socket.on("addReaction", async ({ messageId, emoji, user }) => {
             throw new Error("Message not found");
         }
 
-        // Add the reaction
-        message.reactions.push({ emoji, user, timestamp: new Date() });
+        // Check if the emoji already exists in reactions
+        const reaction = message.reactions.find((r) => r.emoji === emoji);
+        if (reaction) {
+            // If the user hasn't already reacted with this emoji, add them to the users list
+            if (!reaction.users.includes(user)) {
+                reaction.users.push(user);
+            }
+        } else {
+            // Add a new reaction
+            message.reactions.push({
+                emoji,
+                users: [user],
+                timestamp: new Date(),
+            });
+        }
+
         await message.save();
 
         // Emit the updated message to both users
@@ -1715,15 +1732,23 @@ socket.on("addReaction", async ({ messageId, emoji, user }) => {
 });
 
 // Remove a reaction from a message
-socket.on("removeReaction", async ({ messageId, user }) => {
+socket.on("removeReaction", async ({ messageId, emoji, user }) => {
     try {
         const message = await Message.findById(messageId);
         if (!message) {
             throw new Error("Message not found");
         }
 
-        // Remove the reaction by the user
-        message.reactions = message.reactions.filter((reaction) => reaction.user !== user);
+        // Find the reaction and remove the user from the users list
+        const reaction = message.reactions.find((r) => r.emoji === emoji);
+        if (reaction) {
+            reaction.users = reaction.users.filter((u) => u !== user);
+            // If no users are left, remove the reaction entirely
+            if (reaction.users.length === 0) {
+                message.reactions = message.reactions.filter((r) => r.emoji !== emoji);
+            }
+        }
+
         await message.save();
 
         // Emit the updated message to both users
