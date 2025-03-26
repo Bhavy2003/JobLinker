@@ -942,7 +942,7 @@ import Navbar from "./shared/Navbar";
 import Footer from "./shared/Footer";
 import { toast } from "react-toastify";
 import EmojiPicker from "emoji-picker-react";
-import { BsEmojiSmile, BsPaperclip, BsTrash } from "react-icons/bs";
+import { BsEmojiSmile, BsPaperclip, BsTrash, BsCheck2Square } from "react-icons/bs";
 import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
 import { v4 as uuidv4 } from "uuid";
@@ -963,6 +963,8 @@ export default function Chat() {
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [showReactionPicker, setShowReactionPicker] = useState(null);
+    const [isSelectionMode, setIsSelectionMode] = useState(false); // For multi-select mode
+    const [selectedMessages, setSelectedMessages] = useState([]); // Track selected messages
 
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
@@ -990,18 +992,18 @@ export default function Chat() {
         }
     };
 
-  const saveMessagesToLocalStorage = (msgs) => {
-    if (selectedUser) {
-        const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
-        localStorage.setItem(chatKey, JSON.stringify(msgs));
-    }
-};
+    const saveMessagesToLocalStorage = (msgs) => {
+        if (selectedUser) {
+            const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
+            localStorage.setItem(chatKey, JSON.stringify(msgs));
+        }
+    };
 
-const loadMessagesFromLocalStorage = (userEmail) => {
-    const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
-    const cachedMessages = localStorage.getItem(chatKey);
-    return cachedMessages ? JSON.parse(cachedMessages) : [];
-};
+    const loadMessagesFromLocalStorage = (userEmail) => {
+        const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
+        const cachedMessages = localStorage.getItem(chatKey);
+        return cachedMessages ? JSON.parse(cachedMessages) : [];
+    };
 
     useEffect(() => {
         const container = chatContainerRef.current;
@@ -1119,14 +1121,12 @@ const loadMessagesFromLocalStorage = (userEmail) => {
             }
         });
 
-        socket.on("messageDeleted", ({ messageId, userEmail }) => {
-            if (userEmail === currentUser) {
-                setMessages((prevMessages) => {
-                    const updatedMessages = prevMessages.filter((msg) => msg._id !== messageId);
-                    saveMessagesToLocalStorage(updatedMessages);
-                    return updatedMessages;
-                });
-            }
+        socket.on("messageDeleted", ({ messageIds }) => {
+            setMessages((prevMessages) => {
+                const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
+                saveMessagesToLocalStorage(updatedMessages);
+                return updatedMessages;
+            });
         });
 
         socket.on("messageReacted", (updatedMessage) => {
@@ -1296,24 +1296,27 @@ const loadMessagesFromLocalStorage = (userEmail) => {
         toast.success("Chat cleared successfully.");
     };
 
-    const deleteMessage = async (messageId) => {
+    const deleteMessages = async (messageIds) => {
         try {
-            const response = await fetch(`https://joblinker-1.onrender.com/api/message/${messageId}?userEmail=${currentUser}`, {
+            const response = await fetch("https://joblinker-1.onrender.com/api/messages/delete", {
                 method: "DELETE",
                 headers: {
                     "Content-Type": "application/json",
                 },
+                body: JSON.stringify({ messageIds }),
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || "Failed to delete message");
+                throw new Error(errorData.error || "Failed to delete messages");
             }
 
-            toast.success("Message deleted successfully");
+            toast.success(`${messageIds.length} message(s) deleted permanently`);
+            setSelectedMessages([]); // Clear selection
+            setIsSelectionMode(false); // Exit selection mode
         } catch (error) {
-            console.error("Error deleting message:", error.message);
-            toast.error(`Failed to delete message: ${error.message}`);
+            console.error("Error deleting messages:", error.message);
+            toast.error(`Failed to delete messages: ${error.message}`);
         }
     };
 
@@ -1336,6 +1339,7 @@ const loadMessagesFromLocalStorage = (userEmail) => {
             }
 
             setShowReactionPicker(null);
+            toast.success("Reaction added!");
         } catch (error) {
             console.error("Error adding reaction:", error.message);
             toast.error(`Failed to add reaction: ${error.message}`);
@@ -1446,6 +1450,21 @@ const loadMessagesFromLocalStorage = (userEmail) => {
     const clearSelectedFile = () => {
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
+    };
+
+    const toggleSelectionMode = () => {
+        setIsSelectionMode(!isSelectionMode);
+        setSelectedMessages([]); // Clear selection when toggling mode
+    };
+
+    const toggleMessageSelection = (messageId) => {
+        setSelectedMessages((prev) => {
+            if (prev.includes(messageId)) {
+                return prev.filter((id) => id !== messageId);
+            } else {
+                return [...prev, messageId];
+            }
+        });
     };
 
     useEffect(() => {
@@ -1569,12 +1588,28 @@ const loadMessagesFromLocalStorage = (userEmail) => {
                                         {selectedUser.email === currentUser ? "You" : selectedUser.fullname} ({selectedUser.email})
                                     </h2>
                                 </div>
-                                <button
-                                    className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
-                                    onClick={() => deleteChat(selectedUser.email)}
-                                >
-                                    {t("Deletechat")}
-                                </button>
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-700"
+                                        onClick={toggleSelectionMode}
+                                    >
+                                        {isSelectionMode ? "Cancel" : "Select"}
+                                    </button>
+                                    {isSelectionMode && selectedMessages.length > 0 && (
+                                        <button
+                                            className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
+                                            onClick={() => deleteMessages(selectedMessages)}
+                                        >
+                                            Delete ({selectedMessages.length})
+                                        </button>
+                                    )}
+                                    <button
+                                        className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
+                                        onClick={() => deleteChat(selectedUser.email)}
+                                    >
+                                        {t("Deletechat")}
+                                    </button>
+                                </div>
                             </div>
                             <div
                                 ref={chatContainerRef}
@@ -1586,10 +1621,13 @@ const loadMessagesFromLocalStorage = (userEmail) => {
                                         message={msg}
                                         user={currentUser}
                                         isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
-                                        onDelete={deleteMessage}
+                                        onDelete={deleteMessages}
                                         onReact={(messageId, emoji) => addReaction(messageId, emoji)}
                                         showReactionPicker={showReactionPicker === (msg._id || msg.tempId)}
                                         setShowReactionPicker={setShowReactionPicker}
+                                        isSelectionMode={isSelectionMode}
+                                        isSelected={selectedMessages.includes(msg._id)}
+                                        toggleSelection={() => toggleMessageSelection(msg._id)}
                                     />
                                 ))}
                             </div>
@@ -1635,9 +1673,10 @@ const loadMessagesFromLocalStorage = (userEmail) => {
                                     onChange={handleFileUpload}
                                     accept="image/*,.pdf,.doc,.docx,.csv,.xls,.xlsx"
                                 />
-                                <div className="flex-1 flex items-center">
+                                <div className="flex-1 flex items-center space-x-2">
                                     <textarea
-                                        className="flex-1 p-1 border rounded text-black resize-none"
+                                        className="w-full p-2 border rounded text-black resize-none"
+                                        style={{ minWidth: "80%" }} // Increased width
                                         placeholder={`${t("Type")}...`}
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
@@ -1645,7 +1684,7 @@ const loadMessagesFromLocalStorage = (userEmail) => {
                                         rows={2}
                                     />
                                     {selectedFile && (
-                                        <div className="ml-2 flex items-center bg-gray-700 p-2 rounded">
+                                        <div className="flex items-center bg-gray-700 p-2 rounded">
                                             <span className="text-white truncate max-w-[150px]">
                                                 {selectedFile.name}
                                             </span>
@@ -1678,7 +1717,18 @@ const loadMessagesFromLocalStorage = (userEmail) => {
     );
 }
 
-const ChatMessage = ({ message, user, isFirstNew, onDelete, onReact, showReactionPicker, setShowReactionPicker }) => {
+const ChatMessage = ({ 
+    message, 
+    user, 
+    isFirstNew, 
+    onDelete, 
+    onReact, 
+    showReactionPicker, 
+    setShowReactionPicker, 
+    isSelectionMode, 
+    isSelected, 
+    toggleSelection 
+}) => {
     const isSender = message.sender === user;
     const reactionPickerRef = useRef(null);
 
@@ -1746,12 +1796,13 @@ const ChatMessage = ({ message, user, isFirstNew, onDelete, onReact, showReactio
     const renderTicks = () => {
         if (!isSender) return null;
 
+        // Always show ticks with clear visibility
         if (message.status === 'sent') {
-            return <span className="text-gray-400 ml-1">✓</span>;
+            return <span className="text-white ml-2">✓</span>;
         } else if (message.status === 'delivered') {
-            return <span className="text-gray-400 ml-1">✓✓</span>;
+            return <span className="text-white ml-2">✓✓</span>;
         } else if (message.status === 'read') {
-            return <span className="text-blue-400 ml-1">✓✓</span>;
+            return <span className="text-blue-300 ml-2">✓✓</span>;
         }
         return null;
     };
@@ -1779,8 +1830,14 @@ const ChatMessage = ({ message, user, isFirstNew, onDelete, onReact, showReactio
                 </span>
             )}
             <div
-                className="relative group"
-                onClick={() => setShowReactionPicker(show._id || message.tempId)}
+                className={`relative group ${isSelected ? "bg-gray-600" : ""}`}
+                onClick={() => {
+                    if (isSelectionMode) {
+                        toggleSelection();
+                    } else {
+                        setShowReactionPicker(message._id || message.tempId);
+                    }
+                }}
             >
                 <div
                     style={{
@@ -1799,35 +1856,45 @@ const ChatMessage = ({ message, user, isFirstNew, onDelete, onReact, showReactio
                     {(message.file || message.fileUrl) && (
                         <div>{renderFile(message.file, message.fileUrl)}</div>
                     )}
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end space-x-1">
                         <span className="text-xs text-gray-300">
                             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        {renderTicks()}
+                        {renderTicks()} {/* Ticks are always visible */}
                     </div>
                 </div>
-                {isSender && (
+                {isSelectionMode ? (
+                    <button
+                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 text-blue-500 hover:text-blue-700`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelection();
+                        }}
+                    >
+                        <BsCheck2Square size={16} />
+                    </button>
+                ) : (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            onDelete(message._id);
+                            onDelete([message._id]);
                         }}
-                        className="absolute top-1/2 -left-8 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700"
+                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700`}
                     >
                         <BsTrash size={16} />
                     </button>
                 )}
             </div>
             {message.reactions && message.reactions.length > 0 && (
-                <div className="flex mt-1">
+                <div className="flex mt-1 space-x-1">
                     {message.reactions.map((reaction, index) => (
-                        <span key={index} className="mr-1 text-lg">
+                        <span key={index} className="text-lg">
                             {reaction.emoji}
                         </span>
                     ))}
                 </div>
             )}
-            {showReactionPicker && (
+            {showReactionPicker && !isSelectionMode && (
                 <div
                     ref={reactionPickerRef}
                     className="reaction-picker absolute z-10 bg-gray-800 p-2 rounded-lg"

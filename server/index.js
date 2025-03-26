@@ -1566,25 +1566,40 @@ const io = new Server(server, {
 });
 
 const connectedUsers = new Map();
-app.delete("/api/message/:messageId", async (req, res) => {
-    const { messageId } = req.params;
-    const userEmail = req.query.userEmail;
+// index.js
+// ... (previous imports remain the same)
+
+app.delete("/api/messages/delete", async (req, res) => {
+    const { messageIds } = req.body;
+
+    if (!Array.isArray(messageIds) || messageIds.length === 0) {
+        return res.status(400).json({ error: "Invalid or empty message IDs" });
+    }
 
     try {
-        const message = await Message.findById(messageId);
-        if (!message) {
-            return res.status(404).json({ error: "Message not found" });
+        // Permanently delete the messages from the database
+        const result = await Message.deleteMany({ _id: { $in: messageIds } });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: "No messages found to delete" });
         }
 
-        await Message.findByIdAndUpdate(messageId, {
-            $addToSet: { deletedBy: userEmail }
+        // Find the sender and receiver of the deleted messages to notify them
+        const deletedMessages = await Message.find({ _id: { $in: messageIds } }).lean();
+        const rooms = new Set();
+        deletedMessages.forEach((msg) => {
+            const room = [msg.sender, msg.receiver].sort().join("_");
+            rooms.add(room);
         });
 
-        const room = [message.sender, message.receiver].sort().join("_");
-        io.to(room).emit("messageDeleted", { messageId, userEmail });
+        // Notify all affected rooms
+        rooms.forEach((room) => {
+            io.to(room).emit("messageDeleted", { messageIds });
+        });
 
-        res.json({ success: true, message: "Message deleted successfully" });
+        res.json({ success: true, message: `${result.deletedCount} message(s) deleted permanently` });
     } catch (error) {
+        console.error("Error deleting messages:", error);
         res.status(500).json({ error: "Server error" });
     }
 });
@@ -1616,6 +1631,7 @@ app.post("/api/message/:messageId/react", async (req, res) => {
 
         res.json({ success: true, message: "Reaction added successfully" });
     } catch (error) {
+        console.error("Error adding reaction:", error);
         res.status(500).json({ error: "Server error" });
     }
 });
@@ -1769,6 +1785,8 @@ io.on("connection", (socket) => {
         }
     });
 });
+
+// ... (rest of the index.js file remains the same)
 
 app.use(express.static(path.join(__dirname, "client", "dist")));
 app.get("*", (_req, res) => {
