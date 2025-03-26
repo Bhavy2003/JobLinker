@@ -1889,7 +1889,7 @@ const ChatMessage = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: isSender ? "flex-end" : "flex-start",
-                margin: "1px 0",
+                margin: "5px 0",
                 padding: "0",
                 display: "flex",
 
@@ -1919,10 +1919,11 @@ const ChatMessage = ({
                 <div
                     style={{
                         backgroundColor: isSender ? "#1E40AF" : "#374151",
-                        padding: "1px",
+                        padding: "10px",
                         borderRadius: "12px",
-                        maxWidth: "60%",
-                        width: "fit-content",
+                        maxWidth: "70%",
+                        position: "relative",
+                        // width: "100%",
                         textAlign: isSender ? "right" : "left",
                         color: "white",
                         wordBreak: "break-word",
