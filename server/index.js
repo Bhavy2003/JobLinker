@@ -146,6 +146,7 @@ const translationSchema = new mongoose.Schema({
     ASKME: String,
     EmailAddress: String,
     Password: String,
+    // cscs
     PasswordRequirement: String,
     IAmA: String,
     JobSeeker: String,
