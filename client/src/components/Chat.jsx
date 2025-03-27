@@ -1921,7 +1921,7 @@ const ChatMessage = ({
                         backgroundColor: isSender ? "#1E40AF" : "#374151",
                         padding: "10px",
                         borderRadius: "12px",
-                        maxWidth: "95%",
+                        maxWidth: "99%",
                        
                         // width: "100%",
                         textAlign: isSender ? "right" : "left",
