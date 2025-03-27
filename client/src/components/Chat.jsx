@@ -1927,6 +1927,7 @@ const ChatMessage = ({
                         marginLeft: isSender ? "auto" : "0",
                         marginRight: isSender ? "0" : "auto",
                         textAlign: isSender ? "right" : "left",
+                        width: "fit-content",
                         color: "white",
                         wordBreak: "break-word",
                         whiteSpace: "pre-wrap",
