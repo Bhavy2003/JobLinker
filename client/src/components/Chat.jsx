@@ -1626,20 +1626,20 @@ export default function Chat() {
                                     {isSelectionMode ? (
                                         <>
                                             <button
-                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:ml-[-15px] sm:mr-[-6px] md:ml-[-15px] md:mr-[-6px]"
+                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:ml-[-15px] sm:mt-[-6px] md:ml-[-15px] md:mt-[-6px]"
                                                 onClick={selectAllMessages}
                                             >
                                                 Select All
                                             </button>
                                             <button
-                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:ml-[-15px] sm:mr-[-6px] md:ml-[-15px] md:mr-[-6px]"
+                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:ml-[-15px] sm:mt-[-6px] md:ml-[-15px] md:mt-[-6px]"
                                                 onClick={toggleSelectionMode}
                                             >
                                                 Cancel
                                             </button>
                                             {selectedMessages.length > 0 && (
                                                 <button
-                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:ml-[-15px] sm:mr-[-6px] md:ml-[-15px] md:mr-[-6px]"
+                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:ml-[-15px] sm:mt-[-6px] md:ml-[-15px] md:mt-[-6px]"
                                                     onClick={() => deleteMessages(selectedMessages)}
                                                 >
                                                     Delete ({selectedMessages.length})
