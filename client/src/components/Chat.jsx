@@ -1591,7 +1591,7 @@ export default function Chat() {
                                     {isSelectionMode ? (
                                         <>
                                             <button
-                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px]  md:mt-[6px]"
+                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition  sm:mt-[6px]  md:mt-[6px]"
                                                 onClick={selectAllMessages}
                                             >
                                                 Select All
@@ -1637,6 +1637,7 @@ export default function Chat() {
                                                 key={msg._id || msg.tempId || msg.index}
                                                 message={msg}
                                                 user={currentUser}
+                                                socket={socket}
                                                 isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
                                                 onDelete={deleteMessages}
                                                 isSelectionMode={isSelectionMode}
@@ -1766,6 +1767,7 @@ const ConfirmationPopup = ({ action, data, onConfirm, onCancel, t }) => {
 const ChatMessage = ({ 
     message, 
     user, 
+    socket, 
     isFirstNew, 
     onDelete, 
     isSelectionMode, 
@@ -1773,6 +1775,7 @@ const ChatMessage = ({
     toggleSelection 
 }) => {
     const isSender = message.sender === user;
+    const [showReactionPicker, setShowReactionPicker] = useState(false);
 
     const renderFile = (file, fileUrl) => {
         if (file || fileUrl) {
@@ -1832,7 +1835,6 @@ const ChatMessage = ({
     };
 
     const renderTicks = () => {
-        // Always show ticks for all messages (sender and receiver)
         if (message.status === 'sent') {
             return <span className="text-gray-400 ml-2">✓</span>;
         } else if (message.status === 'delivered') {
@@ -1842,6 +1844,25 @@ const ChatMessage = ({
         }
         return null;
     };
+
+    const handleAddReaction = (emoji) => {
+        socket.emit("addReaction", {
+            messageId: message._id,
+            user: user,
+            emoji: emoji,
+        });
+        setShowReactionPicker(false);
+    };
+
+    // Group reactions by emoji and count them
+    const groupedReactions = message.reactions?.reduce((acc, reaction) => {
+        if (!acc[reaction.emoji]) {
+            acc[reaction.emoji] = { count: 0, users: [] };
+        }
+        acc[reaction.emoji].count += 1;
+        acc[reaction.emoji].users.push(reaction.user);
+        return acc;
+    }, {});
 
     return (
         <div
@@ -1889,6 +1910,12 @@ const ChatMessage = ({
                         whiteSpace: "normal",
                         overflowWrap: "normal",
                     }}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (!isSelectionMode) {
+                            setShowReactionPicker(true);
+                        }
+                    }}
                 >
                     {message.text && <div>{message.text}</div>}
                     {(message.file || message.fileUrl) && (
@@ -1901,6 +1928,43 @@ const ChatMessage = ({
                         {renderTicks()}
                     </div>
                 </div>
+
+                {/* Reaction Picker */}
+                {showReactionPicker && (
+                    <div
+                        className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 flex space-x-2 z-10`}
+                        onMouseLeave={() => setShowReactionPicker(false)}
+                    >
+                        {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
+                            <button
+                                key={emoji}
+                                onClick={() => handleAddReaction(emoji)}
+                                className="text-xl hover:bg-gray-600 rounded-full p-1"
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Display Reactions */}
+                {groupedReactions && Object.keys(groupedReactions).length > 0 && (
+                    <div
+                        className={`flex space-x-2 mt-1 ${isSender ? "justify-end" : "justify-start"}`}
+                    >
+                        {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
+                            <div
+                                key={emoji}
+                                className="bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1"
+                                title={users.join(", ")} // Show users who reacted on hover
+                            >
+                                <span>{emoji}</span>
+                                {count > 1 && <span className="text-xs text-gray-300">{count}</span>}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {isSelectionMode && (
                     <div
                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelected ? "bg-blue-500" : "bg-transparent"}`}

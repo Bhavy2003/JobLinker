@@ -1782,7 +1782,6 @@ io.on("connection", (socket) => {
             .sort("timestamp")
             .then(async (messages) => {
                 console.log(`Loaded ${messages.length} messages for ${sender} and ${receiver}`);
-                // Update status to 'delivered' for messages sent to the sender
                 await Message.updateMany(
                     { 
                         receiver: sender, 
@@ -1791,7 +1790,6 @@ io.on("connection", (socket) => {
                     },
                     { $set: { status: 'delivered' } }
                 );
-                // Update status to 'read' for messages that the sender is viewing
                 await Message.updateMany(
                     { 
                         receiver: sender, 
@@ -1808,10 +1806,8 @@ io.on("connection", (socket) => {
                     deletedBy: { $ne: sender },
                 }).sort("timestamp");
 
-                // Emit updated messages to the client
                 socket.emit("loadMessages", updatedMessages);
 
-                // Notify all clients in the room about the status updates
                 updatedMessages.forEach((msg) => {
                     if (msg.status !== 'sent') {
                         io.to(room).emit("messageStatusUpdated", msg);
@@ -1838,6 +1834,7 @@ io.on("connection", (socket) => {
                 timestamp: new Date(msgData.timestamp),
                 status: 'sent',
                 isRead: false,
+                reactions: [], // Initialize reactions as an empty array
             });
             const savedMessage = await newMessage.save();
             console.log(`Saved message with ID: ${savedMessage._id} for sender: ${msgData.sender}, receiver: ${msgData.receiver}`);
@@ -1864,6 +1861,48 @@ io.on("connection", (socket) => {
             const senderSocketId = connectedUsers.get(msgData.sender);
             if (senderSocketId) {
                 io.to(senderSocketId).emit("messageError", { error: "Failed to send message" });
+            }
+        }
+    });
+
+    // New event to handle adding reactions
+    socket.on("addReaction", async ({ messageId, user, emoji }) => {
+        try {
+            const message = await Message.findById(messageId);
+            if (!message) {
+                console.error(`Message with ID ${messageId} not found`);
+                return;
+            }
+
+            // Check if the user has already reacted with this emoji
+            const existingReaction = message.reactions.find(
+                (reaction) => reaction.user === user && reaction.emoji === emoji
+            );
+
+            if (existingReaction) {
+                // If the user has already reacted with this emoji, remove the reaction
+                message.reactions = message.reactions.filter(
+                    (reaction) => !(reaction.user === user && reaction.emoji === emoji)
+                );
+            } else {
+                // Add the new reaction
+                message.reactions.push({
+                    user,
+                    emoji,
+                    timestamp: new Date(),
+                });
+            }
+
+            await message.save();
+
+            const updatedMessage = await Message.findById(messageId);
+            const room = [message.sender, message.receiver].sort().join("_");
+            io.to(room).emit("messageStatusUpdated", updatedMessage);
+        } catch (error) {
+            console.error("Error adding reaction:", error);
+            const userSocketId = connectedUsers.get(user);
+            if (userSocketId) {
+                io.to(userSocketId).emit("reactionError", { error: "Failed to add reaction" });
             }
         }
     });

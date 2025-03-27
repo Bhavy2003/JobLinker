@@ -33,7 +33,14 @@ const messageSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now },
     deletedBy: [{ type: String, default: [] }],
     isRead: { type: Boolean, default: false },
-    status: { type: String, default: 'sent', enum: ['sent', 'delivered', 'read'] }, // Add status field
+    status: { type: String, default: 'sent', enum: ['sent', 'delivered', 'read'] },
+    reactions: [
+        {
+            user: String, // The user who reacted
+            emoji: String, // The emoji used for the reaction (e.g., "👍")
+            timestamp: { type: Date, default: Date.now },
+        }
+    ], // Add status field
 }, {
     indexes: [
         { key: { sender: 1, receiver: 1 } },
