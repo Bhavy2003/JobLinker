@@ -940,15 +940,17 @@
 // Chat.jsx
 // Chat.jsx
 // Chat.jsx
+// Chat.jsx
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import Navbar from "./shared/Navbar";
 import Footer from "./shared/Footer";
 import { toast } from "react-toastify";
-import { BsPaperclip } from "react-icons/bs";
+import { BsPaperclip, BsEmojiSmile } from "react-icons/bs"; // Add BsEmojiSmile
 import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
 import { v4 as uuidv4 } from "uuid";
+import EmojiPicker from "emoji-picker-react"; // Add EmojiPicker
 
 export default function Chat() {
     const { t } = useTranslation();
@@ -969,6 +971,7 @@ export default function Chat() {
     const [showConfirmPopup, setShowConfirmPopup] = useState(false);
     const [confirmAction, setConfirmAction] = useState(null);
     const [confirmData, setConfirmData] = useState(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Add state for emoji picker
 
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
@@ -977,6 +980,7 @@ export default function Chat() {
     const DUMMY_PHOTO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcToiRnzzyrDtkmRzlAvPPbh77E-Mvsk3brlxQ&s";
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
+    const emojiPickerRef = useRef(null); // Add ref for emoji picker
 
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
@@ -1007,6 +1011,23 @@ export default function Chat() {
         const cachedMessages = localStorage.getItem(chatKey);
         return cachedMessages ? JSON.parse(cachedMessages) : [];
     };
+
+    // Handle clicking outside the emoji picker to close it
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+                setShowEmojiPicker(false);
+            }
+        };
+
+        if (showEmojiPicker) {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [showEmojiPicker]);
 
     useEffect(() => {
         const container = chatContainerRef.current;
@@ -1432,6 +1453,7 @@ export default function Chat() {
         setMessage("");
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
+        setShowEmojiPicker(false); // Close emoji picker after sending
     };
 
     const handleKeyPress = (e) => {
@@ -1442,6 +1464,13 @@ export default function Chat() {
             e.preventDefault();
             setMessage((prev) => prev + "\n");
         }
+    };
+
+    const toggleEmojiPicker = () => setShowEmojiPicker(!showEmojiPicker);
+
+    const onEmojiClick = (emojiObject) => {
+        setMessage((prev) => prev + emojiObject.emoji);
+        setShowEmojiPicker(false);
     };
 
     const clearSelectedFile = () => {
@@ -1591,20 +1620,20 @@ export default function Chat() {
                                     {isSelectionMode ? (
                                         <>
                                             <button
-                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition  sm:mt-[6px]  md:mt-[6px]"
+                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
                                                 onClick={selectAllMessages}
                                             >
                                                 Select All
                                             </button>
                                             <button
-                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition  sm:mt-[6px]  md:mt-[6px]"
+                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
                                                 onClick={toggleSelectionMode}
                                             >
                                                 Cancel
                                             </button>
                                             {selectedMessages.length > 0 && (
                                                 <button
-                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition  sm:mt-[6px]  md:mt-[6px]"
+                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
                                                     onClick={() => deleteMessages(selectedMessages)}
                                                 >
                                                     Delete ({selectedMessages.length})
@@ -1666,6 +1695,17 @@ export default function Chat() {
                                 </button>
                             )}
                             <div className="p-4 border-t flex items-center relative">
+                                <button
+                                    onClick={toggleEmojiPicker}
+                                    className="mr-2 text-white hover:text-indigo-300"
+                                >
+                                    <BsEmojiSmile size={24} />
+                                </button>
+                                {showEmojiPicker && (
+                                    <div ref={emojiPickerRef} className="absolute bottom-16 left-0 z-10">
+                                        <EmojiPicker onEmojiClick={onEmojiClick} />
+                                    </div>
+                                )}
                                 <button
                                     onClick={() => fileInputRef.current.click()}
                                     className="mr-2 text-white hover:text-indigo-300"
