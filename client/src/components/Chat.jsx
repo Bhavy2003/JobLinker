@@ -1619,27 +1619,27 @@ export default function Chat() {
                                         className="w-10 h-10 rounded-full inline-block mr-2"
                                     />
                                     <h2 className="text-xl ml-2 pl-2 font-bold">
-                                        {selectedUser.email === currentUser ? "You" : selectedUser.fullname} ({selectedUser.email})
+                                        {selectedUser.email === currentUser ? "You" : selectedUser.fullname}
                                     </h2>
                                 </div>
-                                <div className="flex items-center space-x-2">
+                                <div className="flex flex-col sm:flex-col md:flex-col lg:flex-row xl:flex-row items-center space-x-2">
                                     {isSelectionMode ? (
                                         <>
                                             <button
-                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition"
+                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:ml-[-15px] sm:mr-[-6px] md:ml-[-15px] md:mr-[-6px]"
                                                 onClick={selectAllMessages}
                                             >
                                                 Select All
                                             </button>
                                             <button
-                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition"
+                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:ml-[-15px] sm:mr-[-6px] md:ml-[-15px] md:mr-[-6px]"
                                                 onClick={toggleSelectionMode}
                                             >
                                                 Cancel
                                             </button>
                                             {selectedMessages.length > 0 && (
                                                 <button
-                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:ml-[-15px] sm:mr-[-6px] md:ml-[-15px] md:mr-[-6px]"
                                                     onClick={() => deleteMessages(selectedMessages)}
                                                 >
                                                     Delete ({selectedMessages.length})
@@ -1649,7 +1649,7 @@ export default function Chat() {
                                     ) : (
                                         <>
                                             <button
-                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition "
                                                 onClick={toggleSelectionMode}
                                             >
                                                 Delete Chats
@@ -1666,7 +1666,7 @@ export default function Chat() {
                             </div>
                             <div
                                 ref={chatContainerRef}
-                                className="flex-1 overflow-y-auto p-4 max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-200px)] md:max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-200px)] xl:max-h-[calc(100vh-200px)]"
+                                className="flex-1 overflow-y-auto p-10 max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-200px)] md:max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-200px)] xl:max-h-[calc(100vh-200px)]"
                             >
                                 {Object.keys(groupedMessages).map((date) => (
                                     <div key={date}>
@@ -1909,7 +1909,7 @@ const ChatMessage = ({
                 </span>
             )}
             <div
-                className={`relative ${isSelected ? "bg-gray-600" : ""}`}
+                className={`relative ${isSelected ? "" : ""}`}
                 onClick={() => {
                     if (isSelectionMode) {
                         toggleSelection();
@@ -1921,7 +1921,7 @@ const ChatMessage = ({
                         backgroundColor: isSender ? "#1E40AF" : "#374151",
                         padding: "10px",
                         borderRadius: "12px",
-                         maxWidth: "99.95%",
+                         maxWidth: "100%",
                         // width: "auto",
                         //maxWidth:"65%",
                         marginLeft: isSender ? "auto" : "0",
