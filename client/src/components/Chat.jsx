@@ -1930,8 +1930,8 @@ const ChatMessage = ({
                         width: "fit-content",
                         color: "white",
                         wordBreak: "break-word",
-                        whiteSpace: "pre-wrap",
-                        overflowWrap: "break-word",   
+                        whiteSpace: "normal",
+                        overflowWrap: "normal",   
                     }}
                 >
                     {message.text && <div>{message.text}</div>}
