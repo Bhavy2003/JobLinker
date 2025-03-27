@@ -1865,7 +1865,7 @@ io.on("connection", (socket) => {
         }
     });
 
-    // New event to handle adding reactions
+    // Handle adding reactions
     socket.on("addReaction", async ({ messageId, user, emoji }) => {
         try {
             const message = await Message.findById(messageId);
