@@ -1921,16 +1921,16 @@ const ChatMessage = ({
                         backgroundColor: isSender ? "#1E40AF" : "#374151",
                         padding: "10px",
                         borderRadius: "12px",
-                        maxWidth: "100%",
-                        width: "auto",
+                        // maxWidth: "100%",
+                        // width: "auto",
+                        maxWidth:"65%",
+                        marginLeft: isSender ? "auto" : "0",
+                        marginRight: isSender ? "0" : "auto",
                         textAlign: isSender ? "right" : "left",
                         color: "white",
                         wordBreak: "break-word",
                         whiteSpace: "pre-wrap",
-                        overflowWrap: "break-word",
-                   
-                                       
-                        
+                        overflowWrap: "break-word",   
                     }}
                 >
                     {message.text && <div>{message.text}</div>}
