@@ -939,6 +939,7 @@
 
 // Chat.jsx
 // Chat.jsx
+// Chat.jsx
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import Navbar from "./shared/Navbar";
@@ -966,8 +967,9 @@ export default function Chat() {
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedMessages, setSelectedMessages] = useState([]);
     const [showConfirmPopup, setShowConfirmPopup] = useState(false);
-    const [confirmAction, setConfirmAction] = useState(null); // Will store the action to confirm ("deleteMessages" or "deleteChat")
+    const [confirmAction, setConfirmAction] = useState(null);
     const [confirmData, setConfirmData] = useState(null);
+
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
     const storageKey = `sentUsers_${currentUser}`;
@@ -1133,7 +1135,9 @@ export default function Chat() {
         socket.on("messageStatusUpdated", (updatedMessage) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.map((msg) =>
-                    msg._id === updatedMessage._id ? updatedMessage : msg
+                    (msg._id && msg._id === updatedMessage._id) || (msg.tempId && msg.tempId === updatedMessage.tempId)
+                        ? updatedMessage
+                        : msg
                 );
                 saveMessagesToLocalStorage(updatedMessages);
                 return updatedMessages;
@@ -1273,19 +1277,9 @@ export default function Chat() {
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
 
-        socket.emit("deleteChat", {
-            sender: currentUser,
-            receiver: userEmail,
-        });
-
-        setMessages([]);
-        setSelectedUser(null);
-        const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
-        localStorage.removeItem(chatKey);
         setConfirmAction("deleteChat");
         setConfirmData(userEmail);
         setShowConfirmPopup(true);
-        toast.success("Chat cleared successfully.");
     };
 
     const deleteMessages = async (messageIds) => {
@@ -1295,37 +1289,11 @@ export default function Chat() {
             return;
         }
 
-        try {
-            const response = await fetch("https://joblinker-1.onrender.com/api/messages/delete", {
-                method: "DELETE",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ messageIds }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || "Failed to delete messages");
-            }
-
-            setMessages((prevMessages) => {
-                const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
-                saveMessagesToLocalStorage(updatedMessages);
-                return updatedMessages;
-            });
-            setConfirmAction("deleteMessages");
+        setConfirmAction("deleteMessages");
         setConfirmData(messageIds);
         setShowConfirmPopup(true);
-
-            toast.success(`${messageIds.length} message(s) deleted permanently`);
-            setSelectedMessages([]);
-            setIsSelectionMode(false);
-        } catch (error) {
-            console.error("Error deleting messages:", error.message);
-            toast.error(`Failed to delete messages: ${error.message}`);
-        }
     };
+
     const handleConfirm = async () => {
         if (confirmAction === "deleteMessages") {
             const messageIds = confirmData;
@@ -1371,13 +1339,11 @@ export default function Chat() {
             toast.success("Chat cleared successfully.");
         }
 
-        // Close the popup after action
         setShowConfirmPopup(false);
         setConfirmAction(null);
         setConfirmData(null);
     };
 
-    // New function to handle cancellation of confirmation
     const handleCancel = () => {
         setShowConfirmPopup(false);
         setConfirmAction(null);
@@ -1517,7 +1483,6 @@ export default function Chat() {
         user.email.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Group messages by date for rendering
     const groupedMessages = messages.reduce((acc, msg, index) => {
         const messageDate = new Date(msg.timestamp).toLocaleDateString('en-US', {
             weekday: 'long',
@@ -1626,20 +1591,20 @@ export default function Chat() {
                                     {isSelectionMode ? (
                                         <>
                                             <button
-                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:ml-[-15px] sm:mt-[-6px] md:ml-[-15px] md:mt-[-6px]"
+                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px]  md:mt-[6px]"
                                                 onClick={selectAllMessages}
                                             >
                                                 Select All
                                             </button>
                                             <button
-                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:ml-[-15px] sm:mt-[-6px] md:ml-[-15px] md:mt-[-6px]"
+                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition  sm:mt-[6px]  md:mt-[6px]"
                                                 onClick={toggleSelectionMode}
                                             >
                                                 Cancel
                                             </button>
                                             {selectedMessages.length > 0 && (
                                                 <button
-                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:ml-[-15px] sm:mt-[-6px] md:ml-[-15px] md:mt-[-6px]"
+                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition  sm:mt-[6px]  md:mt-[6px]"
                                                     onClick={() => deleteMessages(selectedMessages)}
                                                 >
                                                     Delete ({selectedMessages.length})
@@ -1649,17 +1614,11 @@ export default function Chat() {
                                     ) : (
                                         <>
                                             <button
-                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition "
+                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
                                                 onClick={toggleSelectionMode}
                                             >
                                                 Delete Chats
                                             </button>
-                                            {/* <button
-                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
-                                                onClick={() => deleteChat(selectedUser.email)}
-                                            >
-                                                {t("Deletechat")}
-                                            </button> */}
                                         </>
                                     )}
                                 </div>
@@ -1771,6 +1730,7 @@ export default function Chat() {
         </>
     );
 }
+
 const ConfirmationPopup = ({ action, data, onConfirm, onCancel, t }) => {
     const message =
         action === "deleteMessages"
@@ -1872,13 +1832,13 @@ const ChatMessage = ({
     };
 
     const renderTicks = () => {
-        // Show ticks for all messages, not just sender's
+        // Always show ticks for all messages (sender and receiver)
         if (message.status === 'sent') {
-            return <span className="text-white ml-2">✓</span>;
+            return <span className="text-gray-400 ml-2">✓</span>;
         } else if (message.status === 'delivered') {
-            return <span className="text-white ml-2">✓✓</span>;
+            return <span className="text-gray-400 ml-2">✓✓</span>;
         } else if (message.status === 'read') {
-            return <span className="text-blue-300 ml-2">✓✓</span>;
+            return <span className="text-yellow-400 ml-2">✓✓</span>;
         }
         return null;
     };
@@ -1891,8 +1851,6 @@ const ChatMessage = ({
                 alignItems: isSender ? "flex-end" : "flex-start",
                 margin: "5px 0",
                 padding: "0",
-                display: "flex",
-
             }}
         >
             {isFirstNew && message.receiver === user && (
@@ -1921,9 +1879,7 @@ const ChatMessage = ({
                         backgroundColor: isSender ? "#1E40AF" : "#374151",
                         padding: "10px",
                         borderRadius: "12px",
-                         maxWidth: "100%",
-                        // width: "auto",
-                        //maxWidth:"65%",
+                        maxWidth: "100%",
                         marginLeft: isSender ? "auto" : "0",
                         marginRight: isSender ? "0" : "auto",
                         textAlign: isSender ? "right" : "left",
@@ -1931,7 +1887,7 @@ const ChatMessage = ({
                         color: "white",
                         wordBreak: "break-word",
                         whiteSpace: "normal",
-                        overflowWrap: "normal",   
+                        overflowWrap: "normal",
                     }}
                 >
                     {message.text && <div>{message.text}</div>}

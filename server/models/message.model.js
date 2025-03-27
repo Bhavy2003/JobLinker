@@ -33,11 +33,7 @@ const messageSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now },
     deletedBy: [{ type: String, default: [] }],
     isRead: { type: Boolean, default: false },
-    status: { 
-        type: String, 
-        enum: ['sent', 'delivered', 'read'], 
-        default: 'sent' 
-    },
+    status: { type: String, default: 'sent', enum: ['sent', 'delivered', 'read'] }, // Add status field
 }, {
     indexes: [
         { key: { sender: 1, receiver: 1 } },
