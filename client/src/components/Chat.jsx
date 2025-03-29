@@ -967,7 +967,9 @@ export default function Chat() {
     const [showNewMessage, setShowNewMessage] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [isSelectionModeNew, setIsSelectionModeNew] = useState(false);
     const [selectedMessages, setSelectedMessages] = useState([]);
+    const [selectedMessagesNew, setSelectedMessagesNew] = useState([]);
     const [showConfirmPopup, setShowConfirmPopup] = useState(false);
     const [confirmAction, setConfirmAction] = useState(null);
     const [confirmData, setConfirmData] = useState(null);
@@ -1341,6 +1343,8 @@ export default function Chat() {
                 toast.success(`${messageIds.length} message(s) deleted permanently`);
                 setSelectedMessages([]);
                 setIsSelectionMode(false);
+                setSelectedMessagesNew([]);
+                setIsSelectionModeNew(false);
             } catch (error) {
                 console.error("Error deleting messages:", error.message);
                 toast.error(`Failed to delete messages: ${error.message}`);
@@ -1483,8 +1487,8 @@ export default function Chat() {
         setSelectedMessages([]);
     };
     const toggleSelectionModeNew = () => {
-        setIsSelectionMode(!isSelectionMode);
-        setSelectedMessages([]);
+        setIsSelectionModeNew(!isSelectionModeNew);
+        setSelectedMessagesNew([]);
     };
 
     const toggleMessageSelection = (messageId) => {
@@ -1497,7 +1501,7 @@ export default function Chat() {
         });
     };
     const toggleMessageSelectionNew = (messageId) => {
-        setSelectedMessages((prev) => {
+        setSelectedMessagesNew((prev) => {
             if (prev.includes(messageId)) {
                 return prev.filter((id) => id !== messageId);
             } else {
@@ -1510,7 +1514,7 @@ export default function Chat() {
         setSelectedMessages(messages.map((msg) => msg._id).filter((id) => id));
     };
     const selectAllMessagesNew = () => {
-        setSelectedMessages(messages.map((msg) => msg._id).filter((id) => id));
+        setSelectedMessagesNew(messages.map((msg) => msg._id).filter((id) => id));
     };
 
     const displayedUsers = [
@@ -1674,7 +1678,7 @@ export default function Chat() {
                 >
                     {t("DeleteChat For me")}
                 </button>
-                {isSelectionMode? (
+                {isSelectionModeNew? (
                                         <>
                                             <button
                                                 className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
@@ -1688,12 +1692,12 @@ export default function Chat() {
                                             >
                                                 Cancel
                                             </button>
-                                            {selectedMessages.length > 0 && (
+                                            {selectedMessagesNew.length > 0 && (
                                                 <button
                                                     className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
                                                     onClick={() => deleteChat(selectedUser.email)}
                                                 >
-                                                    Delete For Me ({selectedMessages.length})
+                                                    Delete For Me ({selectedMessagesNew.length})
                                                 </button>
                                             )}
                                         </>
@@ -1729,6 +1733,8 @@ export default function Chat() {
                                                 onDelete={deleteMessages}
                                                 isSelectionMode={isSelectionMode}
                                                 isSelected={selectedMessages.includes(msg._id)}
+                                                isSelectionModeNew={isSelectionModeNew}
+                                                isSelectedNew={selectedMessagesNew.includes(msg._id)}
                                                 toggleSelection={() => toggleMessageSelection(msg._id)}
                                                 toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
                                             />
@@ -1870,7 +1876,9 @@ const ChatMessage = ({
     isFirstNew, 
     onDelete, 
     isSelectionMode, 
-    isSelected, 
+    isSelected,
+    isSelectionModeNew, 
+    isSelectedNew,
     toggleSelection,
     toggleSelectionNew 
 }) => {
@@ -1988,7 +1996,7 @@ const ChatMessage = ({
                 </span>
             )}
             <div
-                className={`relative ${isSelected ? "" : ""}`}
+                className={`relative ${isSelected ? "" : ""} ${isSelectedNew ? "" : ""}`}
                 onClick={() => {
                     if (isSelectionMode) {
                         toggleSelection();
@@ -2019,6 +2027,9 @@ const ChatMessage = ({
                     onContextMenu={(e) => {
                         e.preventDefault();
                         if (!isSelectionMode) {
+                            setShowReactionPicker(true);
+                        }
+                        if (!isSelectionModeNew) {
                             setShowReactionPicker(true);
                         }
                     }}
@@ -2071,6 +2082,28 @@ const ChatMessage = ({
                     </div>
                 )}
 
+                {isSelectionModeNew && (
+                    <div
+                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelectedNew ? "bg-blue-500" : "bg-transparent"}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelection();
+                            toggleSelectionNew();
+                        }}
+                    >
+                        {isSelected && (
+                            <svg
+                                className="w-3 h-3 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        )}
+                    </div>
+                )}
                 {isSelectionMode && (
                     <div
                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelected ? "bg-blue-500" : "bg-transparent"}`}
@@ -2080,7 +2113,7 @@ const ChatMessage = ({
                             toggleSelectionNew();
                         }}
                     >
-                        {isSelected && (
+                        {isSelectedNew && (
                             <svg
                                 className="w-3 h-3 text-white"
                                 fill="none"
