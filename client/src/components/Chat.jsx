@@ -1616,7 +1616,7 @@ export default function Chat() {
                                         {selectedUser.email === currentUser ? "You" : selectedUser.fullname}
                                     </h2>
                                 </div>
-                                <div className="flex items-center">
+                                <div >
                                                 <button
                     className="bg-green-500 text-white p-2 rounded hover:bg-green-700"
                     onClick={() => deleteChat(selectedUser.email)}
