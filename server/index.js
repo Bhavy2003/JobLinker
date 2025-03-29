@@ -1909,22 +1909,25 @@ io.on("connection", (socket) => {
 
     socket.on("deleteChat", async ({ sender, receiver }) => {
         try {
+            // Mark messages as deleted only for the sender
             await Message.updateMany(
                 {
                     $or: [
                         { sender, receiver },
                         { sender: receiver, receiver: sender },
                     ],
-                    deletedBy: { $ne: sender },
+                    deletedBy: { $ne: sender }, // Ensure it’s not already deleted by sender
                 },
-                { $addToSet: { deletedBy: sender } }
+                { $addToSet: { deletedBy: sender } } // Only mark as deleted for sender
             );
-
+    
+            // Notify only the sender that the chat is deleted
             const senderSocketId = connectedUsers.get(sender);
             if (senderSocketId) {
                 io.to(senderSocketId).emit("chatDeleted", { receiver });
             }
-
+    
+            // Notify the receiver to update their chat list, but don't delete for them
             const receiverSocketId = connectedUsers.get(receiver);
             if (receiverSocketId) {
                 io.to(receiverSocketId).emit("chatUpdated", { sender });
@@ -1937,6 +1940,7 @@ io.on("connection", (socket) => {
             }
         }
     });
+    
 
     socket.on("markAsRead", async ({ sender, receiver }) => {
         try {

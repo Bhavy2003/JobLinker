@@ -1482,6 +1482,10 @@ export default function Chat() {
         setIsSelectionMode(!isSelectionMode);
         setSelectedMessages([]);
     };
+    const toggleSelectionModeNew = () => {
+        setIsSelectionMode(!isSelectionMode);
+        setSelectedMessages([]);
+    };
 
     const toggleMessageSelection = (messageId) => {
         setSelectedMessages((prev) => {
@@ -1492,8 +1496,20 @@ export default function Chat() {
             }
         });
     };
+    const toggleMessageSelectionNew = (messageId) => {
+        setSelectedMessages((prev) => {
+            if (prev.includes(messageId)) {
+                return prev.filter((id) => id !== messageId);
+            } else {
+                return [...prev, messageId];
+            }
+        });
+    };
 
     const selectAllMessages = () => {
+        setSelectedMessages(messages.map((msg) => msg._id).filter((id) => id));
+    };
+    const selectAllMessagesNew = () => {
         setSelectedMessages(messages.map((msg) => msg._id).filter((id) => id));
     };
 
@@ -1658,17 +1674,17 @@ export default function Chat() {
                 >
                     {t("DeleteChat For me")}
                 </button>
-                {isSelectionMode ? (
+                {isSelectionMode? (
                                         <>
                                             <button
                                                 className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={selectAllMessages}
+                                                onClick={selectAllMessagesNew}
                                             >
                                                 Select All
                                             </button>
                                             <button
                                                 className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={toggleSelectionMode}
+                                                onClick={toggleSelectionModeNew}
                                             >
                                                 Cancel
                                             </button>
@@ -1685,7 +1701,7 @@ export default function Chat() {
                                         <>
                                             <button
                                                 className="bg-blue-500 text-white px-3 py-1 sm:mt-[3px] md:mt-[3px] rounded-lg hover:bg-blue-700 transition"
-                                                onClick={toggleSelectionMode}
+                                                onClick={toggleSelectionModeNew}
                                             >
                                                 {t("DeleteChat For me")}
                                             </button>
@@ -1714,6 +1730,7 @@ export default function Chat() {
                                                 isSelectionMode={isSelectionMode}
                                                 isSelected={selectedMessages.includes(msg._id)}
                                                 toggleSelection={() => toggleMessageSelection(msg._id)}
+                                                toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
                                             />
                                         ))}
                                     </div>
@@ -1854,7 +1871,8 @@ const ChatMessage = ({
     onDelete, 
     isSelectionMode, 
     isSelected, 
-    toggleSelection 
+    toggleSelection,
+    toggleSelectionNew 
 }) => {
     const isSender = message.sender === user;
     const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -1975,7 +1993,13 @@ const ChatMessage = ({
                     if (isSelectionMode) {
                         toggleSelection();
                     }
+                    if (isSelectionModeNew) {
+                        toggleSelectionNew();
+                    }
+                    
+
                 }}
+                
             >
                 <div
                     style={{
@@ -2053,6 +2077,7 @@ const ChatMessage = ({
                         onClick={(e) => {
                             e.stopPropagation();
                             toggleSelection();
+                            toggleSelectionNew();
                         }}
                     >
                         {isSelected && (
