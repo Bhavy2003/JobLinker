@@ -1299,30 +1299,18 @@ const messageSchema = new mongoose.Schema({
     sender: String,
     receiver: String,
     text: String,
-    file: {
-        name: String,
-        type: String,
-        url: String,
-    },
+    fileUrl: String,
     timestamp: { type: Date, default: Date.now },
     deletedBy: [{ type: String, default: [] }],
     isRead: { type: Boolean, default: false },
-    status: { type: String, default: 'sent', enum: ['sent', 'delivered', 'read'] },
-    reactions: [
-        {
-            user: String, // The user who reacted
-            emoji: String, // The emoji used for the reaction (e.g., "👍")
-            timestamp: { type: Date, default: Date.now },
-        }
-    ], // Add status field
 }, {
     indexes: [
         { key: { sender: 1, receiver: 1 } },
-        { key: { timestamp: 1 } },
-        { key: { status: 1 } },
-        { key: { "reactions.user": 1 } },
+        { key: { deletedBy: 1 } },
+        { key: { timestamp: 1 } }
     ]
 });
+const Message = mongoose.model("Message", messageSchema);
 
 app.get("/api/unread-messages/:email", async (req, res) => {
     const { email } = req.params;
@@ -1794,7 +1782,6 @@ io.on("connection", (socket) => {
             .sort("timestamp")
             .then(async (messages) => {
                 console.log(`Loaded ${messages.length} messages for ${sender} and ${receiver}`);
-                // Update status to 'delivered' for messages sent to the sender
                 await Message.updateMany(
                     { 
                         receiver: sender, 
@@ -1803,7 +1790,6 @@ io.on("connection", (socket) => {
                     },
                     { $set: { status: 'delivered' } }
                 );
-                // Update status to 'read' for messages that the sender is viewing
                 await Message.updateMany(
                     { 
                         receiver: sender, 
@@ -1822,9 +1808,10 @@ io.on("connection", (socket) => {
 
                 socket.emit("loadMessages", updatedMessages);
 
-                // Emit messageStatusUpdated for all updated messages
                 updatedMessages.forEach((msg) => {
-                    io.to(room).emit("messageStatusUpdated", msg);
+                    if (msg.status !== 'sent') {
+                        io.to(room).emit("messageStatusUpdated", msg);
+                    }
                 });
             })
             .catch((error) => console.error("Error fetching messages:", error));
@@ -1847,7 +1834,7 @@ io.on("connection", (socket) => {
                 timestamp: new Date(msgData.timestamp),
                 status: 'sent',
                 isRead: false,
-                reactions: [],
+                reactions: [], // Initialize reactions as an empty array
             });
             const savedMessage = await newMessage.save();
             console.log(`Saved message with ID: ${savedMessage._id} for sender: ${msgData.sender}, receiver: ${msgData.receiver}`);
@@ -1878,6 +1865,7 @@ io.on("connection", (socket) => {
         }
     });
 
+    // Handle adding reactions
     socket.on("addReaction", async ({ messageId, user, emoji }) => {
         try {
             const message = await Message.findById(messageId);
@@ -1886,13 +1874,18 @@ io.on("connection", (socket) => {
                 return;
             }
 
-            const existingReactionIndex = message.reactions.findIndex(
+            // Check if the user has already reacted with this emoji
+            const existingReaction = message.reactions.find(
                 (reaction) => reaction.user === user && reaction.emoji === emoji
             );
 
-            if (existingReactionIndex !== -1) {
-                message.reactions.splice(existingReactionIndex, 1);
+            if (existingReaction) {
+                // If the user has already reacted with this emoji, remove the reaction
+                message.reactions = message.reactions.filter(
+                    (reaction) => !(reaction.user === user && reaction.emoji === emoji)
+                );
             } else {
+                // Add the new reaction
                 message.reactions.push({
                     user,
                     emoji,
@@ -1905,19 +1898,17 @@ io.on("connection", (socket) => {
             const updatedMessage = await Message.findById(messageId);
             const room = [message.sender, message.receiver].sort().join("_");
             io.to(room).emit("messageStatusUpdated", updatedMessage);
-            console.log(`Reaction updated for message ${messageId}:`, updatedMessage.reactions);
         } catch (error) {
-            console.error("Error adding/removing reaction:", error);
+            console.error("Error adding reaction:", error);
             const userSocketId = connectedUsers.get(user);
             if (userSocketId) {
-                io.to(userSocketId).emit("reactionError", { error: "Failed to add/remove reaction" });
+                io.to(userSocketId).emit("reactionError", { error: "Failed to add reaction" });
             }
         }
     });
 
     socket.on("deleteChat", async ({ sender, receiver }) => {
         try {
-            // Mark messages as deleted by the sender
             await Message.updateMany(
                 {
                     $or: [
@@ -1928,21 +1919,12 @@ io.on("connection", (socket) => {
                 },
                 { $addToSet: { deletedBy: sender } }
             );
-    
-            // Permanently delete messages that have been marked as deleted by both users
-            await Message.deleteMany({
-                $or: [
-                    { sender, receiver },
-                    { sender: receiver, receiver: sender },
-                ],
-                deletedBy: { $all: [sender, receiver] },
-            });
-    
+
             const senderSocketId = connectedUsers.get(sender);
             if (senderSocketId) {
                 io.to(senderSocketId).emit("chatDeleted", { receiver });
             }
-    
+
             const receiverSocketId = connectedUsers.get(receiver);
             if (receiverSocketId) {
                 io.to(receiverSocketId).emit("chatUpdated", { sender });
