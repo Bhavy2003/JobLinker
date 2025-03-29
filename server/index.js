@@ -1569,30 +1569,35 @@ const connectedUsers = new Map();
 
 
 app.delete("/api/messages/delete", async (req, res) => {
-    const { messageIds, userId } = req.body; // Expecting userId from the frontend
+    const { messageIds } = req.body;
 
-    if (!Array.isArray(messageIds) || messageIds.length === 0 || !userId) {
-        return res.status(400).json({ error: "Invalid request parameters" });
+    if (!Array.isArray(messageIds) || messageIds.length === 0) {
+        console.log("Invalid or empty message IDs:", messageIds);
+        return res.status(400).json({ error: "Invalid or empty message IDs" });
     }
 
     try {
-        // Find messages and check if they exist
+        console.log("Attempting to delete messages with IDs:", messageIds);
         const messages = await Message.find({ _id: { $in: messageIds } });
-
         if (messages.length === 0) {
+            console.log("No messages found for IDs:", messageIds);
             return res.status(404).json({ error: "No messages found to delete" });
         }
 
-        // Update messages: Mark as deleted by the user
-        await Message.updateMany(
-            { _id: { $in: messageIds } },
-            { $addToSet: { deletedBy: userId } } // Add the user to deletedBy list
-        );
+        const result = await Message.deleteMany({ _id: { $in: messageIds } });
+        console.log(`Deleted ${result.deletedCount} messages`);
 
-        // Emit event to update UI
-        io.to(userId).emit("messageDeleted", { messageIds });
+        const rooms = new Set();
+        messages.forEach((msg) => {
+            const room = [msg.sender, msg.receiver].sort().join("_");
+            rooms.add(room);
+        });
 
-        res.json({ success: true, message: "Messages marked as deleted" });
+        rooms.forEach((room) => {
+            io.to(room).emit("messageDeleted", { messageIds });
+        });
+
+        res.json({ success: true, message: `${result.deletedCount} message(s) deleted permanently` });
     } catch (error) {
         console.error("Error deleting messages:", error);
         res.status(500).json({ error: "Server error" });
@@ -1910,15 +1915,19 @@ io.on("connection", (socket) => {
                         { sender, receiver },
                         { sender: receiver, receiver: sender },
                     ],
-                    deletedBy: { $ne: sender }, // Ensure it's not already deleted
+                    deletedBy: { $ne: sender },
                 },
-                { $addToSet: { deletedBy: sender } } // Mark as deleted only for sender
+                { $addToSet: { deletedBy: sender } }
             );
-    
-            // Notify only the sender that the chat is deleted
+
             const senderSocketId = connectedUsers.get(sender);
             if (senderSocketId) {
                 io.to(senderSocketId).emit("chatDeleted", { receiver });
+            }
+
+            const receiverSocketId = connectedUsers.get(receiver);
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit("chatUpdated", { sender });
             }
         } catch (error) {
             console.error("Error deleting chat:", error);
@@ -1928,7 +1937,6 @@ io.on("connection", (socket) => {
             }
         }
     });
-    
 
     socket.on("markAsRead", async ({ sender, receiver }) => {
         try {
@@ -1961,28 +1969,7 @@ io.on("connection", (socket) => {
         }
     });
 });
-app.get("/api/messages", async (req, res) => {
-    const { sender, receiver } = req.query;
 
-    if (!sender || !receiver) {
-        return res.status(400).json({ error: "Invalid request parameters" });
-    }
-
-    try {
-        const messages = await Message.find({
-            $or: [
-                { sender, receiver },
-                { sender: receiver, receiver: sender },
-            ],
-            deletedBy: { $ne: sender }, // Hide messages deleted by the sender
-        }).sort({ timestamp: 1 });
-
-        res.json(messages);
-    } catch (error) {
-        console.error("Error fetching messages:", error);
-        res.status(500).json({ error: "Server error" });
-    }
-});
 // ... (rest of the index.js file remains the same)
 app.use(express.static(path.join(__dirname, "client", "dist")));
 app.get("*", (_req, res) => {
