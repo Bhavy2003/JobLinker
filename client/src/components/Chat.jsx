@@ -1674,7 +1674,7 @@ export default function Chat() {
                                             </button>
                                             {selectedMessages.length > 0 && (
                                                 <button
-                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
+                                                    className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
                                                     onClick={() => deleteChat(selectedUser.email)}
                                                 >
                                                     Delete For Me ({selectedMessages.length})
@@ -1684,7 +1684,7 @@ export default function Chat() {
                                     ) : (
                                         <>
                                             <button
-                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                                                className="bg-blue-500 text-white px-3 py-1 sm:mt-[3px] md:mt-[3px] rounded-lg hover:bg-blue-700 transition"
                                                 onClick={toggleSelectionMode}
                                             >
                                                 {t("DeleteChat For me")}
