@@ -1615,14 +1615,7 @@ export default function Chat() {
                                     <h2 className="text-xl ml-2 pl-2 font-bold">
                                         {selectedUser.email === currentUser ? "You" : selectedUser.fullname}
                                     </h2>
-                                </div>
-                                <div >
-                                                <button
-                    className="bg-green-500 text-white p-2 rounded hover:bg-green-700"
-                    onClick={() => deleteChat(selectedUser.email)}
-                >
-                    {t("DeleteChat For me")}
-                </button>
+                                    
                                 </div>
                                 <div className="flex flex-col sm:flex-col md:flex-col lg:flex-row xl:flex-row items-center space-x-2">
                                     {isSelectionMode ? (
@@ -1656,8 +1649,15 @@ export default function Chat() {
                                             >
                                                 Delete Chats
                                             </button>
+                                           
                                         </>
                                     )}
+                                     <button
+                    className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
+                    onClick={() => deleteChat(selectedUser.email)}
+                >
+                    {t("DeleteChat For me")}
+                </button>
                                 </div>
                             </div>
                             <div
