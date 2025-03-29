@@ -1653,7 +1653,7 @@ export default function Chat() {
                                         </>
                                     )}
                                      <button
-                    className="bg-red-500 text-white p-2 rounded hover:bg-red-700"
+                    className="bg-green-500 text-white p-2 rounded hover:bg-green-700"
                     onClick={() => deleteChat(selectedUser.email)}
                 >
                     {t("DeleteChat For me")}
