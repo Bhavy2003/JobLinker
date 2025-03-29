@@ -1280,41 +1280,21 @@ export default function Chat() {
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
 
-    // useEffect(() => {
-    //     socket.on("chatDeleted", ({ receiver }) => {
-    //         if (selectedUser?.email === receiver) {
-    //             setMessages([]);
-    //             setSelectedUser(null);
-    //             const chatKey = `${chatStorageKey}_${[currentUser, receiver].sort().join("_")}`;
-    //             localStorage.removeItem(chatKey);
-    //         }
-    //     });
+    useEffect(() => {
+        socket.on("chatDeleted", ({ receiver }) => {
+            if (selectedUser?.email === receiver) {
+                setMessages([]);
+                setSelectedUser(null);
+                const chatKey = `${chatStorageKey}_${[currentUser, receiver].sort().join("_")}`;
+                localStorage.removeItem(chatKey);
+            }
+        });
 
-    //     return () => {
-    //         socket.off("chatDeleted");
-    //     };
-    // }, [currentUser, selectedUser, chatStorageKey]);
-// In Chat.jsx, within the Chat component
-useEffect(() => {
-    socket.on("chatDeleted", ({ receiver }) => {
-        if (selectedUser?.email === receiver) {
-            setMessages([]);
-            setSelectedUser(null);
-            const chatKey = `${chatStorageKey}_${[currentUser, receiver].sort().join("_")}`;
-            localStorage.removeItem(chatKey);
-        }
-    });
+        return () => {
+            socket.off("chatDeleted");
+        };
+    }, [currentUser, selectedUser, chatStorageKey]);
 
-    socket.on("chatUpdated", ({ sender }) => {
-        // Receiver's chat remains intact; no action needed
-        console.log(`Chat updated: ${sender} deleted their chat`);
-    });
-
-    return () => {
-        socket.off("chatDeleted");
-        socket.off("chatUpdated");
-    };
-}, [currentUser, selectedUser, chatStorageKey]);
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
 
@@ -1906,11 +1886,6 @@ const ChatMessage = ({
     };
 
     const handleAddReaction = (emoji) => {
-        if (!message._id) {
-            console.error("Cannot add reaction: Message ID is missing");
-            return;
-        }
-
         socket.emit("addReaction", {
             messageId: message._id,
             user: user,
@@ -1919,11 +1894,8 @@ const ChatMessage = ({
         setShowReactionPicker(false);
     };
 
-    // Ensure reactions is always an array
-    const reactions = Array.isArray(message.reactions) ? message.reactions : [];
-
     // Group reactions by emoji and count them
-    const groupedReactions = reactions.reduce((acc, reaction) => {
+    const groupedReactions = message.reactions?.reduce((acc, reaction) => {
         if (!acc[reaction.emoji]) {
             acc[reaction.emoji] = { count: 0, users: [] };
         }
@@ -1931,13 +1903,6 @@ const ChatMessage = ({
         acc[reaction.emoji].users.push(reaction.user);
         return acc;
     }, {});
-
-    // Check if the current user has reacted with a specific emoji
-    const hasUserReacted = (emoji) => {
-        return reactions.some(
-            (reaction) => reaction.user === user && reaction.emoji === emoji
-        );
-    };
 
     return (
         <div
@@ -1963,7 +1928,7 @@ const ChatMessage = ({
                 </span>
             )}
             <div
-                className={`relative ${isSelected ? "bg-opacity-50" : ""}`}
+                className={`relative ${isSelected ? "" : ""}`}
                 onClick={() => {
                     if (isSelectionMode) {
                         toggleSelection();
@@ -2014,9 +1979,7 @@ const ChatMessage = ({
                             <button
                                 key={emoji}
                                 onClick={() => handleAddReaction(emoji)}
-                                className={`text-xl rounded-full p-1 ${
-                                    hasUserReacted(emoji) ? "bg-blue-500" : "hover:bg-gray-600"
-                                }`}
+                                className="text-xl hover:bg-gray-600 rounded-full p-1"
                             >
                                 {emoji}
                             </button>
@@ -2027,20 +1990,17 @@ const ChatMessage = ({
                 {/* Display Reactions */}
                 {groupedReactions && Object.keys(groupedReactions).length > 0 && (
                     <div
-                        className={`flex flex-wrap space-x-2 mt-1 ${isSender ? "justify-end" : "justify-start"}`}
+                        className={`flex space-x-2 mt-1 ${isSender ? "justify-end" : "justify-start"}`}
                     >
                         {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
-                            <button
+                            <div
                                 key={emoji}
-                                onClick={() => handleAddReaction(emoji)}
-                                className={`bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1 ${
-                                    hasUserReacted(emoji) ? "border-2 border-blue-500" : ""
-                                }`}
-                                title={users.join(", ")}
+                                className="bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1"
+                                title={users.join(", ")} // Show users who reacted on hover
                             >
                                 <span>{emoji}</span>
                                 {count > 1 && <span className="text-xs text-gray-300">{count}</span>}
-                            </button>
+                            </div>
                         ))}
                     </div>
                 )}
@@ -2070,230 +2030,3 @@ const ChatMessage = ({
         </div>
     );
 };
-
-// const ChatMessage = ({ 
-//     message, 
-//     user, 
-//     socket, 
-//     isFirstNew, 
-//     onDelete, 
-//     isSelectionMode, 
-//     isSelected, 
-//     toggleSelection 
-// }) => {
-//     const isSender = message.sender === user;
-//     const [showReactionPicker, setShowReactionPicker] = useState(false);
-
-//     const renderFile = (file, fileUrl) => {
-//         if (file || fileUrl) {
-//             let fileData = file || {};
-//             if (fileUrl) {
-//                 fileData.url = fileUrl;
-//                 fileData.name = fileUrl.split("/").pop();
-//             }
-
-//             let fileType;
-//             if (file) {
-//                 fileType = file.type || "unknown";
-//             } else if (fileUrl) {
-//                 const fileName = fileData.name.toLowerCase();
-//                 if (fileName.endsWith(".pdf")) fileType = "application/pdf";
-//                 else if (fileName.endsWith(".csv")) fileType = "text/csv";
-//                 else if (fileName.endsWith(".doc")) fileType = "application/msword";
-//                 else if (fileName.endsWith(".docx")) fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-//                 else if (fileName.endsWith(".xls")) fileType = "application/vnd.ms-excel";
-//                 else if (fileName.endsWith(".xlsx")) fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-//                 else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) fileType = "image";
-//                 else fileType = "application/octet-stream";
-//             } else {
-//                 fileType = "unknown";
-//             }
-
-//             if (fileType === "application/pdf") {
-//                 return (
-//                     <embed
-//                         src={fileData.url}
-//                         type="application/pdf"
-//                         width="100%"
-//                         height="300px"
-//                         title={fileData.name}
-//                     />
-//                 );
-//             } else if (fileType.startsWith("image")) {
-//                 return (
-//                     <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-//                         <img
-//                             src={fileData.url}
-//                             alt={fileData.name}
-//                             style={{ maxWidth: "100%", maxHeight: "300px" }}
-//                         />
-//                     </a>
-//                 );
-//             } else {
-//                 return (
-//                     <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-//                         Download {fileData.name}
-//                     </a>
-//                 );
-//             }
-//         }
-
-//         return <div>File not available</div>;
-//     };
-
-//     const renderTicks = () => {
-//         if (message.status === 'sent') {
-//             return <span className="text-gray-400 ml-2">✓</span>;
-//         } else if (message.status === 'delivered') {
-//             return <span className="text-gray-400 ml-2">✓✓</span>;
-//         } else if (message.status === 'read') {
-//             return <span className="text-yellow-400 ml-2">✓✓</span>;
-//         }
-//         return null;
-//     };
-
-//     const handleAddReaction = (emoji) => {
-//         socket.emit("addReaction", {
-//             messageId: message._id,
-//             user: user,
-//             emoji: emoji,
-//         });
-//         setShowReactionPicker(false);
-//     };
-
-//     // Group reactions by emoji and count them
-//     const groupedReactions = message.reactions?.reduce((acc, reaction) => {
-//         if (!acc[reaction.emoji]) {
-//             acc[reaction.emoji] = { count: 0, users: [] };
-//         }
-//         acc[reaction.emoji].count += 1;
-//         acc[reaction.emoji].users.push(reaction.user);
-//         return acc;
-//     }, {});
-
-//     return (
-//         <div
-//             style={{
-//                 display: "flex",
-//                 flexDirection: "column",
-//                 alignItems: isSender ? "flex-end" : "flex-start",
-//                 margin: "5px 0",
-//                 padding: "0",
-//             }}
-//         >
-//             {isFirstNew && message.receiver === user && (
-//                 <span
-//                     style={{
-//                         color: "#FFD700",
-//                         fontSize: "12px",
-//                         fontWeight: "bold",
-//                         marginBottom: "5px",
-//                         alignSelf: "center",
-//                     }}
-//                 >
-//                     New Message
-//                 </span>
-//             )}
-//             <div
-//                 className={`relative ${isSelected ? "" : ""}`}
-//                 onClick={() => {
-//                     if (isSelectionMode) {
-//                         toggleSelection();
-//                     }
-//                 }}
-//             >
-//                 <div
-//                     style={{
-//                         backgroundColor: isSender ? "#1E40AF" : "#374151",
-//                         padding: "10px",
-//                         borderRadius: "12px",
-//                         maxWidth: "100%",
-//                         marginLeft: isSender ? "auto" : "0",
-//                         marginRight: isSender ? "0" : "auto",
-//                         textAlign: isSender ? "right" : "left",
-//                         width: "fit-content",
-//                         color: "white",
-//                         wordBreak: "break-word",
-//                         whiteSpace: "normal",
-//                         overflowWrap: "normal",
-//                     }}
-//                     onContextMenu={(e) => {
-//                         e.preventDefault();
-//                         if (!isSelectionMode) {
-//                             setShowReactionPicker(true);
-//                         }
-//                     }}
-//                 >
-//                     {message.text && <div>{message.text}</div>}
-//                     {(message.file || message.fileUrl) && (
-//                         <div>{renderFile(message.file, message.fileUrl)}</div>
-//                     )}
-//                     <div className="flex items-center justify-end space-x-1">
-//                         <span className="text-xs text-gray-300">
-//                             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-//                         </span>
-//                         {renderTicks()}
-//                     </div>
-//                 </div>
-
-//                 {/* Reaction Picker */}
-//                 {showReactionPicker && (
-//                     <div
-//                         className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 flex space-x-2 z-10`}
-//                         onMouseLeave={() => setShowReactionPicker(false)}
-//                     >
-//                         {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
-//                             <button
-//                                 key={emoji}
-//                                 onClick={() => handleAddReaction(emoji)}
-//                                 className="text-xl hover:bg-gray-600 rounded-full p-1"
-//                             >
-//                                 {emoji}
-//                             </button>
-//                         ))}
-//                     </div>
-//                 )}
-
-//                 {/* Display Reactions */}
-//                 {groupedReactions && Object.keys(groupedReactions).length > 0 && (
-//                     <div
-//                         className={`flex space-x-2 mt-1 ${isSender ? "justify-end" : "justify-start"}`}
-//                     >
-//                         {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
-//                             <div
-//                                 key={emoji}
-//                                 className="bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1"
-//                                 title={users.join(", ")} // Show users who reacted on hover
-//                             >
-//                                 <span>{emoji}</span>
-//                                 {count > 1 && <span className="text-xs text-gray-300">{count}</span>}
-//                             </div>
-//                         ))}
-//                     </div>
-//                 )}
-
-//                 {isSelectionMode && (
-//                     <div
-//                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelected ? "bg-blue-500" : "bg-transparent"}`}
-//                         onClick={(e) => {
-//                             e.stopPropagation();
-//                             toggleSelection();
-//                         }}
-//                     >
-//                         {isSelected && (
-//                             <svg
-//                                 className="w-3 h-3 text-white"
-//                                 fill="none"
-//                                 stroke="currentColor"
-//                                 viewBox="0 0 24 24"
-//                                 xmlns="http://www.w3.org/2000/svg"
-//                             >
-//                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-//                             </svg>
-//                         )}
-//                     </div>
-//                 )}
-//             </div>
-//         </div>
-//     );
-// };
