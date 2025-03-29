@@ -967,9 +967,7 @@ export default function Chat() {
     const [showNewMessage, setShowNewMessage] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
-    const [isSelectionModeNew, setIsSelectionModeNew] = useState(false);
     const [selectedMessages, setSelectedMessages] = useState([]);
-    const [selectedMessagesNew, setSelectedMessagesNew] = useState([]);
     const [showConfirmPopup, setShowConfirmPopup] = useState(false);
     const [confirmAction, setConfirmAction] = useState(null);
     const [confirmData, setConfirmData] = useState(null);
@@ -1316,17 +1314,6 @@ export default function Chat() {
         setConfirmData(messageIds);
         setShowConfirmPopup(true);
     };
-    const deleteMessagesNew = async (messageIds) => {
-        console.log("Deleting messages with IDs:", messageIds);
-        if (!messageIds || messageIds.length === 0) {
-            toast.error("No messages selected to delete");
-            return;
-        }
-
-        setConfirmAction("deleteMessagesNew");
-        setConfirmData(messageIds);
-        setShowConfirmPopup(true);
-    };
 
     const handleConfirm = async () => {
         if (confirmAction === "deleteMessages") {
@@ -1354,7 +1341,6 @@ export default function Chat() {
                 toast.success(`${messageIds.length} message(s) deleted permanently`);
                 setSelectedMessages([]);
                 setIsSelectionMode(false);
-                
             } catch (error) {
                 console.error("Error deleting messages:", error.message);
                 toast.error(`Failed to delete messages: ${error.message}`);
@@ -1365,17 +1351,13 @@ export default function Chat() {
                 sender: currentUser,
                 receiver: userEmail,
             });
-            setSelectedMessages([]);
-            setIsSelectionMode(false);
-            // setMessages([]);
-            // setSelectedUser(null);
+
+            setMessages([]);
+            setSelectedUser(null);
             const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
             localStorage.removeItem(chatKey);
 
             toast.success("Chat cleared successfully.");
-        } else if (confirmAction === "deleteMessagesForMe") {
-            const messageIds = confirmData;
-            await deleteSelectedMessagesForMe(messageIds);
         }
 
         setShowConfirmPopup(false);
@@ -1483,41 +1465,6 @@ export default function Chat() {
             setMessage((prev) => prev + "\n");
         }
     };
-    const deleteSelectedMessagesForMe = async (messageIds) => {
-        if (!messageIds || messageIds.length === 0) {
-            toast.error("No messages selected to delete");
-            return;
-        }
-    
-        try {
-            const response = await fetch("https://joblinker-1.onrender.com/api/messages/delete-for-me", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ messageIds, userEmail: currentUser }),
-            });
-    
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || "Failed to delete messages for me");
-            }
-    
-            // Update the messages state by removing the deleted messages
-            setMessages((prevMessages) => {
-                const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
-                saveMessagesToLocalStorage(updatedMessages);
-                return updatedMessages;
-            });
-    
-            toast.success(`${messageIds.length} message(s) deleted for you`);
-            setSelectedMessagesNew([]); // Clear selection
-            setIsSelectionModeNew(false); // Exit selection mode
-        } catch (error) {
-            console.error("Error deleting messages for me:", error.message);
-            toast.error(`Failed to delete messages: ${error.message}`);
-        }
-    };
 
     const toggleEmojiPicker = () => setShowEmojiPicker(!showEmojiPicker);
 
@@ -1535,10 +1482,6 @@ export default function Chat() {
         setIsSelectionMode(!isSelectionMode);
         setSelectedMessages([]);
     };
-    const toggleSelectionModeNew = () => {
-        setIsSelectionModeNew(!isSelectionModeNew);
-        setSelectedMessagesNew([]);
-    };
 
     const toggleMessageSelection = (messageId) => {
         setSelectedMessages((prev) => {
@@ -1549,33 +1492,9 @@ export default function Chat() {
             }
         });
     };
-    // const toggleMessageSelectionNew = (messageId) => {
-    //     setSelectedMessagesNew((prev) => {
-    //         if (prev.includes(messageId)) {
-    //             return prev.filter((id) => id !== messageId);
-    //         } else {
-    //             return [...prev, messageId];
-    //         }
-    //     });
-    // };
-    const toggleMessageSelectionNew = (messageId) => {
-        if (messageId) { // Ensure messageId exists
-            setSelectedMessagesNew((prev) => {
-                if (prev.includes(messageId)) {
-                    return prev.filter((id) => id !== messageId);
-                } else {
-                    return [...prev, messageId];
-                }
-            });
-        }
-    };
 
     const selectAllMessages = () => {
         setSelectedMessages(messages.map((msg) => msg._id).filter((id) => id));
-    };
-    
-    const selectAllMessagesNew = () => {
-        setSelectedMessagesNew(messages.filter((msg) => msg._id).map((msg) => msg._id));
     };
 
     const displayedUsers = [
@@ -1718,7 +1637,7 @@ export default function Chat() {
                                                     className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
                                                     onClick={() => deleteMessages(selectedMessages)}
                                                 >
-                                                    Delete For Everyone ({selectedMessages.length})
+                                                    Delete ({selectedMessages.length})
                                                 </button>
                                             )}
                                         </>
@@ -1728,7 +1647,7 @@ export default function Chat() {
                                                 className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
                                                 onClick={toggleSelectionMode}
                                             >
-                                                Delete For Everyone
+                                                Delete Chats
                                             </button>
                                            
                                         </>
@@ -1739,43 +1658,7 @@ export default function Chat() {
                 >
                     {t("DeleteChat For me")}
                 </button>
-                {isSelectionModeNew ? (
-    <>
-        <button
-            className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-            onClick={selectAllMessagesNew}
-        >
-            Select All
-        </button>
-        <button
-            className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-            onClick={toggleSelectionModeNew}
-        >
-            Cancel
-        </button>
-        {selectedMessagesNew.length > 0 && (
-            <button
-                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
-                onClick={() => {
-                    setConfirmAction("deleteMessagesForMe");
-                    setConfirmData(selectedMessagesNew);
-                    setShowConfirmPopup(true);
-                }}
-            >
-                Delete For Me ({selectedMessagesNew.length})
-            </button>
-        )}
-    </>
-) : (
-    <>
-        <button
-            className="bg-blue-500 text-white px-3 py-1 sm:mt-[3px] md:mt-[3px] rounded-lg hover:bg-blue-700 transition"
-            onClick={toggleSelectionModeNew}
-        >
-            {t("DeleteChat For me")}
-        </button>
-    </>
-)}
+                
                                 </div>
                             </div>
                             <div
@@ -1797,10 +1680,7 @@ export default function Chat() {
                                                 onDelete={deleteMessages}
                                                 isSelectionMode={isSelectionMode}
                                                 isSelected={selectedMessages.includes(msg._id)}
-                                                isSelectionModeNew={isSelectionModeNew}
-                                                isSelectedNew={selectedMessagesNew.includes(msg._id)}
                                                 toggleSelection={() => toggleMessageSelection(msg._id)}
-                                                toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
                                             />
                                         ))}
                                     </div>
@@ -1904,16 +1784,14 @@ export default function Chat() {
 const ConfirmationPopup = ({ action, data, onConfirm, onCancel, t }) => {
     const message =
         action === "deleteMessages"
-            ? `Are you sure you want to delete ${data.length} message(s) for everyone? This action cannot be undone.`
-            : action === "deleteMessagesForMe"
-            ? `Are you sure you want to delete ${data.length} message(s) for yourself?`
-            : `Are you sure you want to clear this chat for yourself?`;
+            ? `Are you sure you want to delete ${data.length} message(s)? This action cannot be undone.`
+            : `Are you sure you want to delete this chat? This action cannot be undone.`;
 
     return (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div className="bg-gray-800 rounded-lg p-6 w-11/12 max-w-md">
                 <h3 className="text-lg font-bold text-white mb-4">
-                    {action === "deleteMessages" ? "Delete Messages" : action === "deleteMessagesForMe" ? "Delete For Me" : "Clear Chat"}
+                    {action === "deleteMessages" ? "Delete Messages" : "Delete Chat"}
                 </h3>
                 <p className="text-gray-300 mb-6">{message}</p>
                 <div className="flex justify-end space-x-3">
@@ -1942,11 +1820,8 @@ const ChatMessage = ({
     isFirstNew, 
     onDelete, 
     isSelectionMode, 
-    isSelected,
-    isSelectionModeNew, 
-    isSelectedNew,
-    toggleSelection,
-    toggleSelectionNew 
+    isSelected, 
+    toggleSelection 
 }) => {
     const isSender = message.sender === user;
     const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -2062,18 +1937,12 @@ const ChatMessage = ({
                 </span>
             )}
             <div
-                className={`relative ${isSelected ? "" : ""} ${isSelectedNew ? "" : ""}`}
+                className={`relative ${isSelected ? "" : ""}`}
                 onClick={() => {
                     if (isSelectionMode) {
                         toggleSelection();
                     }
-                    if (isSelectionModeNew) {
-                        toggleSelectionNew();
-                    }
-                    
-
                 }}
-                
             >
                 <div
                     style={{
@@ -2093,9 +1962,6 @@ const ChatMessage = ({
                     onContextMenu={(e) => {
                         e.preventDefault();
                         if (!isSelectionMode) {
-                            setShowReactionPicker(true);
-                        }
-                        if (!isSelectionModeNew) {
                             setShowReactionPicker(true);
                         }
                     }}
@@ -2148,34 +2014,12 @@ const ChatMessage = ({
                     </div>
                 )}
 
-{isSelectionModeNew  && (
-    <div
-        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelectedNew ? "bg-blue-500" : "bg-transparent"}`}
-        onClick={(e) => {
-            e.stopPropagation();
-            toggleSelectionNew();
-        }}
-    >
-        {isSelectedNew && (
-            <svg
-                className="w-3 h-3 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            </svg>
-        )}
-    </div>
-)}
                 {isSelectionMode && (
                     <div
                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelected ? "bg-blue-500" : "bg-transparent"}`}
                         onClick={(e) => {
                             e.stopPropagation();
                             toggleSelection();
-                            toggleSelectionNew();
                         }}
                     >
                         {isSelected && (
