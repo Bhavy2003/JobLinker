@@ -44,8 +44,9 @@ const messageSchema = new mongoose.Schema({
 }, {
     indexes: [
         { key: { sender: 1, receiver: 1 } },
-        { key: { deletedBy: 1 } },
-        { key: { timestamp: 1 } }
+        { key: { timestamp: 1 } },
+        { key: { status: 1 } },
+        { key: { "reactions.user": 1 } },
     ]
 });
 
