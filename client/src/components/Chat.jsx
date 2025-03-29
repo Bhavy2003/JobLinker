@@ -1316,6 +1316,17 @@ export default function Chat() {
         setConfirmData(messageIds);
         setShowConfirmPopup(true);
     };
+    const deleteMessagesNew = async (messageIds) => {
+        console.log("Deleting messages with IDs:", messageIds);
+        if (!messageIds || messageIds.length === 0) {
+            toast.error("No messages selected to delete");
+            return;
+        }
+
+        setConfirmAction("deleteMessagesNew");
+        setConfirmData(messageIds);
+        setShowConfirmPopup(true);
+    };
 
     const handleConfirm = async () => {
         if (confirmAction === "deleteMessages") {
@@ -1343,8 +1354,7 @@ export default function Chat() {
                 toast.success(`${messageIds.length} message(s) deleted permanently`);
                 setSelectedMessages([]);
                 setIsSelectionMode(false);
-                setSelectedMessagesNew([]);
-                setIsSelectionModeNew(false);
+                
             } catch (error) {
                 console.error("Error deleting messages:", error.message);
                 toast.error(`Failed to delete messages: ${error.message}`);
@@ -1355,9 +1365,10 @@ export default function Chat() {
                 sender: currentUser,
                 receiver: userEmail,
             });
-
-            setMessages([]);
-            setSelectedUser(null);
+            setSelectedMessages([]);
+            setIsSelectionMode(false);
+            // setMessages([]);
+            // setSelectedUser(null);
             const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
             localStorage.removeItem(chatKey);
 
