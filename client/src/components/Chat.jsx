@@ -1637,7 +1637,7 @@ export default function Chat() {
                                                     className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
                                                     onClick={() => deleteMessages(selectedMessages)}
                                                 >
-                                                    Delete ({selectedMessages.length})
+                                                    Delete For Everyone ({selectedMessages.length})
                                                 </button>
                                             )}
                                         </>
@@ -1647,17 +1647,51 @@ export default function Chat() {
                                                 className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
                                                 onClick={toggleSelectionMode}
                                             >
-                                                Delete Chats
+                                                Delete For Everyone
                                             </button>
                                            
                                         </>
                                     )}
                                      <button
-                    className="bg-green-500 text-white p-2 rounded hover:bg-green-700"
+                    className="bg-blue-500 text-white px-3 py-1 sm:mt-[3px] md:mt-[3px] rounded-lg hover:bg-blue-700 transition"
                     onClick={() => deleteChat(selectedUser.email)}
                 >
                     {t("DeleteChat For me")}
                 </button>
+                {isSelectionMode ? (
+                                        <>
+                                            <button
+                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
+                                                onClick={selectAllMessages}
+                                            >
+                                                Select All
+                                            </button>
+                                            <button
+                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+                                                onClick={toggleSelectionMode}
+                                            >
+                                                Cancel
+                                            </button>
+                                            {selectedMessages.length > 0 && (
+                                                <button
+                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
+                                                    onClick={() => deleteChat(selectedUser.email)}
+                                                >
+                                                    Delete For Me ({selectedMessages.length})
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                                                onClick={toggleSelectionMode}
+                                            >
+                                                {t("DeleteChat For me")}
+                                            </button>
+                                           
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             <div
