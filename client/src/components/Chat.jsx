@@ -2148,7 +2148,7 @@ const ChatMessage = ({
                     </div>
                 )}
 
-{isSelectionModeNew && msg._id && (
+{isSelectionModeNew  && (
     <div
         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelectedNew ? "bg-blue-500" : "bg-transparent"}`}
         onClick={(e) => {
