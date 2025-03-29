@@ -1603,6 +1603,36 @@ app.delete("/api/messages/delete", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
+app.post("/api/messages/delete-for-me", async (req, res) => {
+    const { messageIds, userEmail } = req.body;
+
+    // Validate input
+    if (!Array.isArray(messageIds) || messageIds.length === 0 || !userEmail) {
+        return res.status(400).json({ error: "Invalid input: messageIds and userEmail are required" });
+    }
+
+    try {
+        // Update messages by adding userEmail to deletedBy array
+        const result = await Message.updateMany(
+            { _id: { $in: messageIds } },
+            { $addToSet: { deletedBy: userEmail } }
+        );
+
+        console.log(`Marked ${result.modifiedCount} messages as deleted for ${userEmail}`);
+
+        // Respond with success
+        res.json({ success: true, message: `${result.modifiedCount} message(s) deleted for you` });
+
+        // Optionally notify the client via socket (if real-time update is needed)
+        const userSocketId = connectedUsers.get(userEmail);
+        if (userSocketId) {
+            io.to(userSocketId).emit("messagesDeletedForMe", { messageIds });
+        }
+    } catch (error) {
+        console.error("Error deleting messages for user:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
 
 // io.on("connection", (socket) => {
 //     socket.on("register", (email) => {
