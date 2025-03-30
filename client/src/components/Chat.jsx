@@ -2782,7 +2782,7 @@ export default function Chat() {
                                                     className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
                                                     onClick={() => deleteMessages(selectedMessages)}
                                                 >
-                                                    Delete ({selectedMessages.length})
+                                                    Delete For Everyone ({selectedMessages.length})
                                                 </button>
                                             )}
                                         </>
@@ -2815,20 +2815,20 @@ export default function Chat() {
                                                 className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
                                                 onClick={toggleSelectionMode}
                                             >
-                                                Delete Chats
+                                                Delete For Everyone
                                             </button>
                                             <button
-                                                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                                                className="bg-blue-500 text-white px-3 py-1 sm:mt-[6px] md:mt-[6px] rounded-lg hover:bg-blue-600 transition"
                                                 onClick={toggleSelectionModeNew}
                                             >
                                                 Delete For Me
                                             </button>
-                                            <button
+                                            {/* <button
                                                 className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition"
                                                 onClick={() => deleteChat(selectedUser.email)}
                                             >
                                                 {t("DeleteChat For me")}
-                                            </button>
+                                            </button> */}
                                         </>
                                     )}
                                 </div>
