@@ -1882,11 +1882,32 @@ io.on("connection", (socket) => {
         }
     });
 
+    // socket.on("addReaction", async ({ messageId, user, emoji }) => {
+    //     try {
+    //         const message = await Message.findById(messageId);
+    //         if (!message) return;
+    
+    //         // Remove existing reaction from this user if it exists
+    //         message.reactions = message.reactions.filter(r => r.user !== user);
+            
+    //         // If emoji is null, it means remove reaction; otherwise add new one
+    //         if (emoji) {
+    //             message.reactions.push({ user, emoji, timestamp: new Date() });
+    //         }
+    
+    //         await message.save();
+    //         const updatedMessage = await Message.findById(messageId);
+    //         const room = [message.sender, message.receiver].sort().join("_");
+    //         io.to(room).emit("messageStatusUpdated", updatedMessage);
+    //     } catch (error) {
+    //         console.error("Error adding reaction:", error);
+    //     }
+    // });
     socket.on("addReaction", async ({ messageId, user, emoji }) => {
         try {
             const message = await Message.findById(messageId);
             if (!message) return;
-    
+
             // Remove existing reaction from this user if it exists
             message.reactions = message.reactions.filter(r => r.user !== user);
             
@@ -1894,16 +1915,27 @@ io.on("connection", (socket) => {
             if (emoji) {
                 message.reactions.push({ user, emoji, timestamp: new Date() });
             }
-    
+
             await message.save();
             const updatedMessage = await Message.findById(messageId);
             const room = [message.sender, message.receiver].sort().join("_");
             io.to(room).emit("messageStatusUpdated", updatedMessage);
+
+            // Send notification to the receiver if the reactor is not the receiver
+            const receiver = message.sender === user ? message.receiver : message.sender;
+            const receiverSocketId = connectedUsers.get(receiver);
+            if (receiverSocketId && receiver !== user) {
+                io.to(receiverSocketId).emit("reactionNotification", {
+                    messageId,
+                    reactor: user,
+                    emoji,
+                    timestamp: new Date(),
+                });
+            }
         } catch (error) {
             console.error("Error adding reaction:", error);
         }
     });
-
     socket.on("deleteChat", async ({ sender, receiver }) => {
         try {
             await Message.updateMany(

@@ -2073,6 +2073,7 @@ export default function Chat() {
     const [confirmAction, setConfirmAction] = useState(null);
     const [confirmData, setConfirmData] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [reactionNotifications, setReactionNotifications] = useState({});
 
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
@@ -2265,11 +2266,29 @@ export default function Chat() {
             });
         });
 
+        socket.on("reactionNotification", ({ messageId, reactor, emoji }) => {
+            if (reactor !== currentUser) { // Only show notification if current user is not the reactor
+                setReactionNotifications((prev) => ({
+                    ...prev,
+                    [messageId]: { reactor, emoji, timestamp: Date.now() },
+                }));
+                // Remove notification after 12 seconds
+                setTimeout(() => {
+                    setReactionNotifications((prev) => {
+                        const newNotifications = { ...prev };
+                        delete newNotifications[messageId];
+                        return newNotifications;
+                    });
+                }, 12000); // 12 seconds
+            }
+        });
+
         return () => {
             socket.off("newMessageNotification");
             socket.off("messageDeleted");
             socket.off("messagesDeletedForMe");
             socket.off("messageStatusUpdated");
+            socket.off("reactionNotification");
         };
     }, [allUsers, currentUser]);
 
@@ -2782,7 +2801,7 @@ export default function Chat() {
                                                     className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
                                                     onClick={() => deleteMessages(selectedMessages)}
                                                 >
-                                                    Delete For Everyone ({selectedMessages.length})
+                                                    Delete ({selectedMessages.length})
                                                 </button>
                                             )}
                                         </>
@@ -2815,20 +2834,20 @@ export default function Chat() {
                                                 className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
                                                 onClick={toggleSelectionMode}
                                             >
-                                                Delete For Everyone
+                                                Delete Chats
                                             </button>
                                             <button
-                                                className="bg-blue-500 text-white px-3 py-1 sm:mt-[6px] md:mt-[6px] rounded-lg hover:bg-blue-600 transition"
+                                                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
                                                 onClick={toggleSelectionModeNew}
                                             >
                                                 Delete For Me
                                             </button>
-                                            {/* <button
+                                            <button
                                                 className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition"
                                                 onClick={() => deleteChat(selectedUser.email)}
                                             >
                                                 {t("DeleteChat For me")}
-                                            </button> */}
+                                            </button>
                                         </>
                                     )}
                                 </div>
@@ -2854,6 +2873,7 @@ export default function Chat() {
                                                 isSelectionModeNew={isSelectionModeNew}
                                                 isSelectedNew={selectedMessagesNew.includes(msg._id)}
                                                 toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
+                                                reactionNotification={reactionNotifications[msg._id]}
                                             />
                                         ))}
                                     </div>
@@ -2999,7 +3019,8 @@ const ChatMessage = ({
     toggleSelection,
     isSelectionModeNew,
     isSelectedNew,
-    toggleSelectionNew
+    toggleSelectionNew,
+    reactionNotification
 }) => {
     if (!message) {
         console.error("ChatMessage received undefined message");
@@ -3066,7 +3087,7 @@ const ChatMessage = ({
     };
 
     const renderTicks = () => {
-        if (!isSender) return null; // Only show ticks for sender
+        if (!isSender) return null;
         if (message.status === 'sent') {
             return <span className="text-gray-400 ml-2">✓</span>;
         } else if (message.status === 'delivered') {
@@ -3080,7 +3101,6 @@ const ChatMessage = ({
     const handleAddReaction = (emoji) => {
         const userReaction = message.reactions?.find(r => r.user === user);
         
-        // If user already reacted with this emoji, remove it; otherwise add/replace
         socket.emit("addReaction", {
             messageId: message._id,
             user: user,
@@ -3121,6 +3141,19 @@ const ChatMessage = ({
                     }}
                 >
                     New Message
+                </span>
+            )}
+            {reactionNotification && !isSender && (
+                <span
+                    style={{
+                        color: "#00FF00",
+                        fontSize: "12px",
+                        fontWeight: "bold",
+                        marginBottom: "5px",
+                        alignSelf: isSender ? "flex-end" : "flex-start",
+                    }}
+                >
+                    {`${reactionNotification.reactor} reacted to this message with ${reactionNotification.emoji}`}
                 </span>
             )}
             <div
@@ -3180,7 +3213,7 @@ const ChatMessage = ({
 
                 {Object.keys(groupedReactions).length > 0 && (
                     <div
-                        className={`flex space-x-2 -mt-3 ${isSender ? "justify-end" : "justify-start"}`}
+                        className={`flex space-x-2 mt-1 ${isSender ? "justify-end" : "justify-start"}`}
                     >
                         {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
                             <div
