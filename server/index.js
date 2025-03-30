@@ -1299,15 +1299,28 @@ const messageSchema = new mongoose.Schema({
     sender: String,
     receiver: String,
     text: String,
-    fileUrl: String,
+    file: {
+        name: String,
+        type: String,
+        url: String,
+    },
     timestamp: { type: Date, default: Date.now },
     deletedBy: [{ type: String, default: [] }],
     isRead: { type: Boolean, default: false },
+    status: { type: String , default: 'sent', enum: ['sent', 'delivered', 'read'] },
+    reactions: [
+        {
+            user: String, // The user who reacted
+            emoji: String, // The emoji used for the reaction (e.g., "👍")
+            timestamp: { type: Date, default: Date.now },
+        }
+    ], // Add status field
 }, {
     indexes: [
         { key: { sender: 1, receiver: 1 } },
-        { key: { deletedBy: 1 } },
-        { key: { timestamp: 1 } }
+        { key: { timestamp: 1 } },
+        { key: { status: 1 } },
+        { key: { "reactions.user": 1 } },
     ]
 });
 const Message = mongoose.model("Message", messageSchema);
@@ -1603,6 +1616,29 @@ app.delete("/api/messages/delete", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
+app.post("/api/messages/delete-for-me", async (req, res) => {
+    const { messageIds, userEmail } = req.body;
+
+    if (!Array.isArray(messageIds) || messageIds.length === 0 || !userEmail) {
+        return res.status(400).json({ error: "Invalid input: messageIds and userEmail are required" });
+    }
+
+    try {
+        const result = await Message.updateMany(
+            { _id: { $in: messageIds }, deletedBy: { $ne: userEmail } },
+            { $addToSet: { deletedBy: userEmail } }
+        );
+
+        const userSocketId = connectedUsers.get(userEmail);
+        if (userSocketId) {
+            io.to(userSocketId).emit("messagesDeletedForMe", { messageIds });
+        }
+
+        res.json({ success: true, message: `${result.modifiedCount} message(s) deleted for you` });
+    } catch (error) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
 
 // io.on("connection", (socket) => {
 //     socket.on("register", (email) => {
@@ -1769,9 +1805,7 @@ io.on("connection", (socket) => {
     socket.on("joinChat", ({ sender, receiver }) => {
         const room = [sender, receiver].sort().join("_");
         socket.join(room);
-    
-        console.log(`User ${sender} joined chat with ${receiver}, room: ${room}`);
-    
+
         Message.find({
             $or: [
                 { sender: sender, receiver: receiver },
@@ -1781,21 +1815,12 @@ io.on("connection", (socket) => {
         })
             .sort("timestamp")
             .then(async (messages) => {
-                console.log(`Loaded ${messages.length} messages for ${sender} and ${receiver}`);
                 await Message.updateMany(
-                    { 
-                        receiver: sender, 
-                        sender: receiver, 
-                        status: 'sent' 
-                    },
+                    { receiver: sender, sender: receiver, status: 'sent' },
                     { $set: { status: 'delivered' } }
                 );
                 await Message.updateMany(
-                    { 
-                        receiver: sender, 
-                        sender: receiver, 
-                        status: { $in: ['sent', 'delivered'] }
-                    },
+                    { receiver: sender, sender: receiver, status: { $in: ['sent', 'delivered'] } },
                     { $set: { status: 'read', isRead: true } }
                 );
                 const updatedMessages = await Message.find({
@@ -1819,12 +1844,11 @@ io.on("connection", (socket) => {
 
     socket.on("sendMessage", async (msgData) => {
         const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
-    
+
         if (!msgData.text && !fileUrl) {
-            console.error("Message has no text or fileUrl, discarding:", msgData);
             return;
         }
-    
+
         try {
             const newMessage = new Message({
                 sender: msgData.sender,
@@ -1834,126 +1858,88 @@ io.on("connection", (socket) => {
                 timestamp: new Date(msgData.timestamp),
                 status: 'sent',
                 isRead: false,
-                reactions: [], // Initialize reactions as an empty array
+                reactions: [],
             });
             const savedMessage = await newMessage.save();
-            console.log(`Saved message with ID: ${savedMessage._id} for sender: ${msgData.sender}, receiver: ${msgData.receiver}`);
-    
+
             const messageToEmit = {
                 ...savedMessage.toObject(),
                 tempId: msgData.tempId,
             };
-    
+
             const room = [msgData.sender, msgData.receiver].sort().join("_");
             io.to(room).emit("message", messageToEmit);
-    
+
             const receiverSocketId = connectedUsers.get(msgData.receiver);
             if (receiverSocketId && msgData.receiver !== msgData.sender) {
-                await Message.findByIdAndUpdate(savedMessage._id, {
-                    $set: { status: 'delivered' }
-                });
+                await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: 'delivered' } });
                 const updatedMessage = await Message.findById(savedMessage._id);
                 io.to(room).emit("messageStatusUpdated", updatedMessage);
                 io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
             }
         } catch (error) {
             console.error("Error processing sendMessage:", error);
-            const senderSocketId = connectedUsers.get(msgData.sender);
-            if (senderSocketId) {
-                io.to(senderSocketId).emit("messageError", { error: "Failed to send message" });
-            }
         }
     });
 
-    // Handle adding reactions
     socket.on("addReaction", async ({ messageId, user, emoji }) => {
         try {
             const message = await Message.findById(messageId);
-            if (!message) {
-                console.error(`Message with ID ${messageId} not found`);
-                return;
-            }
+            if (!message) return;
 
-            // Check if the user has already reacted with this emoji
-            const existingReaction = message.reactions.find(
-                (reaction) => reaction.user === user && reaction.emoji === emoji
+            const existingReactionIndex = message.reactions.findIndex(
+                (r) => r.user === user && r.emoji === emoji
             );
 
-            if (existingReaction) {
-                // If the user has already reacted with this emoji, remove the reaction
-                message.reactions = message.reactions.filter(
-                    (reaction) => !(reaction.user === user && reaction.emoji === emoji)
-                );
+            if (existingReactionIndex !== -1) {
+                message.reactions.splice(existingReactionIndex, 1);
             } else {
-                // Add the new reaction
-                message.reactions.push({
-                    user,
-                    emoji,
-                    timestamp: new Date(),
-                });
+                message.reactions.push({ user, emoji, timestamp: new Date() });
             }
 
             await message.save();
-
             const updatedMessage = await Message.findById(messageId);
             const room = [message.sender, message.receiver].sort().join("_");
             io.to(room).emit("messageStatusUpdated", updatedMessage);
         } catch (error) {
             console.error("Error adding reaction:", error);
-            const userSocketId = connectedUsers.get(user);
-            if (userSocketId) {
-                io.to(userSocketId).emit("reactionError", { error: "Failed to add reaction" });
-            }
         }
     });
 
     socket.on("deleteChat", async ({ sender, receiver }) => {
         try {
-            // Mark messages as deleted only for the sender
             await Message.updateMany(
                 {
                     $or: [
                         { sender, receiver },
                         { sender: receiver, receiver: sender },
                     ],
-                    deletedBy: { $ne: sender }, // Ensure it’s not already deleted by sender
+                    deletedBy: { $ne: sender },
                 },
-                { $addToSet: { deletedBy: sender } } // Only mark as deleted for sender
+                { $addToSet: { deletedBy: sender } }
             );
-    
-            // Notify only the sender that the chat is deleted
+
             const senderSocketId = connectedUsers.get(sender);
             if (senderSocketId) {
                 io.to(senderSocketId).emit("chatDeleted", { receiver });
             }
-    
-            // Notify the receiver to update their chat list, but don't delete for them
+
             const receiverSocketId = connectedUsers.get(receiver);
             if (receiverSocketId) {
                 io.to(receiverSocketId).emit("chatUpdated", { sender });
             }
         } catch (error) {
             console.error("Error deleting chat:", error);
-            const senderSocketId = connectedUsers.get(sender);
-            if (senderSocketId) {
-                io.to(senderSocketId).emit("chatDeleteError", { error: "Failed to delete chat" });
-            }
         }
     });
-    
 
     socket.on("markAsRead", async ({ sender, receiver }) => {
         try {
             const updatedMessages = await Message.updateMany(
                 { sender, receiver, isRead: false },
-                { $set: { isRead: true, status: 'read' } },
-                { new: true }
+                { $set: { isRead: true, status: 'read' } }
             );
-            const messages = await Message.find({
-                sender,
-                receiver,
-                isRead: true,
-            });
+            const messages = await Message.find({ sender, receiver, isRead: true });
             const room = [sender, receiver].sort().join("_");
             messages.forEach((msg) => {
                 io.to(room).emit("messageStatusUpdated", msg);
