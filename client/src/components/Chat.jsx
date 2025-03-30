@@ -3180,7 +3180,7 @@ const ChatMessage = ({
 
                 {Object.keys(groupedReactions).length > 0 && (
                     <div
-                        className={`flex space-x-2 mt-1 ${isSender ? "justify-end" : "justify-start"}`}
+                        className={`flex space-x-2 -mt-3 ${isSender ? "justify-end" : "justify-start"}`}
                     >
                         {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
                             <div
