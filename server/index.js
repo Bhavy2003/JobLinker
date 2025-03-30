@@ -1886,17 +1886,15 @@ io.on("connection", (socket) => {
         try {
             const message = await Message.findById(messageId);
             if (!message) return;
-
-            const existingReactionIndex = message.reactions.findIndex(
-                (r) => r.user === user && r.emoji === emoji
-            );
-
-            if (existingReactionIndex !== -1) {
-                message.reactions.splice(existingReactionIndex, 1);
-            } else {
+    
+            // Remove existing reaction from this user if it exists
+            message.reactions = message.reactions.filter(r => r.user !== user);
+            
+            // If emoji is null, it means remove reaction; otherwise add new one
+            if (emoji) {
                 message.reactions.push({ user, emoji, timestamp: new Date() });
             }
-
+    
             await message.save();
             const updatedMessage = await Message.findById(messageId);
             const room = [message.sender, message.receiver].sort().join("_");

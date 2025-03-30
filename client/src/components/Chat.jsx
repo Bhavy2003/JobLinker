@@ -2401,6 +2401,16 @@ export default function Chat() {
         setShowConfirmPopup(true);
     };
 
+    const deleteChatForMeWithSelection = async (messageIds) => {
+        if (!messageIds || messageIds.length === 0) {
+            toast.error("No messages selected to delete");
+            return;
+        }
+        setConfirmAction("deleteMessagesForMe");
+        setConfirmData(messageIds);
+        setShowConfirmPopup(true);
+    };
+
     const deleteSelectedMessagesForMe = async (messageIds) => {
         if (!messageIds || messageIds.length === 0) {
             toast.error("No messages selected to delete");
@@ -2793,11 +2803,7 @@ export default function Chat() {
                                             {selectedMessagesNew.length > 0 && (
                                                 <button
                                                     className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                    onClick={() => {
-                                                        setConfirmAction("deleteMessagesForMe");
-                                                        setConfirmData(selectedMessagesNew);
-                                                        setShowConfirmPopup(true);
-                                                    }}
+                                                    onClick={() => deleteChatForMeWithSelection(selectedMessagesNew)}
                                                 >
                                                     Delete For Me ({selectedMessagesNew.length})
                                                 </button>
@@ -3060,6 +3066,7 @@ const ChatMessage = ({
     };
 
     const renderTicks = () => {
+        if (!isSender) return null; // Only show ticks for sender
         if (message.status === 'sent') {
             return <span className="text-gray-400 ml-2">✓</span>;
         } else if (message.status === 'delivered') {
@@ -3071,10 +3078,13 @@ const ChatMessage = ({
     };
 
     const handleAddReaction = (emoji) => {
+        const userReaction = message.reactions?.find(r => r.user === user);
+        
+        // If user already reacted with this emoji, remove it; otherwise add/replace
         socket.emit("addReaction", {
             messageId: message._id,
             user: user,
-            emoji: emoji,
+            emoji: userReaction && userReaction.emoji === emoji ? null : emoji,
         });
         setShowReactionPicker(false);
     };
@@ -3087,6 +3097,8 @@ const ChatMessage = ({
         acc[reaction.emoji].users.push(reaction.user);
         return acc;
     }, {}) || {};
+
+    const userReaction = message.reactions?.find(r => r.user === user)?.emoji;
 
     return (
         <div
@@ -3154,18 +3166,15 @@ const ChatMessage = ({
 
                 {showReactionPicker && (
                     <div
-                        className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 flex space-x-2 z-10`}
+                        className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 z-10`}
                         onMouseLeave={() => setShowReactionPicker(false)}
                     >
-                        {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
-                            <button
-                                key={emoji}
-                                onClick={() => handleAddReaction(emoji)}
-                                className="text-xl hover:bg-gray-600 rounded-full p-1"
-                            >
-                                {emoji}
-                            </button>
-                        ))}
+                        <EmojiPicker 
+                            onEmojiClick={(emojiObject) => handleAddReaction(emojiObject.emoji)}
+                            width={300}
+                            height={400}
+                            reactionsDefaultOpen={true}
+                        />
                     </div>
                 )}
 
@@ -3176,8 +3185,9 @@ const ChatMessage = ({
                         {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
                             <div
                                 key={emoji}
-                                className="bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1"
+                                className={`bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1 cursor-pointer ${userReaction === emoji ? 'border-2 border-blue-500' : ''}`}
                                 title={users.join(", ")}
+                                onClick={() => userReaction === emoji && handleAddReaction(emoji)}
                             >
                                 <span>{emoji}</span>
                                 {count > 1 && <span className="text-xs text-gray-300">{count}</span>}
