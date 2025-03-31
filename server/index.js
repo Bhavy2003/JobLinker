@@ -1295,9 +1295,19 @@ const chatFileUpload = multer({
     limits: { fileSize: 10 * 1024 * 1024 },
 }).single("file");
 
+const groupSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    creator: { type: String, required: true }, // Email of the creator
+    members: [{ type: String }], // Array of member emails
+    createdAt: { type: Date, default: Date.now },
+});
+const Group = mongoose.model("Group", groupSchema);
+
+// Message Schema (Updated to Include Group ID)
 const messageSchema = new mongoose.Schema({
     sender: String,
-    receiver: String,
+    receiver: String, // For individual chats
+    groupId: { type: mongoose.Schema.Types.ObjectId, ref: "Group", default: null }, // For group chats
     text: String,
     file: {
         name: String,
@@ -1307,23 +1317,88 @@ const messageSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now },
     deletedBy: [{ type: String, default: [] }],
     isRead: { type: Boolean, default: false },
-    status: { type: String , default: 'sent', enum: ['sent', 'delivered', 'read'] },
+    status: { type: String, default: 'sent', enum: ['sent', 'delivered', 'read'] },
     reactions: [
         {
-            user: String, // The user who reacted
-            emoji: String, // The emoji used for the reaction (e.g., "👍")
+            user: String,
+            emoji: String,
             timestamp: { type: Date, default: Date.now },
         }
-    ], // Add status field
+    ],
 }, {
     indexes: [
         { key: { sender: 1, receiver: 1 } },
+        { key: { groupId: 1 } },
         { key: { timestamp: 1 } },
         { key: { status: 1 } },
         { key: { "reactions.user": 1 } },
     ]
 });
 const Message = mongoose.model("Message", messageSchema);
+
+// Group Endpoints
+app.post("/api/groups/create", async (req, res) => {
+    const { name, creator, members } = req.body;
+
+    if (!name || !creator || !Array.isArray(members) || members.length === 0) {
+        return res.status(400).json({ error: "Invalid input: name, creator, and members are required" });
+    }
+
+    try {
+        const group = new Group({
+            name,
+            creator,
+            members: [...new Set([creator, ...members])], // Ensure creator is in members
+        });
+        await group.save();
+
+        // Notify all members about the new group
+        group.members.forEach((member) => {
+            const memberSocketId = connectedUsers.get(member);
+            if (memberSocketId) {
+                io.to(memberSocketId).emit("groupCreated", group);
+            }
+        });
+
+        res.json({ success: true, group });
+    } catch (error) {
+        console.error("Error creating group:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+app.delete("/api/groups/delete/:groupId", async (req, res) => {
+    const { groupId } = req.params;
+    const { userEmail } = req.body;
+
+    try {
+        const group = await Group.findById(groupId);
+        if (!group) {
+            return res.status(404).json({ error: "Group not found" });
+        }
+
+        if (group.creator !== userEmail) {
+            return res.status(403).json({ error: "Only the group creator can delete the group" });
+        }
+
+        // Delete the group and associated messages
+        await Group.deleteOne({ _id: groupId });
+        await Message.deleteMany({ groupId });
+
+        // Notify all members about the group deletion
+        group.members.forEach((member) => {
+            const memberSocketId = connectedUsers.get(member);
+            if (memberSocketId) {
+                io.to(memberSocketId).emit("groupDeleted", { groupId });
+            }
+        });
+
+        res.json({ success: true, message: "Group deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting group:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
 
 app.get("/api/unread-messages/:email", async (req, res) => {
     const { email } = req.params;
