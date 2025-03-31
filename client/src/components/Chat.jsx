@@ -46,6 +46,7 @@ export default function Chat() {
     const currentUser = userEmail;
     const storageKey = `sentUsers_${currentUser}`;
     const chatStorageKey = `chat_${currentUser}`;
+    const groupsStorageKey = `groups_${currentUser}`;
     const DUMMY_PHOTO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcToiRnzzyrDtkmRzlAvPPbh77E-Mvsk3brlxQ&s";
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
@@ -91,6 +92,15 @@ export default function Chat() {
         return [];
     };
 
+    const saveGroupsToLocalStorage = (groups) => {
+        localStorage.setItem(groupsStorageKey, JSON.stringify(groups));
+    };
+
+    const loadGroupsFromLocalStorage = () => {
+        const cachedGroups = localStorage.getItem(groupsStorageKey);
+        return cachedGroups ? JSON.parse(cachedGroups) : [];
+    };
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
@@ -126,16 +136,24 @@ export default function Chat() {
     useEffect(() => {
         socket.on("connect", () => {
             socket.emit("register", currentUser);
+    
+            // Join all group rooms the user is a member of
+            groups.forEach((group) => {
+                socket.emit("joinGroupChat", {
+                    groupId: group._id,
+                    userEmail: currentUser,
+                });
+            });
         });
-
+    
         socket.on("connect_error", (error) => {
             console.error("Socket.IO connection error:", error);
         });
-
+    
         return () => {
             socket.disconnect();
         };
-    }, [currentUser]);
+    }, [currentUser, groups]); // Added groups to dependencies
 
     useEffect(() => {
         socket.emit("register", currentUser);
@@ -162,12 +180,19 @@ export default function Chat() {
             .catch((err) => console.error("Error fetching users:", err));
 
         // Fetch groups for the current user
-        fetch(`https://joblinker-1.onrender.com/api/groups/${currentUser}`)
-            .then((res) => res.json())
-            .then((data) => {
+        const fetchGroups = async () => {
+            try {
+                const response = await fetch(`https://joblinker-1.onrender.com/api/groups/${currentUser}`);
+                const data = await response.json();
                 setGroups(data);
-            })
-            .catch((err) => console.error("Error fetching groups:", err));
+                saveGroupsToLocalStorage(data);
+            } catch (err) {
+                console.error("Error fetching groups:", err);
+                const cachedGroups = loadGroupsFromLocalStorage();
+                setGroups(cachedGroups);
+            }
+        };
+        fetchGroups();
     }, [currentUser, storageKey]);
 
     useEffect(() => {
@@ -179,16 +204,27 @@ export default function Chat() {
                     setSentUsers((prevSentUsers) => {
                         let updatedSentUsers = [...prevSentUsers];
                         data.forEach((msg) => {
-                            if (msg.groupId) return; // Handle group messages separately
-                            const senderDetails = allUsers.find((user) => user.email === msg.sender);
-                            if (!senderDetails) return;
-                            const existingIndex = updatedSentUsers.findIndex((u) => u.email === msg.sender);
-
-                            if (existingIndex === -1) {
-                                updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
+                            if (msg.groupId) {
+                                setGroups((prevGroups) => {
+                                    const updatedGroups = prevGroups.map((g) =>
+                                        g._id === msg.groupId && msg.sender !== currentUser
+                                            ? { ...g, hasNewMessage: true }
+                                            : g
+                                    );
+                                    saveGroupsToLocalStorage(updatedGroups);
+                                    return updatedGroups;
+                                });
                             } else {
-                                const [user] = updatedSentUsers.splice(existingIndex, 1);
-                                updatedSentUsers.unshift({ ...user, hasNewMessage: true });
+                                const senderDetails = allUsers.find((user) => user.email === msg.sender);
+                                if (!senderDetails) return;
+                                const existingIndex = updatedSentUsers.findIndex((u) => u.email === msg.sender);
+
+                                if (existingIndex === -1) {
+                                    updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
+                                } else {
+                                    const [user] = updatedSentUsers.splice(existingIndex, 1);
+                                    updatedSentUsers.unshift({ ...user, hasNewMessage: true });
+                                }
                             }
                         });
                         localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
@@ -202,24 +238,40 @@ export default function Chat() {
     useEffect(() => {
         socket.on("newMessageNotification", (msgData) => {
             if (msgData.groupId) {
-                const group = groups.find((g) => g._id === msgData.groupId);
-                if (group && msgData.sender !== currentUser) {
-                    setGroups((prevGroups) =>
-                        prevGroups.map((g) =>
+                setGroups((prevGroups) => {
+                    const group = prevGroups.find((g) => g._id === msgData.groupId);
+                    if (group && msgData.sender !== currentUser) {
+                        const updatedGroups = prevGroups.map((g) =>
                             g._id === msgData.groupId ? { ...g, hasNewMessage: true } : g
-                        )
-                    );
-                    toast.info(`New message in ${group.name}: ${msgData.text || "File"}`);
-                }
+                        );
+                        saveGroupsToLocalStorage(updatedGroups);
+    
+                        // Persist the message to local storage
+                        const chatKey = `${chatStorageKey}_group_${msgData.groupId}`;
+                        const cachedMessages = localStorage.getItem(chatKey);
+                        const existingMessages = cachedMessages ? JSON.parse(cachedMessages) : [];
+                        const messageExists = existingMessages.some(
+                            (m) => (m.tempId && m.tempId === msgData.tempId) || (m._id && m._id === msgData._id)
+                        );
+                        if (!messageExists) {
+                            const updatedMessages = [...existingMessages, msgData];
+                            localStorage.setItem(chatKey, JSON.stringify(updatedMessages));
+                        }
+    
+                        toast.info(`New message in ${group.name}: ${msgData.text || "File"}`);
+                        return updatedGroups;
+                    }
+                    return prevGroups;
+                });
             } else if (msgData.receiver === currentUser) {
                 setSentUsers((prevSentUsers) => {
                     let updatedSentUsers = [...prevSentUsers];
                     const senderDetails = allUsers.find((user) => user.email === msgData.sender);
                     if (!senderDetails) return prevSentUsers;
                     const existingIndex = updatedSentUsers.findIndex((u) => u.email === msgData.sender);
-
+    
                     toast.info(`New message from ${msgData.sender}: ${msgData.text || "File"}`);
-
+    
                     if (existingIndex === -1) {
                         updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
                     } else {
@@ -229,7 +281,7 @@ export default function Chat() {
                     localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
                     return updatedSentUsers;
                 });
-
+    
                 setUnreadMessages((prev) => {
                     const exists = prev.some((m) => m.tempId === msgData.tempId || m._id === msgData._id);
                     if (!exists) {
@@ -239,35 +291,34 @@ export default function Chat() {
                 });
             }
         });
-
+    
         socket.on("reactionNotification", ({ messageId, reactor, emoji, timestamp }) => {
-            console.log("Received reaction notification:", { messageId, reactor, emoji, timestamp });
             if (reactor !== currentUser) {
                 const reactingUser = allUsers.find((user) => user.email === reactor);
                 if (!reactingUser) return;
-
+    
                 setSentUsers((prevSentUsers) => {
                     let updatedSentUsers = [...prevSentUsers];
                     const existingIndex = updatedSentUsers.findIndex((u) => u.email === reactor);
-
+    
                     if (existingIndex === -1) {
                         updatedSentUsers.unshift({ ...reactingUser, hasNewReaction: true, latestReaction: emoji });
                     } else {
                         const [user] = updatedSentUsers.splice(existingIndex, 1);
                         updatedSentUsers.unshift({ ...user, hasNewReaction: true, latestReaction: emoji });
                     }
-
+    
                     localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
                     return updatedSentUsers;
                 });
-
+    
                 toast.info(`${reactingUser.fullname} reacted with ${emoji} to your message`);
-
+    
                 setReactionNotifications((prev) => ({
                     ...prev,
                     [messageId]: { reactor, emoji, timestamp },
                 }));
-
+    
                 setTimeout(() => {
                     setReactionNotifications((prev) => {
                         const newNotifications = { ...prev };
@@ -277,16 +328,24 @@ export default function Chat() {
                 }, 12000);
             }
         });
-
+    
         socket.on("groupCreated", (group) => {
             if (group.members.includes(currentUser)) {
-                setGroups((prevGroups) => [...prevGroups, group]);
+                setGroups((prevGroups) => {
+                    const updatedGroups = [...prevGroups, group];
+                    saveGroupsToLocalStorage(updatedGroups);
+                    return updatedGroups;
+                });
                 toast.success(`You have been added to the group: ${group.name}`);
             }
         });
-
+    
         socket.on("groupDeleted", ({ groupId }) => {
-            setGroups((prevGroups) => prevGroups.filter((g) => g._id !== groupId));
+            setGroups((prevGroups) => {
+                const updatedGroups = prevGroups.filter((g) => g._id !== groupId);
+                saveGroupsToLocalStorage(updatedGroups);
+                return updatedGroups;
+            });
             if (selectedGroup && selectedGroup._id === groupId) {
                 setSelectedGroup(null);
                 setMessages([]);
@@ -295,7 +354,7 @@ export default function Chat() {
             }
             toast.info("The group has been deleted by the creator.");
         });
-
+    
         socket.on("messageDeleted", ({ messageIds }) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
@@ -303,7 +362,7 @@ export default function Chat() {
                 return updatedMessages;
             });
         });
-
+    
         socket.on("messagesDeletedForMe", ({ messageIds }) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
@@ -311,7 +370,7 @@ export default function Chat() {
                 return updatedMessages;
             });
         });
-
+    
         socket.on("messageStatusUpdated", (updatedMessage) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.map((msg) =>
@@ -323,7 +382,7 @@ export default function Chat() {
                 return updatedMessages;
             });
         });
-
+    
         return () => {
             socket.off("newMessageNotification");
             socket.off("reactionNotification");
@@ -333,17 +392,21 @@ export default function Chat() {
             socket.off("messagesDeletedForMe");
             socket.off("messageStatusUpdated");
         };
-    }, [allUsers, currentUser, groups, selectedGroup]);
+    }, [allUsers, currentUser, selectedGroup, groups]);
 
     useEffect(() => {
         socket.on("message", (msg) => {
             if (msg.groupId) {
+                // Handle group messages
+                const group = groups.find((g) => g._id === msg.groupId);
+                if (!group) return; // Group not found, possibly user is not a member
+    
                 if (selectedGroup && msg.groupId === selectedGroup._id) {
                     setMessages((prevMessages) => {
                         const messageIndex = prevMessages.findIndex(
                             (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
                         );
-
+    
                         let updatedMessages;
                         if (messageIndex !== -1) {
                             updatedMessages = [...prevMessages];
@@ -351,7 +414,7 @@ export default function Chat() {
                         } else {
                             updatedMessages = [...prevMessages, msg];
                         }
-
+    
                         saveMessagesToLocalStorage(updatedMessages);
                         const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
                         const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
@@ -360,7 +423,7 @@ export default function Chat() {
                         }
                         return updatedMessages;
                     });
-
+    
                     if (msg.sender !== currentUser && !msg.isRead) {
                         setShowPopup(true);
                         setTimeout(() => setShowPopup(false), 3000);
@@ -373,6 +436,33 @@ export default function Chat() {
                             }, 5000);
                         }
                     }
+                } else {
+                    // Group message for a non-selected group
+                    // Persist the message to local storage
+                    const chatKey = `${chatStorageKey}_group_${msg.groupId}`;
+                    const cachedMessages = localStorage.getItem(chatKey);
+                    const existingMessages = cachedMessages ? JSON.parse(cachedMessages) : [];
+                    const messageExists = existingMessages.some(
+                        (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
+                    );
+                    if (!messageExists) {
+                        const updatedMessages = [...existingMessages, msg];
+                        localStorage.setItem(chatKey, JSON.stringify(updatedMessages));
+                    }
+    
+                    // Update unread messages
+                    setUnreadMessages((prev) => {
+                        const exists = prev.some((m) => m.tempId === msg.tempId || m._id === msg._id);
+                        if (!exists && msg.sender !== currentUser) {
+                            return [...prev, { ...msg, isRead: false }];
+                        }
+                        return prev;
+                    });
+    
+                    // Notify user of new group message
+                    if (msg.sender !== currentUser) {
+                        toast.info(`New message in ${group.name}: ${msg.text || "File"}`);
+                    }
                 }
             } else if (
                 (msg.sender === currentUser && msg.receiver === selectedUser?.email) ||
@@ -382,7 +472,7 @@ export default function Chat() {
                     const messageIndex = prevMessages.findIndex(
                         (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
                     );
-
+    
                     let updatedMessages;
                     if (messageIndex !== -1) {
                         updatedMessages = [...prevMessages];
@@ -390,7 +480,7 @@ export default function Chat() {
                     } else {
                         updatedMessages = [...prevMessages, msg];
                     }
-
+    
                     saveMessagesToLocalStorage(updatedMessages);
                     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
                     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
@@ -399,7 +489,7 @@ export default function Chat() {
                     }
                     return updatedMessages;
                 });
-
+    
                 if (msg.receiver === currentUser && !msg.isRead) {
                     setShowPopup(true);
                     setTimeout(() => setShowPopup(false), 3000);
@@ -414,11 +504,11 @@ export default function Chat() {
                 }
             }
         });
-
+    
         return () => {
             socket.off("message");
         };
-    }, [selectedUser, selectedGroup, currentUser, firstNewMessageId]);
+    }, [selectedUser, selectedGroup, currentUser, groups]); // Removed firstNewMessageId from dependencies
 
     useEffect(() => {
         if (selectedUser) {
@@ -482,11 +572,13 @@ export default function Chat() {
                     return updatedMessages;
                 });
 
-                setGroups((prevGroups) =>
-                    prevGroups.map((g) =>
+                setGroups((prevGroups) => {
+                    const updatedGroups = prevGroups.map((g) =>
                         g._id === selectedGroup._id ? { ...g, hasNewMessage: false } : g
-                    )
-                );
+                    );
+                    saveGroupsToLocalStorage(updatedGroups);
+                    return updatedGroups;
+                });
 
                 socket.emit("markGroupMessagesAsRead", {
                     groupId: selectedGroup._id,
@@ -687,7 +779,11 @@ export default function Chat() {
             }
 
             const { group } = await response.json();
-            setGroups((prevGroups) => [...prevGroups, group]);
+            setGroups((prevGroups) => {
+                const updatedGroups = [...prevGroups, group];
+                saveGroupsToLocalStorage(updatedGroups);
+                return updatedGroups;
+            });
             setShowCreateGroupModal(false);
             setGroupName("");
             setSelectedGroupMembers([]);
