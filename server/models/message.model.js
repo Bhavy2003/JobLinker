@@ -20,10 +20,10 @@
 // message.model.js
 // message.model.js
 import mongoose from "mongoose";
-
 const messageSchema = new mongoose.Schema({
     sender: String,
-    receiver: String,
+    receiver: String, // For individual chats
+    groupId: { type: mongoose.Schema.Types.ObjectId, ref: "Group", default: null }, // For group chats
     text: String,
     file: {
         name: String,
@@ -36,18 +36,48 @@ const messageSchema = new mongoose.Schema({
     status: { type: String, default: 'sent', enum: ['sent', 'delivered', 'read'] },
     reactions: [
         {
-            user: String, // The user who reacted
-            emoji: String, // The emoji used for the reaction (e.g., "👍")
+            user: String,
+            emoji: String,
             timestamp: { type: Date, default: Date.now },
         }
-    ], // Add status field
+    ],
 }, {
     indexes: [
         { key: { sender: 1, receiver: 1 } },
+        { key: { groupId: 1 } },
         { key: { timestamp: 1 } },
         { key: { status: 1 } },
         { key: { "reactions.user": 1 } },
     ]
 });
+const Message = mongoose.model("Message", messageSchema);
+// const messageSchema = new mongoose.Schema({
+//     sender: String,
+//     receiver: String,
+//     text: String,
+//     file: {
+//         name: String,
+//         type: String,
+//         url: String,
+//     },
+//     timestamp: { type: Date, default: Date.now },
+//     deletedBy: [{ type: String, default: [] }],
+//     isRead: { type: Boolean, default: false },
+//     status: { type: String, default: 'sent', enum: ['sent', 'delivered', 'read'] },
+//     reactions: [
+//         {
+//             user: String, // The user who reacted
+//             emoji: String, // The emoji used for the reaction (e.g., "👍")
+//             timestamp: { type: Date, default: Date.now },
+//         }
+//     ], // Add status field
+// }, {
+//     indexes: [
+//         { key: { sender: 1, receiver: 1 } },
+//         { key: { timestamp: 1 } },
+//         { key: { status: 1 } },
+//         { key: { "reactions.user": 1 } },
+//     ]
+// });
 
-export default mongoose.model("Message", messageSchema);
+// export default mongoose.model("Message", messageSchema);
