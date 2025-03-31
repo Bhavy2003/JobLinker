@@ -2819,7 +2819,7 @@ export default function Chat() {
                                                 Delete For Everyone
                                             </button>
                                             <button
-                                                className="bg-blue-500 text-white px-3 py-1 sm:mt-[6px] md:mt-[6px] rounded-lg hover:bg-blue-600 transition"
+                                                className="bg-blue-500 text-white px-3 py-1  rounded-lg hover:bg-blue-600 transition"
                                                 onClick={toggleSelectionModeNew}
                                             >
                                                 Delete For Me
