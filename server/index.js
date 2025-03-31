@@ -1297,17 +1297,17 @@ const chatFileUpload = multer({
 
 const groupSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    creator: { type: String, required: true }, // Email of the creator
-    members: [{ type: String }], // Array of member emails
+    creator: { type: String, required: true },
+    members: [{ type: String }],
     createdAt: { type: Date, default: Date.now },
 });
 const Group = mongoose.model("Group", groupSchema);
 
-// Message Schema (Updated to Include Group ID)
+// Message Schema
 const messageSchema = new mongoose.Schema({
     sender: String,
-    receiver: String, // For individual chats
-    groupId: { type: mongoose.Schema.Types.ObjectId, ref: "Group", default: null }, // For group chats
+    receiver: String,
+    groupId: { type: mongoose.Schema.Types.ObjectId, ref: "Group", default: null },
     text: String,
     file: {
         name: String,
@@ -1348,11 +1348,10 @@ app.post("/api/groups/create", async (req, res) => {
         const group = new Group({
             name,
             creator,
-            members: [...new Set([creator, ...members])], // Ensure creator is in members
+            members: [...new Set([creator, ...members])],
         });
         await group.save();
 
-        // Notify all members about the new group
         group.members.forEach((member) => {
             const memberSocketId = connectedUsers.get(member);
             if (memberSocketId) {
@@ -1381,11 +1380,9 @@ app.delete("/api/groups/delete/:groupId", async (req, res) => {
             return res.status(403).json({ error: "Only the group creator can delete the group" });
         }
 
-        // Delete the group and associated messages
         await Group.deleteOne({ _id: groupId });
         await Message.deleteMany({ groupId });
 
-        // Notify all members about the group deletion
         group.members.forEach((member) => {
             const memberSocketId = connectedUsers.get(member);
             if (memberSocketId) {
@@ -1396,6 +1393,18 @@ app.delete("/api/groups/delete/:groupId", async (req, res) => {
         res.json({ success: true, message: "Group deleted successfully" });
     } catch (error) {
         console.error("Error deleting group:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+app.get("/api/groups/:userEmail", async (req, res) => {
+    const { userEmail } = req.params;
+
+    try {
+        const groups = await Group.find({ members: userEmail });
+        res.json(groups);
+    } catch (error) {
+        console.error("Error fetching groups:", error);
         res.status(500).json({ error: "Server error" });
     }
 });
@@ -1423,6 +1432,23 @@ app.get("/messages/:user1/:user2", async (req, res) => {
                 { sender: user2, receiver: user1 },
             ],
             deletedBy: { $ne: user1 },
+        }).sort("timestamp");
+        res.json(messages);
+    } catch (error) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
+app.get("/group-messages/:groupId/:userEmail", async (req, res) => {
+    const { groupId, userEmail } = req.params;
+    try {
+        const group = await Group.findById(groupId);
+        if (!group || !group.members.includes(userEmail)) {
+            return res.status(403).json({ error: "You are not a member of this group" });
+        }
+
+        const messages = await Message.find({
+            groupId,
+            deletedBy: { $ne: userEmail },
         }).sort("timestamp");
         res.json(messages);
     } catch (error) {
@@ -2009,6 +2035,35 @@ io.on("connection", (socket) => {
             }
         } catch (error) {
             console.error("Error adding reaction:", error);
+        }
+    });
+    socket.on("joinGroupChat", ({ groupId, userEmail }) => {
+        socket.join(`group_${groupId}`);
+
+        Message.find({ groupId, deletedBy: { $ne: userEmail } })
+            .sort("timestamp")
+            .then(async (messages) => {
+                socket.emit("loadGroupMessages", messages);
+
+                await Message.updateMany(
+                    { groupId, isRead: false, sender: { $ne: userEmail } },
+                    { $set: { isRead: true, status: 'read' } }
+                );
+            })
+            .catch((error) => console.error("Error fetching group messages:", error));
+    });
+    socket.on("markGroupMessagesAsRead", async ({ groupId, userEmail }) => {
+        try {
+            await Message.updateMany(
+                { groupId, isRead: false, sender: { $ne: userEmail } },
+                { $set: { isRead: true, status: 'read' } }
+            );
+            const messages = await Message.find({ groupId, isRead: true });
+            messages.forEach((msg) => {
+                io.to(`group_${groupId}`).emit("messageStatusUpdated", msg);
+            });
+        } catch (error) {
+            console.error("Error marking group messages as read:", error);
         }
     });
     socket.on("deleteChat", async ({ sender, receiver }) => {
