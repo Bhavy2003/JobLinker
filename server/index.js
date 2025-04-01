@@ -2446,6 +2446,7 @@ const messageSchema = new mongoose.Schema({
     sender: String,
     receiver: String,
     text: String,
+    pinned: { type: Boolean, default: false },
     file: {
         name: String,
         type: String,
@@ -2787,161 +2788,6 @@ app.post("/api/messages/delete-for-me", async (req, res) => {
     }
 });
 
-// io.on("connection", (socket) => {
-//     socket.on("register", (email) => {
-//         connectedUsers.set(email, socket.id);
-//         console.log(`User ${email} connected with socket ID: ${socket.id}`);
-//     });
-
-//     socket.on("joinChat", ({ sender, receiver }) => {
-//         const room = [sender, receiver].sort().join("_");
-//         socket.join(room);
-    
-//         console.log(`User ${sender} joined chat with ${receiver}, room: ${room}`);
-    
-//         Message.find({
-//             $or: [
-//                 { sender: sender, receiver: receiver },
-//                 { sender: receiver, receiver: sender },
-//             ],
-//             deletedBy: { $ne: sender },
-//         })
-//             .sort("timestamp")
-//             .then(async (messages) => {
-//                 console.log(`Loaded ${messages.length} messages for ${sender} and ${receiver}`);
-//                 await Message.updateMany(
-//                     { 
-//                         receiver: sender, 
-//                         sender: receiver, 
-//                         status: 'sent' 
-//                     },
-//                     { $set: { status: 'delivered' } }
-//                 );
-//                 await Message.updateMany(
-//                     { 
-//                         receiver: sender, 
-//                         sender: receiver, 
-//                         status: { $in: ['sent', 'delivered'] }
-//                     },
-//                     { $set: { status: 'read', isRead: true } }
-//                 );
-//                 const updatedMessages = await Message.find({
-//                     $or: [
-//                         { sender: sender, receiver: receiver },
-//                         { sender: receiver, receiver: sender },
-//                     ],
-//                     deletedBy: { $ne: sender },
-//                 }).sort("timestamp");
-//                 socket.emit("loadMessages", updatedMessages);
-//             })
-//             .catch((error) => console.error("Error fetching messages:", error));
-//     });
-
-//     socket.on("sendMessage", async (msgData) => {
-//         const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
-    
-//         if (!msgData.text && !fileUrl) {
-//             console.error("Message has no text or fileUrl, discarding:", msgData);
-//             return;
-//         }
-    
-//         try {
-//             const newMessage = new Message({
-//                 sender: msgData.sender,
-//                 receiver: msgData.receiver,
-//                 text: msgData.text || "",
-//                 fileUrl: fileUrl,
-//                 timestamp: new Date(msgData.timestamp),
-//                 status: 'sent',
-//                 isRead: false,
-//             });
-//             const savedMessage = await newMessage.save();
-//             console.log(`Saved message with ID: ${savedMessage._id} for sender: ${msgData.sender}, receiver: ${msgData.receiver}`);
-    
-//             const messageToEmit = {
-//                 ...savedMessage.toObject(),
-//                 tempId: msgData.tempId,
-//             };
-    
-//             const room = [msgData.sender, msgData.receiver].sort().join("_");
-//             io.to(room).emit("message", messageToEmit);
-    
-//             const receiverSocketId = connectedUsers.get(msgData.receiver);
-//             if (receiverSocketId && msgData.receiver !== msgData.sender) {
-//                 await Message.findByIdAndUpdate(savedMessage._id, {
-//                     $set: { status: 'delivered' }
-//                 });
-//                 const updatedMessage = await Message.findById(savedMessage._id);
-//                 io.to(room).emit("messageStatusUpdated", updatedMessage);
-//                 io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
-//             }
-//         } catch (error) {
-//             console.error("Error processing sendMessage:", error);
-//             const senderSocketId = connectedUsers.get(msgData.sender);
-//             if (senderSocketId) {
-//                 io.to(senderSocketId).emit("messageError", { error: "Failed to send message" });
-//             }
-//         }
-//     });
-
-//     socket.on("deleteChat", async ({ sender, receiver }) => {
-//         try {
-//             await Message.updateMany(
-//                 {
-//                     $or: [
-//                         { sender, receiver },
-//                         { sender: receiver, receiver: sender },
-//                     ],
-//                     deletedBy: { $ne: sender },
-//                 },
-//                 { $addToSet: { deletedBy: sender } }
-//             );
-
-//             const senderSocketId = connectedUsers.get(sender);
-//             if (senderSocketId) {
-//                 io.to(senderSocketId).emit("chatDeleted", { receiver });
-//             }
-
-//             const receiverSocketId = connectedUsers.get(receiver);
-//             if (receiverSocketId) {
-//                 io.to(receiverSocketId).emit("chatUpdated", { sender });
-//             }
-//         } catch (error) {
-//             console.error("Error deleting chat:", error);
-//             const senderSocketId = connectedUsers.get(sender);
-//             if (senderSocketId) {
-//                 io.to(senderSocketId).emit("chatDeleteError", { error: "Failed to delete chat" });
-//             }
-//         }
-//     });
-
-//     socket.on("markAsRead", async ({ sender, receiver }) => {
-//         try {
-//             await Message.updateMany(
-//                 { sender, receiver, isRead: false },
-//                 { $set: { isRead: true } }
-//             );
-//         } catch (error) {
-//             console.error("Error marking messages as read:", error);
-//         }
-//     });
-
-//     socket.on("disconnect", () => {
-//         for (let [email, socketId] of connectedUsers.entries()) {
-//             if (socketId === socket.id) {
-//                 connectedUsers.delete(email);
-//                 console.log(`User ${email} disconnected`);
-//                 break;
-//             }
-//         }
-//     });
-// });
-
-// ... (rest of the index.js file remains the same)
-
-// ... (rest of the index.js file remains the same)
-// index.js
-// ... (previous imports remain the same)
 
 io.on("connection", (socket) => {
     socket.on("register", (email) => {
@@ -3029,27 +2875,8 @@ io.on("connection", (socket) => {
         }
     });
 
-    // socket.on("addReaction", async ({ messageId, user, emoji }) => {
-    //     try {
-    //         const message = await Message.findById(messageId);
-    //         if (!message) return;
-    
-    //         // Remove existing reaction from this user if it exists
-    //         message.reactions = message.reactions.filter(r => r.user !== user);
-            
-    //         // If emoji is null, it means remove reaction; otherwise add new one
-    //         if (emoji) {
-    //             message.reactions.push({ user, emoji, timestamp: new Date() });
-    //         }
-    
-    //         await message.save();
-    //         const updatedMessage = await Message.findById(messageId);
-    //         const room = [message.sender, message.receiver].sort().join("_");
-    //         io.to(room).emit("messageStatusUpdated", updatedMessage);
-    //     } catch (error) {
-    //         console.error("Error adding reaction:", error);
-    //     }
-    // });
+
+ 
     socket.on("addReaction", async ({ messageId, user, emoji }) => {
         try {
             const message = await Message.findById(messageId);

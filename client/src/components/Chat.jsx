@@ -2337,8 +2337,9 @@ export default function Chat() {
     const [confirmAction, setConfirmAction] = useState(null);
     const [confirmData, setConfirmData] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const [showPinConfirmPopup, setShowPinConfirmPopup] = useState(false); // New state for pin confirmation
+    const [showPinConfirmPopup, setShowPinConfirmPopup] = useState(false);
     const [pinMessageId, setPinMessageId] = useState(null);
+    const [isReplacingPin, setIsReplacingPin] = useState(false);
     const [isMessageSearchVisible, setIsMessageSearchVisible] = useState(false); // New state for message search bar visibility
     const [messageSearchQuery, setMessageSearchQuery] = useState("");
     const userEmail = localStorage.getItem("email");
@@ -2373,10 +2374,7 @@ export default function Chat() {
             localStorage.setItem(chatKey, JSON.stringify(msgs));
         }
     };
-    const handlePinMessage = (messageId) => {
-        setPinMessageId(messageId);
-        setShowPinConfirmPopup(true); // Show confirmation popup
-    };
+    
     const loadMessagesFromLocalStorage = (userEmail) => {
         const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
         const cachedMessages = localStorage.getItem(chatKey);
@@ -2694,8 +2692,48 @@ export default function Chat() {
         };
     }, [currentUser, selectedUser]);
 
+    const handlePinMessage = (messageId) => {
+        const currentlyPinned = pinnedMessages.length > 0 ? pinnedMessages[0] : null;
+        if (currentlyPinned && currentlyPinned._id !== messageId) {
+            socket.emit("pinMessage", {
+                messageId: currentlyPinned._id,
+                sender: currentUser,
+                receiver: selectedUser.email,
+            });
+            setTimeout(() => {
+                socket.emit("pinMessage", {
+                    messageId,
+                    sender: currentUser,
+                    receiver: selectedUser.email,
+                });
+            }, 100);
+        } else {
+            socket.emit("pinMessage", {
+                messageId,
+                sender: currentUser,
+                receiver: selectedUser.email,
+            });
+        }
+    };
+
     const confirmPinMessage = () => {
-        if (pinMessageId) {
+        if (isReplacingPin && pinnedMessages.length > 0) {
+            // Unpin the previous message first
+            socket.emit("pinMessage", {
+                messageId: pinnedMessages[0]._id,
+                sender: currentUser,
+                receiver: selectedUser.email,
+            });
+            // Pin the new message after a slight delay to ensure the unpin is processed
+            setTimeout(() => {
+                socket.emit("pinMessage", {
+                    messageId: pinMessageId,
+                    sender: currentUser,
+                    receiver: selectedUser.email,
+                });
+            }, 100);
+        } else {
+            // Pin the new message directly
             socket.emit("pinMessage", {
                 messageId: pinMessageId,
                 sender: currentUser,
@@ -2704,11 +2742,13 @@ export default function Chat() {
         }
         setShowPinConfirmPopup(false);
         setPinMessageId(null);
+        setIsReplacingPin(false);
     };
 
     const cancelPinMessage = () => {
         setShowPinConfirmPopup(false);
         setPinMessageId(null);
+        setIsReplacingPin(false);
     };
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
@@ -3108,6 +3148,28 @@ export default function Chat() {
                                         />
                                     </svg>
                                 </button>
+                                {isSelectionMode && selectedMessages.length === 1 && (
+                                    <button
+                                        onClick={() => handlePinMessage(selectedMessages[0])}
+                                        className="text-white hover:text-indigo-300"
+                                        title="Pin Message"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-6 w-6"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth="2"
+                                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                                            />
+                                        </svg>
+                                    </button>
+                                )}
                                     {isSelectionMode ? (
                                         <>
                                             <button
@@ -3217,44 +3279,44 @@ export default function Chat() {
             >
                 {/* Pinned Messages Section */}
                 {pinnedMessages.length > 0 && (
-                    <div className="mb-4 bg-gray-700 p-2 rounded-lg">
-                        <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-5 w-5 mr-1"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-                                />
-                            </svg>
-                            Pinned Messages
-                        </div>
-                        {pinnedMessages.map((msg) => (
-                            <ChatMessage
-                                key={msg._id || msg.tempId}
-                                message={msg}
-                                user={currentUser}
-                                socket={socket}
-                                isFirstNew={false}
-                                onDelete={deleteMessages}
-                                isSelectionMode={isSelectionMode}
-                                isSelected={selectedMessages.includes(msg._id)}
-                                toggleSelection={() => toggleMessageSelection(msg._id)}
-                                isSelectionModeNew={isSelectionModeNew}
-                                isSelectedNew={selectedMessagesNew.includes(msg._id)}
-                                toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
-                                onPin={handlePinMessage}
-                            />
-                        ))}
-                        <hr className="border-gray-600 my-2" />
-                    </div>
-                )}
+                                <div className="mb-4 bg-gray-700 p-2 rounded-lg">
+                                    <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-5 w-5 mr-1"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth="2"
+                                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                                            />
+                                        </svg>
+                                        Pinned Message
+                                    </div>
+                                    {pinnedMessages.map((msg) => (
+                                        <ChatMessage
+                                            key={msg._id || msg.tempId}
+                                            message={msg}
+                                            user={currentUser}
+                                            socket={socket}
+                                            isFirstNew={false}
+                                            onDelete={deleteMessages}
+                                            isSelectionMode={isSelectionMode}
+                                            isSelected={selectedMessages.includes(msg._id)}
+                                            toggleSelection={() => toggleMessageSelection(msg._id)}
+                                            isSelectionModeNew={isSelectionModeNew}
+                                            isSelectedNew={selectedMessagesNew.includes(msg._id)}
+                                            toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
+                                            onPin={handlePinMessage}
+                                        />
+                                    ))}
+                                    <hr className="border-gray-600 my-2" />
+                                </div>
+                            )}
                                {Object.keys(groupedMessages).map((date) => (
                                 <div key={date}>
                                     <div className="text-center text-gray-400 my-2">{date}</div>
@@ -3384,6 +3446,8 @@ export default function Chat() {
                 <PinConfirmationPopup
                     messageId={pinMessageId}
                     messages={messages}
+                    pinnedMessages={pinnedMessages}
+                    isReplacingPin={isReplacingPin}
                     onConfirm={confirmPinMessage}
                     onCancel={cancelPinMessage}
                     t={t}
@@ -3393,9 +3457,10 @@ export default function Chat() {
         </>
     );
 }
-const PinConfirmationPopup = ({ messageId, messages, onConfirm, onCancel, t }) => {
+const PinConfirmationPopup = ({ messageId, messages, pinnedMessages, isReplacingPin, onConfirm, onCancel, t }) => {
     const message = messages.find((msg) => msg._id === messageId);
     const isPinned = message?.pinned;
+    const previousPinned = pinnedMessages.length > 0 ? pinnedMessages[0] : null;
 
     return (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
@@ -3406,6 +3471,8 @@ const PinConfirmationPopup = ({ messageId, messages, onConfirm, onCancel, t }) =
                 <p className="text-gray-300 mb-6">
                     {isPinned
                         ? "Are you sure you want to unpin this message?"
+                        : isReplacingPin && previousPinned
+                        ? `Only one message can be pinned at a time. Pinning this will unpin the previous message: "${previousPinned.text.substring(0, 20)}...". Proceed?`
                         : "Are you sure you want to pin this message?"}
                 </p>
                 <div className="flex justify-end space-x-3">
@@ -3602,7 +3669,7 @@ const ChatMessage = ({
                 onClick={() => {
                     if (isSelectionMode) toggleSelection();
                     else if (isSelectionModeNew) toggleSelectionNew();
-               else onPin(message._id); }}
+             }}
                onContextMenu={(e) => {
                 e.preventDefault();
                 if (!isSelectionMode && !isSelectionModeNew) {
