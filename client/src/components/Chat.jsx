@@ -2337,11 +2337,9 @@ export default function Chat() {
     const [confirmAction, setConfirmAction] = useState(null);
     const [confirmData, setConfirmData] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const [showPinConfirmPopup, setShowPinConfirmPopup] = useState(false);
-    const [pinMessageId, setPinMessageId] = useState(null);
-    const [isReplacingPin, setIsReplacingPin] = useState(false);
-    const [isMessageSearchVisible, setIsMessageSearchVisible] = useState(false); // New state for message search bar visibility
+    const [isMessageSearchVisible, setIsMessageSearchVisible] = useState(false);
     const [messageSearchQuery, setMessageSearchQuery] = useState("");
+    const [pinnedMessages, setPinnedMessages] = useState([]);
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
     const storageKey = `sentUsers_${currentUser}`;
@@ -2350,7 +2348,6 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
-    const [pinnedMessages, setPinnedMessages] = useState([]);
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
             transports: ["websocket"],
@@ -2374,7 +2371,7 @@ export default function Chat() {
             localStorage.setItem(chatKey, JSON.stringify(msgs));
         }
     };
-    
+
     const loadMessagesFromLocalStorage = (userEmail) => {
         const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
         const cachedMessages = localStorage.getItem(chatKey);
@@ -2483,9 +2480,9 @@ export default function Chat() {
                     const senderDetails = allUsers.find((user) => user.email === msgData.sender);
                     if (!senderDetails) return prevSentUsers;
                     const existingIndex = updatedSentUsers.findIndex((u) => u.email === msgData.sender);
-    
+
                     toast.info(`New message from ${msgData.sender}: ${msgData.text || "File"}`);
-    
+
                     if (existingIndex === -1) {
                         updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
                     } else {
@@ -2494,7 +2491,7 @@ export default function Chat() {
                     }
                     return updatedSentUsers;
                 });
-    
+
                 setUnreadMessages((prev) => {
                     const exists = prev.some((m) => m.tempId === msgData.tempId || m._id === msgData._id);
                     if (!exists) {
@@ -2504,13 +2501,13 @@ export default function Chat() {
                 });
             }
         });
-    
+
         socket.on("reactionNotification", ({ messageId, reactor, emoji }) => {
             if (reactor !== currentUser) {
                 toast.info(`${reactor} reacted to a message with ${emoji}`);
             }
         });
-    
+
         socket.on("messageDeleted", ({ messageIds }) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
@@ -2518,7 +2515,7 @@ export default function Chat() {
                 return updatedMessages;
             });
         });
-    
+
         socket.on("messagesDeletedForMe", ({ messageIds }) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
@@ -2526,7 +2523,7 @@ export default function Chat() {
                 return updatedMessages;
             });
         });
-    
+
         socket.on("messageStatusUpdated", (updatedMessage) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.map((msg) =>
@@ -2538,13 +2535,37 @@ export default function Chat() {
                 return updatedMessages;
             });
         });
-    
+
+        socket.on("messagePinned", (updatedMessage) => {
+            setMessages((prevMessages) => {
+                const updatedMessages = prevMessages.map((msg) =>
+                    msg._id === updatedMessage._id ? updatedMessage : { ...msg, pinned: false } // Unpin all others
+                );
+                saveMessagesToLocalStorage(updatedMessages);
+                return updatedMessages;
+            });
+
+            if (updatedMessage.pinned) {
+                setPinnedMessages([updatedMessage]); // Only one pinned message
+            } else {
+                setPinnedMessages([]);
+            }
+        });
+
+        socket.on("pinNotification", ({ messageId, pinner, pinned }) => {
+            if (pinner !== currentUser) {
+                toast.info(`${pinner} ${pinned ? "pinned" : "unpinned"} a message`);
+            }
+        });
+
         return () => {
             socket.off("newMessageNotification");
             socket.off("reactionNotification");
             socket.off("messageDeleted");
             socket.off("messagesDeletedForMe");
             socket.off("messageStatusUpdated");
+            socket.off("messagePinned");
+            socket.off("pinNotification");
         };
     }, [allUsers, currentUser]);
 
@@ -2637,6 +2658,10 @@ export default function Chat() {
                     receiver: currentUser,
                 });
             });
+
+            // Load pinned messages initially
+            const initialPinned = cachedMessages.filter((msg) => msg.pinned);
+            setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
         }
 
         return () => {
@@ -2658,48 +2683,17 @@ export default function Chat() {
             socket.off("chatDeleted");
         };
     }, [currentUser, selectedUser, chatStorageKey]);
-    useEffect(() => {
-        socket.on("messagePinned", (updatedMessage) => {
-            setMessages((prevMessages) => {
-                const updatedMessages = prevMessages.map((msg) =>
-                    msg._id === updatedMessage._id ? updatedMessage : msg
-                );
-                saveMessagesToLocalStorage(updatedMessages);
-                return updatedMessages;
-            });
-
-            if (updatedMessage.pinned) {
-                setPinnedMessages((prev) => {
-                    if (!prev.some((msg) => msg._id === updatedMessage._id)) {
-                        return [updatedMessage, ...prev];
-                    }
-                    return prev;
-                });
-            } else {
-                setPinnedMessages((prev) => prev.filter((msg) => msg._id !== updatedMessage._id));
-            }
-        });
-
-        socket.on("pinNotification", ({ messageId, pinner, pinned }) => {
-            if (pinner !== currentUser) {
-                toast.info(`${pinner} ${pinned ? "pinned" : "unpinned"} a message`);
-            }
-        });
-
-        return () => {
-            socket.off("messagePinned");
-            socket.off("pinNotification");
-        };
-    }, [currentUser, selectedUser]);
 
     const handlePinMessage = (messageId) => {
         const currentlyPinned = pinnedMessages.length > 0 ? pinnedMessages[0] : null;
         if (currentlyPinned && currentlyPinned._id !== messageId) {
+            // Unpin the current pinned message
             socket.emit("pinMessage", {
                 messageId: currentlyPinned._id,
                 sender: currentUser,
                 receiver: selectedUser.email,
             });
+            // Pin the new message after a slight delay
             setTimeout(() => {
                 socket.emit("pinMessage", {
                     messageId,
@@ -2708,6 +2702,7 @@ export default function Chat() {
                 });
             }, 100);
         } else {
+            // Toggle pinning for the selected message
             socket.emit("pinMessage", {
                 messageId,
                 sender: currentUser,
@@ -2716,40 +2711,6 @@ export default function Chat() {
         }
     };
 
-    const confirmPinMessage = () => {
-        if (isReplacingPin && pinnedMessages.length > 0) {
-            // Unpin the previous message first
-            socket.emit("pinMessage", {
-                messageId: pinnedMessages[0]._id,
-                sender: currentUser,
-                receiver: selectedUser.email,
-            });
-            // Pin the new message after a slight delay to ensure the unpin is processed
-            setTimeout(() => {
-                socket.emit("pinMessage", {
-                    messageId: pinMessageId,
-                    sender: currentUser,
-                    receiver: selectedUser.email,
-                });
-            }, 100);
-        } else {
-            // Pin the new message directly
-            socket.emit("pinMessage", {
-                messageId: pinMessageId,
-                sender: currentUser,
-                receiver: selectedUser.email,
-            });
-        }
-        setShowPinConfirmPopup(false);
-        setPinMessageId(null);
-        setIsReplacingPin(false);
-    };
-
-    const cancelPinMessage = () => {
-        setShowPinConfirmPopup(false);
-        setPinMessageId(null);
-        setIsReplacingPin(false);
-    };
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
         setConfirmAction("deleteChat");
@@ -2915,7 +2876,7 @@ export default function Chat() {
             file: selectedFile || null,
             timestamp: new Date().toISOString(),
             isRead: false,
-            status: 'sent',
+            status: "sent",
             tempId,
         };
 
@@ -2975,11 +2936,13 @@ export default function Chat() {
     const toggleSelectionMode = () => {
         setIsSelectionMode(!isSelectionMode);
         setSelectedMessages([]);
+        setIsSelectionModeNew(false); // Ensure only one mode is active
     };
 
     const toggleSelectionModeNew = () => {
         setIsSelectionModeNew(!isSelectionModeNew);
         setSelectedMessagesNew([]);
+        setIsSelectionMode(false); // Ensure only one mode is active
     };
 
     const toggleMessageSelection = (messageId) => {
@@ -3026,11 +2989,11 @@ export default function Chat() {
     );
 
     const groupedMessages = messages.reduce((acc, msg, index) => {
-        const messageDate = new Date(msg.timestamp).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
+        const messageDate = new Date(msg.timestamp).toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
         });
         if (!acc[messageDate]) {
             acc[messageDate] = [];
@@ -3129,30 +3092,10 @@ export default function Chat() {
                                     </h2>
                                 </div>
                                 <div className="flex flex-col sm:flex-col md:flex-col lg:flex-row xl:flex-row items-center space-x-2">
-                                <button
-                                    onClick={() => setIsMessageSearchVisible(!isMessageSearchVisible)}
-                                    className="text-white hover:text-indigo-300"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-6 w-6"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                        />
-                                    </svg>
-                                </button>
-                                {isSelectionMode && selectedMessages.length === 1 && (
+                                    {/* Search Icon */}
                                     <button
-                                        onClick={() => handlePinMessage(selectedMessages[0])}
+                                        onClick={() => setIsMessageSearchVisible(!isMessageSearchVisible)}
                                         className="text-white hover:text-indigo-300"
-                                        title="Pin Message"
                                     >
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
@@ -3165,11 +3108,34 @@ export default function Chat() {
                                                 strokeLinecap="round"
                                                 strokeLinejoin="round"
                                                 strokeWidth="2"
-                                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                                             />
                                         </svg>
                                     </button>
-                                )}
+                                    {/* Pin Icon */}
+                                    {isSelectionMode && selectedMessages.length === 1 && (
+                                        <button
+                                            onClick={() => handlePinMessage(selectedMessages[0])}
+                                            className="text-white hover:text-indigo-300"
+                                            title="Pin Message"
+                                        >
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="h-6 w-6"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="2"
+                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                                                />
+                                            </svg>
+                                        </button>
+                                    )}
+                                    {/* Selection Mode Buttons */}
                                     {isSelectionMode ? (
                                         <>
                                             <button
@@ -3225,65 +3191,34 @@ export default function Chat() {
                                                 Delete For Everyone
                                             </button>
                                             <button
-                                                className="bg-blue-500 text-white px-3 py-1  rounded-lg hover:bg-blue-600 transition"
+                                                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
                                                 onClick={toggleSelectionModeNew}
                                             >
                                                 Delete For Me
                                             </button>
-                                            {/* <button
-                                                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition"
-                                                onClick={() => deleteChat(selectedUser.email)}
-                                            >
-                                                {t("DeleteChat For me")}
-                                            </button> */}
                                         </>
                                     )}
                                 </div>
                             </div>
                             {isMessageSearchVisible && (
-                            <div className="p-4 bg-gray-800 flex items-center">
-                                <input
-                                    type="text"
-                                    className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-indigo-500"
-                                    placeholder="Search messages..."
-                                    value={messageSearchQuery}
-                                    onChange={(e) => setMessageSearchQuery(e.target.value)}
-                                />
-                                <button
-                                    onClick={() => {
-                                        setIsMessageSearchVisible(false);
-                                        setMessageSearchQuery(""); // Reset search query when closing
-                                    }}
-                                    className="ml-2 text-white hover:text-red-300"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-6 w-6"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
+                                <div className="p-4 bg-gray-800 flex items-center">
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-indigo-500"
+                                        placeholder="Search messages..."
+                                        value={messageSearchQuery}
+                                        onChange={(e) => setMessageSearchQuery(e.target.value)}
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            setIsMessageSearchVisible(false);
+                                            setMessageSearchQuery("");
+                                        }}
+                                        className="ml-2 text-white hover:text-red-300"
                                     >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M6 18L18 6M6 6l12 12"
-                                        />
-                                    </svg>
-                                </button>
-                            </div>
-                        )}
-                           <div
-                ref={chatContainerRef}
-                className="flex-1 overflow-y-auto p-10 max-h-[calc(100vh-200px)]"
-            >
-                {/* Pinned Messages Section */}
-                {pinnedMessages.length > 0 && (
-                                <div className="mb-4 bg-gray-700 p-2 rounded-lg">
-                                    <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
-                                            className="h-5 w-5 mr-1"
+                                            className="h-6 w-6"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"
@@ -3292,47 +3227,43 @@ export default function Chat() {
                                                 strokeLinecap="round"
                                                 strokeLinejoin="round"
                                                 strokeWidth="2"
-                                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                                                d="M6 18L18 6M6 6l12 12"
                                             />
                                         </svg>
-                                        Pinned Message
-                                    </div>
-                                    {pinnedMessages.map((msg) => (
-                                        <ChatMessage
-                                            key={msg._id || msg.tempId}
-                                            message={msg}
-                                            user={currentUser}
-                                            socket={socket}
-                                            isFirstNew={false}
-                                            onDelete={deleteMessages}
-                                            isSelectionMode={isSelectionMode}
-                                            isSelected={selectedMessages.includes(msg._id)}
-                                            toggleSelection={() => toggleMessageSelection(msg._id)}
-                                            isSelectionModeNew={isSelectionModeNew}
-                                            isSelectedNew={selectedMessagesNew.includes(msg._id)}
-                                            toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
-                                            onPin={handlePinMessage}
-                                        />
-                                    ))}
-                                    <hr className="border-gray-600 my-2" />
+                                    </button>
                                 </div>
                             )}
-                               {Object.keys(groupedMessages).map((date) => (
-                                <div key={date}>
-                                    <div className="text-center text-gray-400 my-2">{date}</div>
-                                    {groupedMessages[date]
-                                        .filter((msg) =>
-                                            messageSearchQuery
-                                                ? msg.text.toLowerCase().includes(messageSearchQuery.toLowerCase())
-                                                : true
-                                        )
-                                        .map((msg) => (
+                            <div
+                                ref={chatContainerRef}
+                                className="flex-1 overflow-y-auto p-10 max-h-[calc(100vh-200px)]"
+                            >
+                                {/* Pinned Messages Section */}
+                                {pinnedMessages.length > 0 && (
+                                    <div className="mb-4 bg-gray-700 p-2 rounded-lg">
+                                        <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="h-5 w-5 mr-1"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="2"
+                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                                                />
+                                            </svg>
+                                            Pinned Message
+                                        </div>
+                                        {pinnedMessages.map((msg) => (
                                             <ChatMessage
-                                                key={msg._id || msg.tempId || msg.index}
+                                                key={msg._id || msg.tempId}
                                                 message={msg}
                                                 user={currentUser}
                                                 socket={socket}
-                                                isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
+                                                isFirstNew={false}
                                                 onDelete={deleteMessages}
                                                 isSelectionMode={isSelectionMode}
                                                 isSelected={selectedMessages.includes(msg._id)}
@@ -3340,17 +3271,50 @@ export default function Chat() {
                                                 isSelectionModeNew={isSelectionModeNew}
                                                 isSelectedNew={selectedMessagesNew.includes(msg._id)}
                                                 toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
+                                                onPin={handlePinMessage}
                                             />
                                         ))}
+                                        <hr className="border-gray-600 my-2" />
+                                    </div>
+                                )}
+                                {Object.keys(groupedMessages).map((date) => (
+                                    <div key={date}>
+                                        <div className="text-center text-gray-400 my-2">{date}</div>
+                                        {groupedMessages[date]
+                                            .filter((msg) =>
+                                                messageSearchQuery
+                                                    ? msg.text.toLowerCase().includes(messageSearchQuery.toLowerCase())
+                                                    : true
+                                            )
+                                            .map((msg) => (
+                                                <ChatMessage
+                                                    key={msg._id || msg.tempId || msg.index}
+                                                    message={msg}
+                                                    user={currentUser}
+                                                    socket={socket}
+                                                    isFirstNew={
+                                                        showNewMessage &&
+                                                        (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)
+                                                    }
+                                                    onDelete={deleteMessages}
+                                                    isSelectionMode={isSelectionMode}
+                                                    isSelected={selectedMessages.includes(msg._id)}
+                                                    toggleSelection={() => toggleMessageSelection(msg._id)}
+                                                    isSelectionModeNew={isSelectionModeNew}
+                                                    isSelectedNew={selectedMessagesNew.includes(msg._id)}
+                                                    toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
+                                                />
+                                            ))}
                                     </div>
                                 ))}
                                 {Object.keys(groupedMessages).every((date) =>
-                                groupedMessages[date].every(
-                                    (msg) => !msg.text.toLowerCase().includes(messageSearchQuery.toLowerCase())
-                                )
-                            ) && messageSearchQuery && (
-                                <div className="text-center text-gray-500">No matching messages found</div>
-                            )}
+                                    groupedMessages[date].every(
+                                        (msg) => !msg.text.toLowerCase().includes(messageSearchQuery.toLowerCase())
+                                    )
+                                ) &&
+                                    messageSearchQuery && (
+                                        <div className="text-center text-gray-500">No matching messages found</div>
+                                    )}
                             </div>
                             {selectedUser && showScrollButton && (
                                 <button
@@ -3442,57 +3406,10 @@ export default function Chat() {
                     t={t}
                 />
             )}
-            {showPinConfirmPopup && (
-                <PinConfirmationPopup
-                    messageId={pinMessageId}
-                    messages={messages}
-                    pinnedMessages={pinnedMessages}
-                    isReplacingPin={isReplacingPin}
-                    onConfirm={confirmPinMessage}
-                    onCancel={cancelPinMessage}
-                    t={t}
-                />
-            )}
             <Footer />
         </>
     );
 }
-const PinConfirmationPopup = ({ messageId, messages, pinnedMessages, isReplacingPin, onConfirm, onCancel, t }) => {
-    const message = messages.find((msg) => msg._id === messageId);
-    const isPinned = message?.pinned;
-    const previousPinned = pinnedMessages.length > 0 ? pinnedMessages[0] : null;
-
-    return (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-11/12 max-w-md">
-                <h3 className="text-lg font-bold text-white mb-4">
-                    {isPinned ? "Unpin Message" : "Pin Message"}
-                </h3>
-                <p className="text-gray-300 mb-6">
-                    {isPinned
-                        ? "Are you sure you want to unpin this message?"
-                        : isReplacingPin && previousPinned
-                        ? `Only one message can be pinned at a time. Pinning this will unpin the previous message: "${previousPinned.text.substring(0, 20)}...". Proceed?`
-                        : "Are you sure you want to pin this message?"}
-                </p>
-                <div className="flex justify-end space-x-3">
-                    <button
-                        onClick={onCancel}
-                        className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
-                    >
-                        {t("Cancel")}
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition"
-                    >
-                        {isPinned ? "Unpin" : "Pin"}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const ConfirmationPopup = ({ action, data, onConfirm, onCancel, t }) => {
     const message =
@@ -3528,19 +3445,18 @@ const ConfirmationPopup = ({ action, data, onConfirm, onCancel, t }) => {
     );
 };
 
-const ChatMessage = ({ 
-    message, 
-    user, 
-    socket, 
-    onPin,
-    isFirstNew, 
-    onDelete, 
-    isSelectionMode, 
-    isSelected, 
+const ChatMessage = ({
+    message,
+    user,
+    socket,
+    isFirstNew,
+    onDelete,
+    isSelectionMode,
+    isSelected,
     toggleSelection,
     isSelectionModeNew,
     isSelectedNew,
-    toggleSelectionNew
+    toggleSelectionNew,
 }) => {
     if (!message) {
         console.error("ChatMessage received undefined message");
@@ -3566,9 +3482,11 @@ const ChatMessage = ({
                 if (fileName.endsWith(".pdf")) fileType = "application/pdf";
                 else if (fileName.endsWith(".csv")) fileType = "text/csv";
                 else if (fileName.endsWith(".doc")) fileType = "application/msword";
-                else if (fileName.endsWith(".docx")) fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                else if (fileName.endsWith(".docx"))
+                    fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
                 else if (fileName.endsWith(".xls")) fileType = "application/vnd.ms-excel";
-                else if (fileName.endsWith(".xlsx")) fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                else if (fileName.endsWith(".xlsx"))
+                    fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
                 else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) fileType = "image";
                 else fileType = "application/octet-stream";
             } else {
@@ -3607,21 +3525,20 @@ const ChatMessage = ({
     };
 
     const renderTicks = () => {
-        if (!isSender) return null; // Only show ticks for sender
-        if (message.status === 'sent') {
+        if (!isSender) return null;
+        if (message.status === "sent") {
             return <span className="text-gray-400 ml-2">✓</span>;
-        } else if (message.status === 'delivered') {
+        } else if (message.status === "delivered") {
             return <span className="text-gray-400 ml-2">✓✓</span>;
-        } else if (message.status === 'read') {
+        } else if (message.status === "read") {
             return <span className="text-yellow-400 ml-2">✓✓</span>;
         }
         return null;
     };
 
     const handleAddReaction = (emoji) => {
-        const userReaction = message.reactions?.find(r => r.user === user);
-        
-        // If user already reacted with this emoji, remove it; otherwise add/replace
+        const userReaction = message.reactions?.find((r) => r.user === user);
+
         socket.emit("addReaction", {
             messageId: message._id,
             user: user,
@@ -3639,7 +3556,7 @@ const ChatMessage = ({
         return acc;
     }, {}) || {};
 
-    const userReaction = message.reactions?.find(r => r.user === user)?.emoji;
+    const userReaction = message.reactions?.find((r) => r.user === user)?.emoji;
 
     return (
         <div
@@ -3669,13 +3586,13 @@ const ChatMessage = ({
                 onClick={() => {
                     if (isSelectionMode) toggleSelection();
                     else if (isSelectionModeNew) toggleSelectionNew();
-             }}
-               onContextMenu={(e) => {
-                e.preventDefault();
-                if (!isSelectionMode && !isSelectionModeNew) {
-                    setShowReactionPicker(true);
-                }
-            }}
+                }}
+                onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (!isSelectionMode && !isSelectionModeNew) {
+                        setShowReactionPicker(true);
+                    }
+                }}
             >
                 <div
                     style={{
@@ -3692,12 +3609,6 @@ const ChatMessage = ({
                         whiteSpace: "normal",
                         overflowWrap: "normal",
                     }}
-                    // onContextMenu={(e) => {
-                    //     e.preventDefault();
-                    //     if (!isSelectionMode && !isSelectionModeNew) {
-                    //         setShowReactionPicker(true);
-                    //     }
-                    // }}
                 >
                     {message.text && <div>{message.text}</div>}
                     {(message.file || message.fileUrl) && (
@@ -3705,7 +3616,7 @@ const ChatMessage = ({
                     )}
                     <div className="flex items-center justify-end space-x-1">
                         <span className="text-xs text-gray-300">
-                            {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                         {renderTicks()}
                         {message.pinned && (
@@ -3734,7 +3645,7 @@ const ChatMessage = ({
                         className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 z-10`}
                         onMouseLeave={() => setShowReactionPicker(false)}
                     >
-                        <EmojiPicker 
+                        <EmojiPicker
                             onEmojiClick={(emojiObject) => handleAddReaction(emojiObject.emoji)}
                             width={300}
                             height={400}
@@ -3750,7 +3661,9 @@ const ChatMessage = ({
                         {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
                             <div
                                 key={emoji}
-                                className={`bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1 cursor-pointer ${userReaction === emoji ? 'border-2 border-blue-500' : ''}`}
+                                className={`bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1 cursor-pointer ${
+                                    userReaction === emoji ? "border-2 border-blue-500" : ""
+                                }`}
                                 title={users.join(", ")}
                                 onClick={() => userReaction === emoji && handleAddReaction(emoji)}
                             >
@@ -3763,7 +3676,9 @@ const ChatMessage = ({
 
                 {isSelectionMode && message._id && (
                     <div
-                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-red-500 flex items-center justify-center ${isSelected ? "bg-red-500" : "bg-transparent"}`}
+                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-red-500 flex items-center justify-center ${
+                            isSelected ? "bg-red-500" : "bg-transparent"
+                        }`}
                         onClick={(e) => {
                             e.stopPropagation();
                             toggleSelection();
@@ -3785,7 +3700,9 @@ const ChatMessage = ({
 
                 {isSelectionModeNew && message._id && (
                     <div
-                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelectedNew ? "bg-blue-500" : "bg-transparent"}`}
+                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${
+                            isSelectedNew ? "bg-blue-500" : "bg-transparent"
+                        }`}
                         onClick={(e) => {
                             e.stopPropagation();
                             toggleSelectionNew();
