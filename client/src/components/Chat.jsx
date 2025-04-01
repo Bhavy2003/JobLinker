@@ -2348,6 +2348,10 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
+
+    const [isPinMode, setIsPinMode] = useState(false);
+    const [selectedPinMessage, setSelectedPinMessage] = useState(null);
+
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
             transports: ["websocket"],
@@ -2710,7 +2714,9 @@ export default function Chat() {
             });
         }
     };
-
+    const togglePinMessageSelection = (messageId) => {
+        setSelectedPinMessage((prev) => (prev === messageId ? null : messageId));
+    };
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
         setConfirmAction("deleteChat");
@@ -2954,6 +2960,12 @@ export default function Chat() {
             }
         });
     };
+    const togglePinMode = () => {
+        setIsPinMode(!isPinMode);
+        setSelectedPinMessage(null); // Reset selected message for pinning
+        setIsSelectionMode(false); // Ensure other modes are off
+        setIsSelectionModeNew(false);
+    };
 
     const toggleMessageSelectionNew = (messageId) => {
         setSelectedMessagesNew((prev) => {
@@ -3113,93 +3125,113 @@ export default function Chat() {
                                         </svg>
                                     </button>
                                     {/* Pin Icon */}
-                                    {isSelectionMode && selectedMessages.length === 1 && (
-            <button
-                onClick={() => handlePinMessage(selectedMessages[0])}
-                className="text-white hover:text-indigo-300"
-                title="Pin Message"
+                                    <button
+            onClick={togglePinMode}
+            className="text-white hover:text-indigo-300"
+            title={isPinMode ? "Cancel Pin Mode" : "Pin Message"}
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
             >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                >
-                    <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-                    />
-                </svg>
-            </button>
-        )}
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                />
+            </svg>
+        </button>
                                     {/* Selection Mode Buttons */}
-                                    {isSelectionMode ? (
-                                        <>
+                            
+                                   {isPinMode ? (
+                                    <>
+                                        <button
+                                            className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+                                            onClick={togglePinMode}
+                                        >
+                                            Cancel Pin Mode
+                                        </button>
+                                        {selectedPinMessage && (
                                             <button
-                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={selectAllMessages}
+                                                className="bg-indigo-500 text-white px-3 py-1 rounded-lg hover:bg-indigo-600 transition sm:mt-[6px] md:mt-[6px]"
+                                                onClick={() => {
+                                                    handlePinMessage(selectedPinMessage);
+                                                    setIsPinMode(false);
+                                                    setSelectedPinMessage(null);
+                                                }}
                                             >
-                                                Select All
+                                                Pin Message
                                             </button>
+                                        )}
+                                    </>
+                                ) : isSelectionMode ? (
+                                    <>
+                                        <button
+                                            className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
+                                            onClick={selectAllMessages}
+                                        >
+                                            Select All
+                                        </button>
+                                        <button
+                                            className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+                                            onClick={toggleSelectionMode}
+                                        >
+                                            Cancel
+                                        </button>
+                                        {selectedMessages.length > 0 && (
                                             <button
-                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={toggleSelectionMode}
+                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
+                                                onClick={() => deleteMessages(selectedMessages)}
                                             >
-                                                Cancel
+                                                Delete For Everyone ({selectedMessages.length})
                                             </button>
-                                            {selectedMessages.length > 0 && (
-                                                <button
-                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                    onClick={() => deleteMessages(selectedMessages)}
-                                                >
-                                                    Delete For Everyone ({selectedMessages.length})
-                                                </button>
-                                            )}
-                                        </>
-                                    ) : isSelectionModeNew ? (
-                                        <>
+                                        )}
+                                    </>
+                                ) : isSelectionModeNew ? (
+                                    <>
+                                        <button
+                                            className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
+                                            onClick={selectAllMessagesNew}
+                                        >
+                                            Select All
+                                        </button>
+                                        <button
+                                            className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+                                            onClick={toggleSelectionModeNew}
+                                        >
+                                            Cancel
+                                        </button>
+                                        {selectedMessagesNew.length > 0 && (
                                             <button
-                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={selectAllMessagesNew}
+                                                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
+                                                onClick={() => deleteChatForMeWithSelection(selectedMessagesNew)}
                                             >
-                                                Select All
+                                                Delete For Me ({selectedMessagesNew.length})
                                             </button>
-                                            <button
-                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={toggleSelectionModeNew}
-                                            >
-                                                Cancel
-                                            </button>
-                                            {selectedMessagesNew.length > 0 && (
-                                                <button
-                                                    className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                    onClick={() => deleteChatForMeWithSelection(selectedMessagesNew)}
-                                                >
-                                                    Delete For Me ({selectedMessagesNew.length})
-                                                </button>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button
-                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
-                                                onClick={toggleSelectionMode}
-                                            >
-                                                Delete For Everyone
-                                            </button>
-                                            <button
-                                                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
-                                                onClick={toggleSelectionModeNew}
-                                            >
-                                                Delete For Me
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                                            onClick={toggleSelectionMode}
+                                        >
+                                            Delete For Everyone
+                                        </button>
+                                        <button
+                                            className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                                            onClick={toggleSelectionModeNew}
+                                        >
+                                            Delete For Me
+                                        </button>
+                                    </>
+                                )}
                             </div>
+                        </div>
                             {isMessageSearchVisible && (
                                 <div className="p-4 bg-gray-800 flex items-center">
                                     <input
@@ -3239,44 +3271,67 @@ export default function Chat() {
                             >
                                 {/* Pinned Messages Section */}
                                 {pinnedMessages.length > 0 && (
-                                    <div className="mb-4 bg-gray-700 p-2 rounded-lg">
-                                        <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-5 w-5 mr-1"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth="2"
-                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-                                                />
-                                            </svg>
-                                            Pinned Message
-                                        </div>
-                                        {pinnedMessages.map((msg) => (
-                                            <ChatMessage
-                                                key={msg._id || msg.tempId}
-                                                message={msg}
-                                                user={currentUser}
-                                                socket={socket}
-                                                isFirstNew={false}
-                                                onDelete={deleteMessages}
-                                                isSelectionMode={isSelectionMode}
-                                                isSelected={selectedMessages.includes(msg._id)}
-                                                toggleSelection={() => toggleMessageSelection(msg._id)}
-                                                isSelectionModeNew={isSelectionModeNew}
-                                                isSelectedNew={selectedMessagesNew.includes(msg._id)}
-                                                toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
-                                                onPin={handlePinMessage}
-                                            />
-                                        ))}
-                                        <hr className="border-gray-600 my-2" />
-                                    </div>
-                                )}
+        <div className="mb-4 bg-gray-700 p-2 rounded-lg">
+            <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                    />
+                </svg>
+                Pinned Message
+                {/* Unpin Button */}
+                <button
+                    onClick={() => handlePinMessage(pinnedMessages[0]._id)} // Unpin the message
+                    className="ml-2 text-yellow-400 hover:text-yellow-500"
+                    title="Unpin Message"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                        />
+                    </svg>
+                </button>
+            </div>
+            {pinnedMessages.map((msg) => (
+                <ChatMessage
+                    key={msg._id || msg.tempId}
+                    message={msg}
+                    user={currentUser}
+                    socket={socket}
+                    isFirstNew={false}
+                    onDelete={deleteMessages}
+                    isSelectionMode={isSelectionMode}
+                    isSelected={selectedMessages.includes(msg._id)}
+                    toggleSelection={() => toggleMessageSelection(msg._id)}
+                    isSelectionModeNew={isSelectionModeNew}
+                    isSelectedNew={selectedMessagesNew.includes(msg._id)}
+                    toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
+                    isPinMode={isPinMode}
+                    isPinSelected={selectedPinMessage === msg._id}
+                    togglePinSelection={() => togglePinMessageSelection(msg._id)}
+                />
+            ))}
+            <hr className="border-gray-600 my-2" />
+        </div>
+    )}
                                 {Object.keys(groupedMessages).map((date) => (
                                     <div key={date}>
                                         <div className="text-center text-gray-400 my-2">{date}</div>
@@ -3457,6 +3512,9 @@ const ChatMessage = ({
     isSelectionModeNew,
     isSelectedNew,
     toggleSelectionNew,
+    isPinMode, // New prop
+    isPinSelected, // New prop
+    togglePinSelection, // New prop
 }) => {
     if (!message) {
         console.error("ChatMessage received undefined message");
@@ -3715,6 +3773,29 @@ const ChatMessage = ({
                         }}
                     >
                         {isSelectedNew && (
+                            <svg
+                                className="w-3 h-3 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        )}
+                    </div>
+                )}
+                {isPinMode && message._id && (
+                    <div
+                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-indigo-500 flex items-center justify-center ${
+                            isPinSelected ? "bg-indigo-500" : "bg-transparent"
+                        }`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinSelection();
+                        }}
+                    >
+                        {isPinSelected && (
                             <svg
                                 className="w-3 h-3 text-white"
                                 fill="none"
