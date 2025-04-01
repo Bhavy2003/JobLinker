@@ -19,11 +19,9 @@
 
 // message.model.js
 // message.model.js
-import mongoose from "mongoose";
 const messageSchema = new mongoose.Schema({
     sender: String,
-    receiver: String, // For individual chats
-    groupId: { type: mongoose.Schema.Types.ObjectId, ref: "Group", default: null }, // For group chats
+    receiver: String,
     text: String,
     file: {
         name: String,
@@ -41,16 +39,15 @@ const messageSchema = new mongoose.Schema({
             timestamp: { type: Date, default: Date.now },
         }
     ],
+    pinned: { type: Boolean, default: false }, // New field for pinned messages
 }, {
     indexes: [
         { key: { sender: 1, receiver: 1 } },
-        { key: { groupId: 1 } },
         { key: { timestamp: 1 } },
         { key: { status: 1 } },
         { key: { "reactions.user": 1 } },
     ]
 });
-const Message = mongoose.model("Message", messageSchema);
 // const messageSchema = new mongoose.Schema({
 //     sender: String,
 //     receiver: String,
