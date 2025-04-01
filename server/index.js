@@ -2058,7 +2058,7 @@ const PORT = process.env.PORT || 8000;
 const peerServer = PeerServer({
   // This will be ignored since we're using the Express server
     path: "/myapp",
-    // server: server, // Attach PeerJS to the same HTTP server as Express
+    server: server, // Attach PeerJS to the same HTTP server as Express
 });
 // API Routes
 app.use("/api/v1/user", userRoute);
@@ -3005,17 +3005,3 @@ app.get("*", (_req, res) => {
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-

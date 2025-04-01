@@ -1,5 +1,6 @@
 
 
+
 // import React, { useState, useEffect, useRef } from "react";
 // import io from "socket.io-client";
 // import Navbar from "./shared/Navbar";
@@ -3858,7 +3859,11 @@ const VideoCall = ({ currentUserEmail, remoteUserEmail, onClose }) => {
     const peerInstance = useRef(null);
 
     useEffect(() => {
-        const peer = new Peer(currentUserEmail.replace(/[@.]/g, ""));
+        const peer = new Peer(currentUserEmail.replace(/[@.]/g, ""), {
+            host: "localhost",
+            port: 8000,
+            path: "/myapp",
+        });
         peerInstance.current = peer;
 
         peer.on("open", (id) => {
