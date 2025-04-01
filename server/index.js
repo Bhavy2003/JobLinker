@@ -2056,7 +2056,7 @@ app.use(cors(corsOptions));
 
 const PORT = process.env.PORT || 8000;
 const peerServer = PeerServer({
-    port: 8000, // This will be ignored since we're using the Express server
+  // This will be ignored since we're using the Express server
     path: "/myapp",
     server: server, // Attach PeerJS to the same HTTP server as Express
 });
