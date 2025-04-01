@@ -3114,27 +3114,27 @@ export default function Chat() {
                                     </button>
                                     {/* Pin Icon */}
                                     {isSelectionMode && selectedMessages.length === 1 && (
-                                        <button
-                                            onClick={() => handlePinMessage(selectedMessages[0])}
-                                            className="text-white hover:text-indigo-300"
-                                            title="Pin Message"
-                                        >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-6 w-6"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth="2"
-                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-                                                />
-                                            </svg>
-                                        </button>
-                                    )}
+            <button
+                onClick={() => handlePinMessage(selectedMessages[0])}
+                className="text-white hover:text-indigo-300"
+                title="Pin Message"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                    />
+                </svg>
+            </button>
+        )}
                                     {/* Selection Mode Buttons */}
                                     {isSelectionMode ? (
                                         <>
@@ -3608,6 +3608,12 @@ const ChatMessage = ({
                         wordBreak: "break-word",
                         whiteSpace: "normal",
                         overflowWrap: "normal",
+                    }}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (!isSelectionMode && !isSelectionModeNew) {
+                            setShowReactionPicker(true);
+                        }
                     }}
                 >
                     {message.text && <div>{message.text}</div>}
