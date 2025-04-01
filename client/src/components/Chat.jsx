@@ -3609,7 +3609,6 @@ const ConfirmationPopup = ({ action, data, onConfirm, onCancel, t }) => {
     );
 };
 
-
 const ChatMessage = ({
     message,
     user,
