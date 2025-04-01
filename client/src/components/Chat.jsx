@@ -2314,7 +2314,7 @@ import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
 import { v4 as uuidv4 } from "uuid";
 import EmojiPicker from "emoji-picker-react";
-
+import Peer from "peerjs";
 export default function Chat() {
     const { t } = useTranslation();
     const [allUsers, setAllUsers] = useState([]);
@@ -2348,7 +2348,7 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
-
+    const [isVideoCallVisible, setIsVideoCallVisible] = useState(false);
     const [isPinMode, setIsPinMode] = useState(false);
     const [selectedPinMessage, setSelectedPinMessage] = useState(null);
 
@@ -3136,6 +3136,26 @@ export default function Chat() {
                                             />
                                         </svg>
                                     </button>
+                                    <button
+            onClick={() => setIsVideoCallVisible(true)}
+            className="text-white hover:text-indigo-300"
+            title="Start Video Call"
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+            </svg>
+        </button>
                                     {/* Pin Icon */}
                                     <button
             onClick={togglePinMode}
@@ -3180,70 +3200,77 @@ export default function Chat() {
                     </button>
                 )}
             </>
-        ) :" "} {isSelectionMode ? (
-                                    <>
-                                        <button
-                                            className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-                                            onClick={selectAllMessages}
-                                        >
-                                            Select All
-                                        </button>
-                                        <button
-                                            className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-                                            onClick={toggleSelectionMode}
-                                        >
-                                            Cancel
-                                        </button>
-                                        {selectedMessages.length > 0 && (
-                                            <button
-                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={() => deleteMessages(selectedMessages)}
-                                            >
-                                                Delete For Everyone ({selectedMessages.length})
-                                            </button>
-                                        )}
-                                    </>
-                                ) : isSelectionModeNew ? (
-                                    <>
-                                        <button
-                                            className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-                                            onClick={selectAllMessagesNew}
-                                        >
-                                            Select All
-                                        </button>
-                                        <button
-                                            className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-                                            onClick={toggleSelectionModeNew}
-                                        >
-                                            Cancel
-                                        </button>
-                                        {selectedMessagesNew.length > 0 && (
-                                            <button
-                                                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={() => deleteChatForMeWithSelection(selectedMessagesNew)}
-                                            >
-                                                Delete For Me ({selectedMessagesNew.length})
-                                            </button>
-                                        )}
-                                    </>
-                                ) : (
-                                    <>
-                                        <button
-                                            className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
-                                            onClick={toggleSelectionMode}
-                                        >
-                                            Delete For Everyone
-                                        </button>
-                                        <button
-                                            className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
-                                            onClick={toggleSelectionModeNew}
-                                        >
-                                            Delete For Me
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        </div>
+        ) : isSelectionMode ? (
+            <>
+                <button
+                    className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
+                    onClick={selectAllMessages}
+                >
+                    Select All
+                </button>
+                <button
+                    className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+                    onClick={toggleSelectionMode}
+                >
+                    Cancel
+                </button>
+                {selectedMessages.length > 0 && (
+                    <button
+                        className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
+                        onClick={() => deleteMessages(selectedMessages)}
+                    >
+                        Delete For Everyone ({selectedMessages.length})
+                    </button>
+                )}
+            </>
+        ) : isSelectionModeNew ? (
+            <>
+                <button
+                    className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
+                    onClick={selectAllMessagesNew}
+                >
+                    Select All
+                </button>
+                <button
+                    className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+                    onClick={toggleSelectionModeNew}
+                >
+                    Cancel
+                </button>
+                {selectedMessagesNew.length > 0 && (
+                    <button
+                        className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
+                        onClick={() => deleteChatForMeWithSelection(selectedMessagesNew)}
+                    >
+                        Delete For Me ({selectedMessagesNew.length})
+                    </button>
+                )}
+            </>
+        ) : (
+            <>
+                <button
+                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                    onClick={toggleSelectionMode}
+                >
+                    Delete For Everyone
+                </button>
+                <button
+                    className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                    onClick={toggleSelectionModeNew}
+                >
+                    Delete For Me
+                </button>
+            </>
+        )}
+    </div>
+</div>
+{isVideoCallVisible && (
+            <VideoCall
+                currentUserEmail={currentUser}
+                remoteUserEmail={selectedUser.email}
+                onClose={() => setIsVideoCallVisible(false)}
+            />
+        )}
                             {isMessageSearchVisible && (
                                 <div className="p-4 bg-gray-800 flex items-center">
                                     <input
@@ -3819,6 +3846,128 @@ const ChatMessage = ({
                         )}
                     </div>
                 )}
+            </div>
+        </div>
+    );
+};
+const VideoCall = ({ currentUserEmail, remoteUserEmail, onClose }) => {
+    const [peerId, setPeerId] = useState("");
+    const [remotePeerId, setRemotePeerId] = useState(remoteUserEmail.replace(/[@.]/g, ""));
+    const myVideoRef = useRef();
+    const remoteVideoRef = useRef();
+    const peerInstance = useRef(null);
+
+    useEffect(() => {
+        const peer = new Peer(currentUserEmail.replace(/[@.]/g, ""), {
+            host: "localhost",
+            port: 8000,
+            path: "/myapp",
+        });
+        peerInstance.current = peer;
+
+        peer.on("open", (id) => {
+            setPeerId(id);
+            console.log(`My PeerJS ID is: ${id}`);
+        });
+
+        peer.on("call", (call) => {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then((stream) => {
+                    myVideoRef.current.srcObject = stream;
+                    myVideoRef.current.play();
+                    call.answer(stream);
+                    call.on("stream", (remoteStream) => {
+                        remoteVideoRef.current.srcObject = remoteStream;
+                        remoteVideoRef.current.play();
+                    });
+                })
+                .catch((err) => {
+                    console.error("Failed to get local stream:", err);
+                });
+        });
+
+        peer.on("error", (err) => {
+            console.error("PeerJS error:", err);
+        });
+
+        return () => {
+            peer.destroy();
+        };
+    }, [currentUserEmail]);
+
+    const startCall = () => {
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then((stream) => {
+                myVideoRef.current.srcObject = stream;
+                myVideoRef.current.play();
+                const call = peerInstance.current.call(remotePeerId, stream);
+                call.on("stream", (remoteStream) => {
+                    remoteVideoRef.current.srcObject = remoteStream;
+                    remoteVideoRef.current.play();
+                });
+                call.on("error", (err) => {
+                    console.error("Call error:", err);
+                });
+            })
+            .catch((err) => {
+                console.error("Failed to get local stream:", err);
+            });
+    };
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
+            <div className="bg-gray-800 rounded-lg p-6 w-11/12 max-w-4xl">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-white">Video Call with {remoteUserEmail}</h2>
+                    <button
+                        onClick={onClose}
+                        className="text-red-500 hover:text-red-300"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-6 w-6"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+                </div>
+                <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                    <div className="flex-1">
+                        <h3 className="text-white">You</h3>
+                        <video
+                            ref={myVideoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-64 bg-black rounded-lg"
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-white">{remoteUserEmail}</h3>
+                        <video
+                            ref={remoteVideoRef}
+                            autoPlay
+                            playsInline
+                            className="w-full h-64 bg-black rounded-lg"
+                        />
+                    </div>
+                </div>
+                <div className="flex justify-center mt-4">
+                    <button
+                        onClick={startCall}
+                        className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
+                    >
+                        Start Call
+                    </button>
+                </div>
             </div>
         </div>
     );
