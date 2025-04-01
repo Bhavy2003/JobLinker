@@ -2341,19 +2341,6 @@ export default function Chat() {
     const [isMessageSearchVisible, setIsMessageSearchVisible] = useState(false);
     const [messageSearchQuery, setMessageSearchQuery] = useState("");
     const [pinnedMessages, setPinnedMessages] = useState([]);
-    const [isPinMode, setIsPinMode] = useState(false);
-    const [selectedPinMessage, setSelectedPinMessage] = useState(null);
-
-    // Video Call State and Refs
-    const [isVideoCallVisible, setIsVideoCallVisible] = useState(false);
-    const [incomingCall, setIncomingCall] = useState(null);
-    const [isIncomingCallModalVisible, setIsIncomingCallModalVisible] = useState(false);
-    const [call, setCall] = useState(null);
-    const [callStarted, setCallStarted] = useState(false);
-    const myVideoRef = useRef();
-    const remoteVideoRef = useRef();
-    const peerRef = useRef(null);
-
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
     const storageKey = `sentUsers_${currentUser}`;
@@ -2362,7 +2349,13 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
-
+    const [isVideoCallVisible, setIsVideoCallVisible] = useState(false);
+    const [isPinMode, setIsPinMode] = useState(false);
+    const [selectedPinMessage, setSelectedPinMessage] = useState(null);
+    const peerRef = useRef(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [isIncomingCallModalVisible, setIsIncomingCallModalVisible] = useState(false);
+//   const [isVideoCallVisible, setIsVideoCallVisible] = useState(false);
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
             transports: ["websocket"],
@@ -2370,130 +2363,6 @@ export default function Chat() {
         })
     );
     const socket = socketRef.current;
-
-    // Initialize PeerJS for Video Calls
-    useEffect(() => {
-        const peer = new Peer(currentUser.replace(/[@.]/g, ""), {
-            host: "joblinker-1.onrender.com",
-            port: 443,
-            path: "/myapp",
-            secure: true,
-        });
-        peerRef.current = peer;
-
-        peer.on("open", (id) => {
-            console.log(`My PeerJS ID is: ${id}`);
-        });
-
-        peer.on("call", (call) => {
-            console.log("Incoming call received from:", call.peer);
-            setIncomingCall(call);
-            setIsIncomingCallModalVisible(true);
-        });
-
-        peer.on("error", (err) => {
-            console.error("PeerJS error:", err);
-            toast.error(`PeerJS error: ${err.message}`);
-            if (err.type === "peer-unavailable") {
-                toast.error("The user you are trying to call is not available.");
-            }
-        });
-
-        return () => {
-            peer.destroy();
-        };
-    }, [currentUser]);
-
-    // Debug incoming call modal visibility
-    useEffect(() => {
-        console.log("Incoming call modal visibility:", isIncomingCallModalVisible);
-    }, [isIncomingCallModalVisible]);
-
-    // Video Call Functions
-    const startCall = () => {
-        if (!selectedUser) {
-            toast.error("Please select a user to call");
-            return;
-        }
-
-        navigator.mediaDevices
-            .getUserMedia({ video: true, audio: true })
-            .then((stream) => {
-                myVideoRef.current.srcObject = stream;
-                myVideoRef.current.play();
-                const remotePeerId = selectedUser.email.replace(/[@.]/g, "");
-                console.log("Calling user with PeerJS ID:", remotePeerId);
-                const newCall = peerRef.current.call(remotePeerId, stream);
-                setCall(newCall);
-                setCallStarted(true);
-                setIsVideoCallVisible(true);
-                newCall.on("stream", (remoteStream) => {
-                    remoteVideoRef.current.srcObject = remoteStream;
-                    remoteVideoRef.current.play();
-                });
-                newCall.on("error", (err) => {
-                    console.error("Call error:", err);
-                    toast.error(`Call error: ${err.message}`);
-                });
-                newCall.on("close", () => {
-                    endCall();
-                });
-            })
-            .catch((err) => {
-                console.error("Failed to get local stream:", err);
-                toast.error(`Failed to access media devices: ${err.message}`);
-            });
-    };
-
-    const acceptCall = () => {
-        navigator.mediaDevices
-            .getUserMedia({ video: true, audio: true })
-            .then((stream) => {
-                myVideoRef.current.srcObject = stream;
-                myVideoRef.current.play();
-                incomingCall.answer(stream);
-                setCall(incomingCall);
-                setCallStarted(true);
-                setIsVideoCallVisible(true);
-                setIsIncomingCallModalVisible(false);
-                incomingCall.on("stream", (remoteStream) => {
-                    remoteVideoRef.current.srcObject = remoteStream;
-                    remoteVideoRef.current.play();
-                });
-                incomingCall.on("close", () => {
-                    endCall();
-                });
-            })
-            .catch((err) => {
-                console.error("Failed to get local stream:", err);
-                toast.error(`Failed to access media devices: ${err.message}`);
-            });
-    };
-
-    const declineCall = () => {
-        if (incomingCall) {
-            incomingCall.close();
-        }
-        setIncomingCall(null);
-        setIsIncomingCallModalVisible(false);
-    };
-
-    const endCall = () => {
-        if (call) {
-            call.close();
-        }
-        if (myVideoRef.current && myVideoRef.current.srcObject) {
-            myVideoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-        }
-        if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
-            remoteVideoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-        }
-        setCall(null);
-        setCallStarted(false);
-        setIsVideoCallVisible(false);
-        setIncomingCall(null);
-        setIsIncomingCallModalVisible(false);
-    };
 
     const scrollToBottom = () => {
         if (chatContainerRef.current) {
@@ -2680,16 +2549,16 @@ export default function Chat() {
                 const updatedMessages = prevMessages.map((msg) =>
                     msg._id === updatedMessage._id
                         ? { ...msg, pinned: updatedMessage.pinned }
-                        : { ...msg, pinned: false }
+                        : { ...msg, pinned: false } // Unpin all other messages
                 );
                 saveMessagesToLocalStorage(updatedMessages);
                 return updatedMessages;
             });
-
+        
             if (updatedMessage.pinned) {
-                setPinnedMessages([updatedMessage]);
+                setPinnedMessages([updatedMessage]); // Only one pinned message
             } else {
-                setPinnedMessages([]);
+                setPinnedMessages([]); // Clear pinned messages if unpinned
             }
         });
 
@@ -2709,7 +2578,45 @@ export default function Chat() {
             socket.off("pinNotification");
         };
     }, [allUsers, currentUser]);
-
+    useEffect(() => {
+        const peer = new Peer(currentUser.replace(/[@.]/g, ""), {
+          host: "localhost",
+          port: 8000,
+          path: "/myapp",
+        });
+        peerRef.current = peer;
+    
+        peer.on("open", (id) => {
+          console.log(`My PeerJS ID is: ${id}`);
+        });
+    
+        peer.on("call", (call) => {
+          setIncomingCall(call);
+          setIsIncomingCallModalVisible(true);
+        });
+    
+        peer.on("error", (err) => {
+          console.error("PeerJS error:", err);
+        });
+    
+        return () => {
+          peer.destroy();
+        };
+      }, [currentUser]);
+    
+      const acceptCall = () => {
+        setIsVideoCallVisible(true);
+        setIsIncomingCallModalVisible(false);
+        // The VideoCall component will handle answering the call
+      };
+    
+      const declineCall = () => {
+        if (incomingCall) {
+          incomingCall.close();
+        }
+        setIncomingCall(null);
+        setIsIncomingCallModalVisible(false);
+      };
     useEffect(() => {
         socket.on("message", (msg) => {
             if (
@@ -2800,6 +2707,7 @@ export default function Chat() {
                 });
             });
 
+            // Load pinned messages initially
             const initialPinned = cachedMessages.filter((msg) => msg.pinned);
             setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
         }
@@ -2830,17 +2738,19 @@ export default function Chat() {
             console.error("Message not found for pinning:", messageId);
             return;
         }
-
+    
         const currentlyPinned = pinnedMessages.length > 0 ? pinnedMessages[0] : null;
-
+    
         if (currentlyPinned && currentlyPinned._id === messageId) {
+            // Unpin the message if it's already pinned
             socket.emit("pinMessage", {
                 messageId,
                 sender: currentUser,
                 receiver: selectedUser.email,
-                pinned: false,
+                pinned: false, // Explicitly set to unpin
             });
         } else {
+            // Unpin the currently pinned message (if any) and pin the new one
             if (currentlyPinned) {
                 socket.emit("pinMessage", {
                     messageId: currentlyPinned._id,
@@ -2849,6 +2759,7 @@ export default function Chat() {
                     pinned: false,
                 });
             }
+            // Pin the new message
             socket.emit("pinMessage", {
                 messageId,
                 sender: currentUser,
@@ -2857,11 +2768,9 @@ export default function Chat() {
             });
         }
     };
-
     const togglePinMessageSelection = (messageId) => {
         setSelectedPinMessage((prev) => (prev === messageId ? null : messageId));
     };
-
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
         setConfirmAction("deleteChat");
@@ -3087,20 +2996,13 @@ export default function Chat() {
     const toggleSelectionMode = () => {
         setIsSelectionMode(!isSelectionMode);
         setSelectedMessages([]);
-        setIsSelectionModeNew(false);
+        setIsSelectionModeNew(false); // Ensure only one mode is active
     };
 
     const toggleSelectionModeNew = () => {
         setIsSelectionModeNew(!isSelectionModeNew);
         setSelectedMessagesNew([]);
-        setIsSelectionMode(false);
-    };
-
-    const togglePinMode = () => {
-        setIsPinMode(!isPinMode);
-        setSelectedPinMessage(null);
-        setIsSelectionMode(false);
-        setIsSelectionModeNew(false);
+        setIsSelectionMode(false); // Ensure only one mode is active
     };
 
     const toggleMessageSelection = (messageId) => {
@@ -3111,6 +3013,12 @@ export default function Chat() {
                 return [...prev, messageId];
             }
         });
+    };
+    const togglePinMode = () => {
+        setIsPinMode(!isPinMode);
+    setSelectedPinMessage(null); // Reset selected message for pinning
+    setIsSelectionMode(false); // Ensure other modes are off
+    setIsSelectionModeNew(false);
     };
 
     const toggleMessageSelectionNew = (messageId) => {
@@ -3250,6 +3158,7 @@ export default function Chat() {
                                     </h2>
                                 </div>
                                 <div className="flex flex-col sm:flex-col md:flex-col lg:flex-row xl:flex-row items-center space-x-2">
+                                    {/* Search Icon */}
                                     <button
                                         onClick={() => setIsMessageSearchVisible(!isMessageSearchVisible)}
                                         className="text-white hover:text-indigo-300"
@@ -3270,226 +3179,165 @@ export default function Chat() {
                                         </svg>
                                     </button>
                                     <button
-                                        onClick={startCall}
-                                        className="text-white hover:text-indigo-300"
-                                        title="Start Video Call"
-                                        disabled={callStarted}
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-6 w-6"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth="2"
-                                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                            />
-                                        </svg>
-                                    </button>
+            onClick={() => setIsVideoCallVisible(true)}
+            className="text-white hover:text-indigo-300"
+            title="Start Video Call"
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+            </svg>
+        </button>
+                                    {/* Pin Icon */}
                                     <button
-                                        onClick={togglePinMode}
-                                        className="text-white hover:text-indigo-300"
-                                        title={isPinMode ? "Cancel Pin Mode" : "Pin Message"}
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-6 w-6"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth="2"
-                                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-                                            />
-                                        </svg>
-                                    </button>
+            onClick={togglePinMode}
+            className="text-white hover:text-indigo-300"
+            title={isPinMode ? "Cancel Pin Mode" : "Pin Message"}
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                />
+            </svg>
+        </button>
+                                    {/* Selection Mode Buttons */}
+                            
                                     {isPinMode ? (
-                                        <>
-                                            <button
-                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={togglePinMode}
-                                            >
-                                                Cancel Pin Mode
-                                            </button>
-                                            {selectedPinMessage && (
-                                                <button
-                                                    className="bg-indigo-500 text-white px-3 py-1 rounded-lg hover:bg-indigo-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                    onClick={() => {
-                                                        handlePinMessage(selectedPinMessage);
-                                                        setIsPinMode(false);
-                                                        setSelectedPinMessage(null);
-                                                    }}
-                                                >
-                                                    Pin Message
-                                                </button>
-                                            )}
-                                        </>
-                                    ) : isSelectionMode ? (
-                                        <>
-                                            <button
-                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={selectAllMessages}
-                                            >
-                                                Select All
-                                            </button>
-                                            <button
-                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={toggleSelectionMode}
-                                            >
-                                                Cancel
-                                            </button>
-                                            {selectedMessages.length > 0 && (
-                                                <button
-                                                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                    onClick={() => deleteMessages(selectedMessages)}
-                                                >
-                                                    Delete For Everyone ({selectedMessages.length})
-                                                </button>
-                                            )}
-                                        </>
-                                    ) : isSelectionModeNew ? (
-                                        <>
-                                            <button
-                                                className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={selectAllMessagesNew}
-                                            >
-                                                Select All
-                                            </button>
-                                            <button
-                                                className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                onClick={toggleSelectionModeNew}
-                                            >
-                                                Cancel
-                                            </button>
-                                            {selectedMessagesNew.length > 0 && (
-                                                <button
-                                                    className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
-                                                    onClick={() => deleteChatForMeWithSelection(selectedMessagesNew)}
-                                                >
-                                                    Delete For Me ({selectedMessagesNew.length})
-                                                </button>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button
-                                                className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
-                                                onClick={toggleSelectionMode}
-                                            >
-                                                Delete For Everyone
-                                            </button>
-                                            <button
-                                                className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
-                                                onClick={toggleSelectionModeNew}
-                                            >
-                                                Delete For Me
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            {isIncomingCallModalVisible && (
-                                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-                                    <div className="bg-gray-800 rounded-lg p-6">
-                                        <h2 className="text-xl font-bold text-white">
-                                            Incoming Call from {incomingCall?.peer}
-                                        </h2>
-                                        <div className="flex justify-end space-x-3 mt-4">
-                                            <button
-                                                onClick={declineCall}
-                                                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
-                                            >
-                                                Decline
-                                            </button>
-                                            <button
-                                                onClick={acceptCall}
-                                                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
-                                            >
-                                                Accept
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {isVideoCallVisible && (
-                                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
-                                    <div className="bg-gray-800 rounded-lg p-6 w-11/12 max-w-4xl">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h2 className="text-xl font-bold text-white">
-                                                Video Call with {selectedUser.email}
-                                            </h2>
-                                            <button onClick={endCall} className="text-red-500 hover:text-red-300">
-                                                <svg
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    className="h-6 w-6"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth="2"
-                                                        d="M6 18L18 6M6 6l12 12"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-                                            <div className="flex-1">
-                                                <h3 className="text-white">You</h3>
-                                                <video
-                                                    ref={myVideoRef}
-                                                    autoPlay
-                                                    playsInline
-                                                    muted
-                                                    className="w-full h-64 bg-black rounded-lg"
-                                                />
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3 className="text-white">{selectedUser.email}</h3>
-                                                <video
-                                                    ref={remoteVideoRef}
-                                                    autoPlay
-                                                    playsInline
-                                                    className="w-full h-64 bg-black rounded-lg"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="flex justify-center mt-4">
-                                            {!incomingCall && (
-                                                <button
-                                                    onClick={startCall}
-                                                    disabled={callStarted}
-                                                    className={`${
-                                                        callStarted
-                                                            ? "bg-gray-500 cursor-not-allowed"
-                                                            : "bg-green-500 hover:bg-green-600"
-                                                    } text-white px-4 py-2 rounded-lg transition`}
-                                                >
-                                                    {callStarted ? "Started Call" : "Start Call"}
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={endCall}
-                                                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition ml-4"
-                                            >
-                                                End Call
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
+            <>
+                <button
+                    className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+                    onClick={togglePinMode}
+                >
+                    Cancel Pin Mode
+                </button>
+                {selectedPinMessage && (
+                    <button
+                        className="bg-indigo-500 text-white px-3 py-1 rounded-lg hover:bg-indigo-600 transition sm:mt-[6px] md:mt-[6px]"
+                        onClick={() => {
+                            handlePinMessage(selectedPinMessage);
+                            setIsPinMode(false);
+                            setSelectedPinMessage(null);
+                        }}
+                    >
+                        Pin Message
+                    </button>
+                )}
+            </>
+        ) : isSelectionMode ? (
+            <>
+                <button
+                    className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
+                    onClick={selectAllMessages}
+                >
+                    Select All
+                </button>
+                <button
+                    className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+                    onClick={toggleSelectionMode}
+                >
+                    Cancel
+                </button>
+                {selectedMessages.length > 0 && (
+                    <button
+                        className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
+                        onClick={() => deleteMessages(selectedMessages)}
+                    >
+                        Delete For Everyone ({selectedMessages.length})
+                    </button>
+                )}
+            </>
+        ) : isSelectionModeNew ? (
+            <>
+                <button
+                    className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
+                    onClick={selectAllMessagesNew}
+                >
+                    Select All
+                </button>
+                <button
+                    className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+                    onClick={toggleSelectionModeNew}
+                >
+                    Cancel
+                </button>
+                {selectedMessagesNew.length > 0 && (
+                    <button
+                        className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
+                        onClick={() => deleteChatForMeWithSelection(selectedMessagesNew)}
+                    >
+                        Delete For Me ({selectedMessagesNew.length})
+                    </button>
+                )}
+            </>
+        ) : (
+            <>
+                <button
+                    className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                    onClick={toggleSelectionMode}
+                >
+                    Delete For Everyone
+                </button>
+                <button
+                    className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                    onClick={toggleSelectionModeNew}
+                >
+                    Delete For Me
+                </button>
+            </>
+        )}
+    </div>
+</div>
+{isIncomingCallModalVisible && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h2 className="text-xl font-bold text-white">
+                      Incoming Call from {incomingCall.peer}
+                    </h2>
+                    <div className="flex justify-end space-x-3 mt-4">
+                      <button
+                        onClick={declineCall}
+                        className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                      >
+                        Decline
+                      </button>
+                      <button
+                        onClick={acceptCall}
+                        className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+                      >
+                        Accept
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+{isVideoCallVisible && (
+            <VideoCall
+                currentUserEmail={currentUser}
+                remoteUserEmail={selectedUser.email}
+                onClose={() => setIsVideoCallVisible(false)}
+                  peer={peerRef.current}
+                  incomingCall={incomingCall}
+            />
+        )}
                             {isMessageSearchVisible && (
                                 <div className="p-4 bg-gray-800 flex items-center">
                                     <input
@@ -3527,70 +3375,72 @@ export default function Chat() {
                                 ref={chatContainerRef}
                                 className="flex-1 overflow-y-auto p-10 max-h-[calc(100vh-200px)]"
                             >
+                                {/* Pinned Messages Section */}
                                 {pinnedMessages.length > 0 && (
-                                    <div className="mb-4 bg-gray-700 p-2 rounded-lg">
-                                        <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-5 w-5 mr-1"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth="2"
-                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-                                                />
-                                            </svg>
-                                            Pinned Message
-                                        </div>
-                                        {pinnedMessages.map((msg) => (
-                                            <div key={msg._id || msg.tempId} className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <ChatMessage
-                                                        message={msg}
-                                                        user={currentUser}
-                                                        socket={socket}
-                                                        isFirstNew={false}
-                                                        onDelete={deleteMessages}
-                                                        isSelectionMode={isSelectionMode}
-                                                        isSelected={selectedMessages.includes(msg._id)}
-                                                        toggleSelection={() => toggleMessageSelection(msg._id)}
-                                                        isSelectionModeNew={isSelectionModeNew}
-                                                        isSelectedNew={selectedMessagesNew.includes(msg._id)}
-                                                        toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
-                                                        isPinMode={isPinMode}
-                                                        isPinSelected={selectedPinMessage === msg._id}
-                                                        togglePinSelection={() => togglePinMessageSelection(msg._id)}
-                                                    />
-                                                </div>
-                                                <button
-                                                    onClick={() => handlePinMessage(msg._id)}
-                                                    className="ml-2 text-yellow-400 hover:text-yellow-500"
-                                                    title="Unpin Message"
-                                                >
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        className="h-5 w-5"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        stroke="currentColor"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth="2"
-                                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-                                                        />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        ))}
-                                        <hr className="border-gray-600 my-2" />
-                                    </div>
-                                )}
+        <div className="mb-4 bg-gray-700 p-2 rounded-lg">
+            <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                    />
+                </svg>
+                Pinned Message
+            </div>
+            {pinnedMessages.map((msg) => (
+                <div key={msg._id || msg.tempId} className="flex items-center justify-between">
+                    <div className="flex-1">
+                        <ChatMessage
+                            message={msg}
+                            user={currentUser}
+                            socket={socket}
+                            isFirstNew={false}
+                            onDelete={deleteMessages}
+                            isSelectionMode={isSelectionMode}
+                            isSelected={selectedMessages.includes(msg._id)}
+                            toggleSelection={() => toggleMessageSelection(msg._id)}
+                            isSelectionModeNew={isSelectionModeNew}
+                            isSelectedNew={selectedMessagesNew.includes(msg._id)}
+                            toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
+                            isPinMode={isPinMode}
+                            isPinSelected={selectedPinMessage === msg._id}
+                            togglePinSelection={() => togglePinMessageSelection(msg._id)}
+                        />
+                    </div>
+                    {/* Unpin Button Beside the Message */}
+                    <button
+                        onClick={() => handlePinMessage(msg._id)} // Unpin the message
+                        className="ml-2 text-yellow-400 hover:text-yellow-500"
+                        title="Unpin Message"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                            />
+                        </svg>
+                    </button>
+                </div>
+            ))}
+            <hr className="border-gray-600 my-2" />
+        </div>
+    )}
                                 {Object.keys(groupedMessages).map((date) => (
                                     <div key={date}>
                                         <div className="text-center text-gray-400 my-2">{date}</div>
@@ -3617,9 +3467,6 @@ export default function Chat() {
                                                     isSelectionModeNew={isSelectionModeNew}
                                                     isSelectedNew={selectedMessagesNew.includes(msg._id)}
                                                     toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
-                                                    isPinMode={isPinMode}
-                                                    isPinSelected={selectedPinMessage === msg._id}
-                                                    togglePinSelection={() => togglePinMessageSelection(msg._id)}
                                                 />
                                             ))}
                                     </div>
@@ -3774,9 +3621,9 @@ const ChatMessage = ({
     isSelectionModeNew,
     isSelectedNew,
     toggleSelectionNew,
-    isPinMode,
-    isPinSelected,
-    togglePinSelection,
+    isPinMode, // New prop
+    isPinSelected, // New prop
+    togglePinSelection, // New prop
 }) => {
     if (!message) {
         console.error("ChatMessage received undefined message");
@@ -3904,7 +3751,7 @@ const ChatMessage = ({
             <div
                 className={`relative ${isSelected || isSelectedNew || isPinSelected ? "bg-opacity-75" : ""}`}
                 onClick={() => {
-                    if (isPinMode && message._id) togglePinSelection();
+                    if (isPinMode && message._id) togglePinSelection(); // Enable selection in pin mode
                     else if (isSelectionMode && message._id) toggleSelection();
                     else if (isSelectionModeNew && message._id) toggleSelectionNew();
                 }}
@@ -4043,7 +3890,6 @@ const ChatMessage = ({
                     </div>
                 )}
 
-            
                 {isPinMode && message._id && (
                     <div
                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-indigo-500 flex items-center justify-center ${
