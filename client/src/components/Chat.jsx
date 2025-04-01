@@ -3655,14 +3655,15 @@ const ChatMessage = ({
                 </span>
             )}
             <div
-                className={`relative ${isSelected || isSelectedNew ? "bg-opacity-75" : ""}`}
+                className={`relative ${isSelected || isSelectedNew || isPinSelected ? "bg-opacity-75" : ""}`}
                 onClick={() => {
-                    if (isSelectionMode) toggleSelection();
-                    else if (isSelectionModeNew) toggleSelectionNew();
+                    if (isPinMode && message._id) togglePinSelection(); // Enable selection in pin mode
+                    else if (isSelectionMode && message._id) toggleSelection();
+                    else if (isSelectionModeNew && message._id) toggleSelectionNew();
                 }}
                 onContextMenu={(e) => {
                     e.preventDefault();
-                    if (!isSelectionMode && !isSelectionModeNew) {
+                    if (!isSelectionMode && !isSelectionModeNew && !isPinMode) {
                         setShowReactionPicker(true);
                     }
                 }}
@@ -3681,12 +3682,6 @@ const ChatMessage = ({
                         wordBreak: "break-word",
                         whiteSpace: "normal",
                         overflowWrap: "normal",
-                    }}
-                    onContextMenu={(e) => {
-                        e.preventDefault();
-                        if (!isSelectionMode && !isSelectionModeNew) {
-                            setShowReactionPicker(true);
-                        }
                     }}
                 >
                     {message.text && <div>{message.text}</div>}
@@ -3800,6 +3795,7 @@ const ChatMessage = ({
                         )}
                     </div>
                 )}
+
                 {isPinMode && message._id && (
                     <div
                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-indigo-500 flex items-center justify-center ${
