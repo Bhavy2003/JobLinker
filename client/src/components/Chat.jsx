@@ -2480,9 +2480,9 @@ export default function Chat() {
                     const senderDetails = allUsers.find((user) => user.email === msgData.sender);
                     if (!senderDetails) return prevSentUsers;
                     const existingIndex = updatedSentUsers.findIndex((u) => u.email === msgData.sender);
-
+    
                     toast.info(`New message from ${msgData.sender}: ${msgData.text || "File"}`);
-
+    
                     if (existingIndex === -1) {
                         updatedSentUsers.unshift({ ...senderDetails, hasNewMessage: true });
                     } else {
@@ -2491,7 +2491,7 @@ export default function Chat() {
                     }
                     return updatedSentUsers;
                 });
-
+    
                 setUnreadMessages((prev) => {
                     const exists = prev.some((m) => m.tempId === msgData.tempId || m._id === msgData._id);
                     if (!exists) {
@@ -2501,8 +2501,13 @@ export default function Chat() {
                 });
             }
         });
-        
-
+    
+        socket.on("reactionNotification", ({ messageId, reactor, emoji }) => {
+            if (reactor !== currentUser) {
+                toast.info(`${reactor} reacted to a message with ${emoji}`);
+            }
+        });
+    
         socket.on("messageDeleted", ({ messageIds }) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
@@ -2510,7 +2515,7 @@ export default function Chat() {
                 return updatedMessages;
             });
         });
-
+    
         socket.on("messagesDeletedForMe", ({ messageIds }) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
@@ -2518,7 +2523,7 @@ export default function Chat() {
                 return updatedMessages;
             });
         });
-
+    
         socket.on("messageStatusUpdated", (updatedMessage) => {
             setMessages((prevMessages) => {
                 const updatedMessages = prevMessages.map((msg) =>
@@ -2530,9 +2535,10 @@ export default function Chat() {
                 return updatedMessages;
             });
         });
-
+    
         return () => {
             socket.off("newMessageNotification");
+            socket.off("reactionNotification");
             socket.off("messageDeleted");
             socket.off("messagesDeletedForMe");
             socket.off("messageStatusUpdated");
@@ -3069,6 +3075,25 @@ export default function Chat() {
                                     </h2>
                                 </div>
                                 <div className="flex flex-col sm:flex-col md:flex-col lg:flex-row xl:flex-row items-center space-x-2">
+                                <button
+                                    onClick={() => setIsMessageSearchVisible(!isMessageSearchVisible)}
+                                    className="text-white hover:text-indigo-300"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-6 w-6"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                        />
+                                    </svg>
+                                </button>
                                     {isSelectionMode ? (
                                         <>
                                             <button
@@ -3172,14 +3197,30 @@ export default function Chat() {
                                 </button>
                             </div>
                         )}
-                            <div
+                           <div
                 ref={chatContainerRef}
                 className="flex-1 overflow-y-auto p-10 max-h-[calc(100vh-200px)]"
             >
                 {/* Pinned Messages Section */}
                 {pinnedMessages.length > 0 && (
-                    <div className="mb-4">
-                        <div className="text-center text-gray-400 my-2">Pinned Messages</div>
+                    <div className="mb-4 bg-gray-700 p-2 rounded-lg">
+                        <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5 mr-1"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                                />
+                            </svg>
+                            Pinned Messages
+                        </div>
                         {pinnedMessages.map((msg) => (
                             <ChatMessage
                                 key={msg._id || msg.tempId}
@@ -3538,13 +3579,7 @@ const ChatMessage = ({
                             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         {renderTicks()}
-                        <button
-                            onClick={() => onPin(message._id)}
-                            className="text-gray-300 hover:text-white ml-2"
-                            title={message.pinned ? "Unpin" : "Pin"}
-                        >
-                            {message.pinned ? "📌" : "📍"}
-                        </button>
+                        
                     </div>
                 </div>
 
