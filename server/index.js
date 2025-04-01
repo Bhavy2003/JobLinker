@@ -2942,32 +2942,6 @@ io.on("connection", (socket) => {
             console.error("Error deleting chat:", error);
         }
     });
-    socket.on("initiateVideoCall", ({ caller, receiver }) => {
-        console.log(`Video call initiated from ${caller} to ${receiver}`);
-        io.to(receiver).emit("incomingVideoCall", { caller });
-      });
-    
-      // Join chat room
-      socket.on("joinChat", ({ sender, receiver }) => {
-        const room = [sender, receiver].sort().join("_");
-        socket.join(room);
-        console.log(`${sender} joined chat room: ${room}`);
-    
-        // Load messages for the chat
-        Message.find({
-          $or: [
-            { sender, receiver },
-            { sender: receiver, receiver: sender },
-          ],
-        })
-          .sort({ timestamp: 1 })
-          .then((messages) => {
-            socket.emit("loadMessages", messages);
-          })
-          .catch((err) => {
-            console.error("Error loading messages:", err);
-          });
-      });
     socket.on("pinMessage", async ({ messageId, sender, receiver }) => {
         try {
             const message = await Message.findById(messageId);

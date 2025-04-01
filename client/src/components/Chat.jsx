@@ -3918,141 +3918,141 @@ const ChatMessage = ({
         </div>
     );
 };
-// const VideoCall = ({ currentUserEmail, remoteUserEmail, onClose, peer, incomingCall }) => {
-//     const myVideoRef = useRef();
-//     const remoteVideoRef = useRef();
-//     const [call, setCall] = useState(incomingCall || null);
-//     const [callStarted, setCallStarted] = useState(!!incomingCall);
+const VideoCall = ({ currentUserEmail, remoteUserEmail, onClose, peer, incomingCall }) => {
+    const myVideoRef = useRef();
+    const remoteVideoRef = useRef();
+    const [call, setCall] = useState(incomingCall || null);
+    const [callStarted, setCallStarted] = useState(!!incomingCall);
   
-//     useEffect(() => {
-//       if (incomingCall) {
-//         // Handle incoming call
-//         navigator.mediaDevices
-//           .getUserMedia({ video: true, audio: true })
-//           .then((stream) => {
-//             myVideoRef.current.srcObject = stream;
-//             myVideoRef.current.play();
-//             incomingCall.answer(stream);
-//             incomingCall.on("stream", (remoteStream) => {
-//               remoteVideoRef.current.srcObject = remoteStream;
-//               remoteVideoRef.current.play();
-//             });
-//             incomingCall.on("close", () => {
-//               endCall();
-//             });
-//           })
-//           .catch((err) => {
-//             console.error("Failed to get local stream:", err);
-//           });
-//       }
-//     }, [incomingCall]);
+    useEffect(() => {
+      if (incomingCall) {
+        // Handle incoming call
+        navigator.mediaDevices
+          .getUserMedia({ video: true, audio: true })
+          .then((stream) => {
+            myVideoRef.current.srcObject = stream;
+            myVideoRef.current.play();
+            incomingCall.answer(stream);
+            incomingCall.on("stream", (remoteStream) => {
+              remoteVideoRef.current.srcObject = remoteStream;
+              remoteVideoRef.current.play();
+            });
+            incomingCall.on("close", () => {
+              endCall();
+            });
+          })
+          .catch((err) => {
+            console.error("Failed to get local stream:", err);
+          });
+      }
+    }, [incomingCall]);
   
-//     const startCall = () => {
-//       navigator.mediaDevices
-//         .getUserMedia({ video: true, audio: true })
-//         .then((stream) => {
-//           myVideoRef.current.srcObject = stream;
-//           myVideoRef.current.play();
-//           const remotePeerId = remoteUserEmail.replace(/[@.]/g, "");
-//           const newCall = peer.call(remotePeerId, stream);
-//           setCall(newCall);
-//           setCallStarted(true);
-//           newCall.on("stream", (remoteStream) => {
-//             remoteVideoRef.current.srcObject = remoteStream;
-//             remoteVideoRef.current.play();
-//           });
-//           newCall.on("error", (err) => {
-//             console.error("Call error:", err);
-//           });
-//           newCall.on("close", () => {
-//             endCall();
-//           });
-//         })
-//         .catch((err) => {
-//           console.error("Failed to get local stream:", err);
-//         });
-//     };
+    const startCall = () => {
+      navigator.mediaDevices
+        .getUserMedia({ video: true, audio: true })
+        .then((stream) => {
+          myVideoRef.current.srcObject = stream;
+          myVideoRef.current.play();
+          const remotePeerId = remoteUserEmail.replace(/[@.]/g, "");
+          const newCall = peer.call(remotePeerId, stream);
+          setCall(newCall);
+          setCallStarted(true);
+          newCall.on("stream", (remoteStream) => {
+            remoteVideoRef.current.srcObject = remoteStream;
+            remoteVideoRef.current.play();
+          });
+          newCall.on("error", (err) => {
+            console.error("Call error:", err);
+          });
+          newCall.on("close", () => {
+            endCall();
+          });
+        })
+        .catch((err) => {
+          console.error("Failed to get local stream:", err);
+        });
+    };
   
-//     const endCall = () => {
-//       if (call) {
-//         call.close();
-//       }
-//       if (myVideoRef.current && myVideoRef.current.srcObject) {
-//         myVideoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-//       }
-//       if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
-//         remoteVideoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-//       }
-//       setCall(null);
-//       setCallStarted(false);
-//       onClose();
-//     };
+    const endCall = () => {
+      if (call) {
+        call.close();
+      }
+      if (myVideoRef.current && myVideoRef.current.srcObject) {
+        myVideoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+      }
+      if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+        remoteVideoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+      }
+      setCall(null);
+      setCallStarted(false);
+      onClose();
+    };
   
-//     return (
-//       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
-//         <div className="bg-gray-800 rounded-lg p-6 w-11/12 max-w-4xl">
-//           <div className="flex justify-between items-center mb-4">
-//             <h2 className="text-xl font-bold text-white">Video Call with {remoteUserEmail}</h2>
-//             <button onClick={endCall} className="text-red-500 hover:text-red-300">
-//               <svg
-//                 xmlns="http://www.w3.org/2000/svg"
-//                 className="h-6 w-6"
-//                 fill="none"
-//                 viewBox="0 0 24 24"
-//                 stroke="currentColor"
-//               >
-//                 <path
-//                   strokeLinecap="round"
-//                   strokeLinejoin="round"
-//                   strokeWidth="2"
-//                   d="M6 18L18 6M6 6l12 12"
-//                 />
-//               </svg>
-//             </button>
-//           </div>
-//           <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-//             <div className="flex-1">
-//               <h3 className="text-white">You</h3>
-//               <video
-//                 ref={myVideoRef}
-//                 autoPlay
-//                 playsInline
-//                 muted
-//                 className="w-full h-64 bg-black rounded-lg"
-//               />
-//             </div>
-//             <div className="flex-1">
-//               <h3 className="text-white">{remoteUserEmail}</h3>
-//               <video
-//                 ref={remoteVideoRef}
-//                 autoPlay
-//                 playsInline
-//                 className="w-full h-64 bg-black rounded-lg"
-//               />
-//             </div>
-//           </div>
-//           <div className="flex justify-center mt-4">
-//             {!incomingCall && (
-//               <button
-//                 onClick={startCall}
-//                 disabled={callStarted}
-//                 className={`${
-//                   callStarted
-//                     ? "bg-gray-500 cursor-not-allowed"
-//                     : "bg-green-500 hover:bg-green-600"
-//                 } text-white px-4 py-2 rounded-lg transition`}
-//               >
-//                 {callStarted ? "Started Call" : "Start Call"}
-//               </button>
-//             )}
-//             <button
-//               onClick={endCall}
-//               className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition ml-4"
-//             >
-//               End Call
-//             </button>
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   };
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
+        <div className="bg-gray-800 rounded-lg p-6 w-11/12 max-w-4xl">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-white">Video Call with {remoteUserEmail}</h2>
+            <button onClick={endCall} className="text-red-500 hover:text-red-300">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+            <div className="flex-1">
+              <h3 className="text-white">You</h3>
+              <video
+                ref={myVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-64 bg-black rounded-lg"
+              />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-white">{remoteUserEmail}</h3>
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-64 bg-black rounded-lg"
+              />
+            </div>
+          </div>
+          <div className="flex justify-center mt-4">
+            {!incomingCall && (
+              <button
+                onClick={startCall}
+                disabled={callStarted}
+                className={`${
+                  callStarted
+                    ? "bg-gray-500 cursor-not-allowed"
+                    : "bg-green-500 hover:bg-green-600"
+                } text-white px-4 py-2 rounded-lg transition`}
+              >
+                {callStarted ? "Started Call" : "Start Call"}
+              </button>
+            )}
+            <button
+              onClick={endCall}
+              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition ml-4"
+            >
+              End Call
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
