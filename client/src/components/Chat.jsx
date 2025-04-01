@@ -2579,11 +2579,7 @@ export default function Chat() {
         };
     }, [allUsers, currentUser]);
     useEffect(() => {
-        const peer = new Peer(currentUser.replace(/[@.]/g, ""), {
-          host: "joblinker-1.onrender.com",
-          port: 8000,
-          path: "/myapp",
-        });
+        const peer = new Peer(currentUser.replace(/[@.]/g, ""));
         peerRef.current = peer;
     
         peer.on("open", (id) => {
