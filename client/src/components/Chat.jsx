@@ -2337,6 +2337,8 @@ export default function Chat() {
     const [confirmAction, setConfirmAction] = useState(null);
     const [confirmData, setConfirmData] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showPinConfirmPopup, setShowPinConfirmPopup] = useState(false); // New state for pin confirmation
+    const [pinMessageId, setPinMessageId] = useState(null);
     const [isMessageSearchVisible, setIsMessageSearchVisible] = useState(false); // New state for message search bar visibility
     const [messageSearchQuery, setMessageSearchQuery] = useState("");
     const userEmail = localStorage.getItem("email");
@@ -2371,7 +2373,10 @@ export default function Chat() {
             localStorage.setItem(chatKey, JSON.stringify(msgs));
         }
     };
-
+    const handlePinMessage = (messageId) => {
+        setPinMessageId(messageId);
+        setShowPinConfirmPopup(true); // Show confirmation popup
+    };
     const loadMessagesFromLocalStorage = (userEmail) => {
         const chatKey = `${chatStorageKey}_${[currentUser, userEmail].sort().join("_")}`;
         const cachedMessages = localStorage.getItem(chatKey);
@@ -2689,12 +2694,21 @@ export default function Chat() {
         };
     }, [currentUser, selectedUser]);
 
-    const handlePinMessage = (messageId) => {
-        socket.emit("pinMessage", {
-            messageId,
-            sender: currentUser,
-            receiver: selectedUser.email,
-        });
+    const confirmPinMessage = () => {
+        if (pinMessageId) {
+            socket.emit("pinMessage", {
+                messageId: pinMessageId,
+                sender: currentUser,
+                receiver: selectedUser.email,
+            });
+        }
+        setShowPinConfirmPopup(false);
+        setPinMessageId(null);
+    };
+
+    const cancelPinMessage = () => {
+        setShowPinConfirmPopup(false);
+        setPinMessageId(null);
     };
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
@@ -3366,10 +3380,52 @@ export default function Chat() {
                     t={t}
                 />
             )}
+            {showPinConfirmPopup && (
+                <PinConfirmationPopup
+                    messageId={pinMessageId}
+                    messages={messages}
+                    onConfirm={confirmPinMessage}
+                    onCancel={cancelPinMessage}
+                    t={t}
+                />
+            )}
             <Footer />
         </>
     );
 }
+const PinConfirmationPopup = ({ messageId, messages, onConfirm, onCancel, t }) => {
+    const message = messages.find((msg) => msg._id === messageId);
+    const isPinned = message?.pinned;
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="bg-gray-800 rounded-lg p-6 w-11/12 max-w-md">
+                <h3 className="text-lg font-bold text-white mb-4">
+                    {isPinned ? "Unpin Message" : "Pin Message"}
+                </h3>
+                <p className="text-gray-300 mb-6">
+                    {isPinned
+                        ? "Are you sure you want to unpin this message?"
+                        : "Are you sure you want to pin this message?"}
+                </p>
+                <div className="flex justify-end space-x-3">
+                    <button
+                        onClick={onCancel}
+                        className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
+                    >
+                        {t("Cancel")}
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition"
+                    >
+                        {isPinned ? "Unpin" : "Pin"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const ConfirmationPopup = ({ action, data, onConfirm, onCancel, t }) => {
     const message =
@@ -3546,7 +3602,13 @@ const ChatMessage = ({
                 onClick={() => {
                     if (isSelectionMode) toggleSelection();
                     else if (isSelectionModeNew) toggleSelectionNew();
-                }}
+               else onPin(message._id); }}
+               onContextMenu={(e) => {
+                e.preventDefault();
+                if (!isSelectionMode && !isSelectionModeNew) {
+                    setShowReactionPicker(true);
+                }
+            }}
             >
                 <div
                     style={{
@@ -3563,12 +3625,12 @@ const ChatMessage = ({
                         whiteSpace: "normal",
                         overflowWrap: "normal",
                     }}
-                    onContextMenu={(e) => {
-                        e.preventDefault();
-                        if (!isSelectionMode && !isSelectionModeNew) {
-                            setShowReactionPicker(true);
-                        }
-                    }}
+                    // onContextMenu={(e) => {
+                    //     e.preventDefault();
+                    //     if (!isSelectionMode && !isSelectionModeNew) {
+                    //         setShowReactionPicker(true);
+                    //     }
+                    // }}
                 >
                     {message.text && <div>{message.text}</div>}
                     {(message.file || message.fileUrl) && (
@@ -3579,7 +3641,24 @@ const ChatMessage = ({
                             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         {renderTicks()}
-                        
+                        {message.pinned && (
+                            <span className="text-yellow-400 ml-2">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                                    />
+                                </svg>
+                            </span>
+                        )}
                     </div>
                 </div>
 
