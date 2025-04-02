@@ -2693,6 +2693,14 @@ const [localStream, setLocalStream] = useState(null);
 const [remoteStream, setRemoteStream] = useState(null);
 const localVideoRef = useRef(null);
 const remoteVideoRef = useRef(null);
+
+const [isVideoOn, setIsVideoOn] = useState(true);
+const [isMicOn, setIsMicOn] = useState(true);
+
+// Add state to track if the user is in a call (to prevent multiple calls)
+const [isUserInCall, setIsUserInCall] = useState(false);
+
+
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
             transports: ["websocket"],
@@ -2725,39 +2733,65 @@ const remoteVideoRef = useRef(null);
 
     useEffect(() => {
         const peerInstance = new Peer(undefined, {
-            host: window.location.hostname, // e.g., joblinker-1.onrender.com
-            port: window.location.port || 80, // Use the deployed port (80 for HTTP, 443 for HTTPS)
-            path: "/peerjs", // PeerJS path
-            secure: window.location.protocol === "https:", // Use secure connection for HTTPS
+            host: window.location.hostname,
+            port: window.location.port || 80,
+            path: "/peerjs",
+            secure: window.location.protocol === "https:",
         });
     
         peerInstance.on("open", (id) => {
-            console.log("PeerJS ID:", id); // Debug log
+            console.log("PeerJS ID:", id);
             setPeer(peerInstance);
             setPeerId(id);
         });
     
         peerInstance.on("call", (call) => {
             console.log("Received incoming call:", call); // Debug log
+            if (isUserInCall) {
+                console.log("User is already in a call, rejecting incoming call");
+                call.close();
+                return;
+            }
+    
             navigator.mediaDevices
                 .getUserMedia({ video: true, audio: true })
                 .then((stream) => {
                     setLocalStream(stream);
                     localVideoRef.current.srcObject = stream;
+                    setIsUserInCall(true); // Mark user as in a call
+    
+                    // Toggle video and audio based on state
+                    stream.getVideoTracks().forEach((track) => {
+                        track.enabled = isVideoOn;
+                    });
+                    stream.getAudioTracks().forEach((track) => {
+                        track.enabled = isMicOn;
+                    });
+    
                     call.answer(stream);
                     call.on("stream", (remoteStream) => {
+                        console.log("Received remote stream from sender:", remoteStream); // Debug log
                         setRemoteStream(remoteStream);
                         remoteVideoRef.current.srcObject = remoteStream;
+                    });
+                    call.on("error", (err) => {
+                        console.error("Call error:", err);
+                        toast.error("Error during video call");
+                    });
+                    call.on("close", () => {
+                        console.log("Call closed");
+                        endVideoCall();
                     });
                 })
                 .catch((err) => {
                     console.error("Failed to get local stream:", err);
                     toast.error("Failed to access camera and microphone");
+                    setIsUserInCall(false); // Reset if failed
                 });
         });
     
         peerInstance.on("error", (err) => {
-            console.error("PeerJS error:", err); // Debug log
+            console.error("PeerJS error:", err);
         });
     
         return () => {
@@ -2768,28 +2802,33 @@ const remoteVideoRef = useRef(null);
     // Video Call Socket Events
     useEffect(() => {
         socket.on("incomingVideoCall", ({ caller, peerId, room }) => {
-            console.log("Incoming video call:", { caller, peerId, room }); // Debug log
+            console.log("Incoming video call:", { caller, peerId, room });
             setIncomingCall({ caller, peerId, room });
             toast.info(`Incoming video call from ${caller}`);
         });
     
         socket.on("videoCallJoined", ({ receiver, peerId, room }) => {
-            console.log("Video call joined:", { receiver, peerId, room }); // Debug log
+            console.log("Video call joined:", { receiver, peerId, room });
             setRemotePeerId(peerId);
             setIsInCall(true);
             startVideoCall(peerId);
         });
     
         socket.on("videoCallEnded", () => {
-            console.log("Video call ended"); // Debug log
+            console.log("Video call ended");
             endVideoCall();
         });
     
         socket.on("videoCallEndedNotification", ({ caller }) => {
-            console.log("Video call ended notification:", { caller }); // Debug log
+            console.log("Video call ended notification:", { caller });
             toast.info(`${caller} ended the video call`);
             setIncomingCall(null);
             endVideoCall();
+        });
+    
+        socket.on("callRejected", ({ message }) => {
+            console.log("Call rejected:", message);
+            toast.error(message);
         });
     
         return () => {
@@ -2797,25 +2836,46 @@ const remoteVideoRef = useRef(null);
             socket.off("videoCallJoined");
             socket.off("videoCallEnded");
             socket.off("videoCallEndedNotification");
+            socket.off("callRejected");
         };
     }, [selectedUser, peer]);
 
     const startVideoCall = (remotePeerId) => {
+        console.log("Starting video call with remote peer:", remotePeerId); // Debug log
         navigator.mediaDevices
             .getUserMedia({ video: true, audio: true })
             .then((stream) => {
                 setLocalStream(stream);
                 localVideoRef.current.srcObject = stream;
+                setIsUserInCall(true); // Mark user as in a call
+    
+                // Toggle video and audio based on state
+                stream.getVideoTracks().forEach((track) => {
+                    track.enabled = isVideoOn;
+                });
+                stream.getAudioTracks().forEach((track) => {
+                    track.enabled = isMicOn;
+                });
+    
                 const call = peer.call(remotePeerId, stream);
                 call.on("stream", (remoteStream) => {
+                    console.log("Received remote stream from receiver:", remoteStream); // Debug log
                     setRemoteStream(remoteStream);
                     remoteVideoRef.current.srcObject = remoteStream;
                 });
-                setIsInCall(true);
+                call.on("error", (err) => {
+                    console.error("Call error:", err);
+                    toast.error("Error during video call");
+                });
+                call.on("close", () => {
+                    console.log("Call closed");
+                    endVideoCall();
+                });
             })
             .catch((err) => {
                 console.error("Failed to get local stream:", err);
                 toast.error("Failed to access camera and microphone");
+                setIsUserInCall(false); // Reset if failed
             });
     };
 
@@ -2824,7 +2884,15 @@ const remoteVideoRef = useRef(null);
             toast.error("Please select a user to start a video call");
             return;
         }
-
+    
+        if (isUserInCall) {
+            toast.error("You are already in a video call");
+            return;
+        }
+    
+        console.log("Initiating video call with PeerJS ID:", peerId);
+        console.log("Caller:", currentUser, "Receiver:", selectedUser.email);
+    
         socket.emit("startVideoCall", {
             caller: currentUser,
             receiver: selectedUser.email,
@@ -2834,17 +2902,24 @@ const remoteVideoRef = useRef(null);
 
     const joinVideoCall = () => {
         if (!incomingCall) return;
-
+    
+        if (isUserInCall) {
+            toast.error("You are already in a video call");
+            setIncomingCall(null);
+            return;
+        }
+    
         socket.emit("joinVideoCall", {
             caller: incomingCall.caller,
             receiver: currentUser,
             peerId: peerId,
         });
-
+    
         setRemotePeerId(incomingCall.peerId);
         setIncomingCall(null);
     };
-
+    
+    // Update endVideoCall to reset the in-call state
     const endVideoCall = () => {
         if (localStream) {
             localStream.getTracks().forEach((track) => track.stop());
@@ -2857,7 +2932,10 @@ const remoteVideoRef = useRef(null);
         setIsInCall(false);
         setIncomingCall(null);
         setRemotePeerId(null);
-
+        setIsUserInCall(false); // Reset in-call state
+        setIsVideoOn(true); // Reset video toggle
+        setIsMicOn(true); // Reset mic toggle
+    
         if (selectedUser) {
             socket.emit("endVideoCall", {
                 caller: currentUser,
@@ -2865,6 +2943,28 @@ const remoteVideoRef = useRef(null);
             });
         }
     };
+    
+    // Add functions to toggle video and mic
+    const toggleVideo = () => {
+        if (localStream) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsVideoOn(videoTrack.enabled);
+            }
+        }
+    };
+    
+    const toggleMic = () => {
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMicOn(audioTrack.enabled);
+            }
+        }
+    };
+
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -3721,32 +3821,56 @@ const remoteVideoRef = useRef(null);
 </div>
 
 {isInCall && (
-                                <div className="p-4 bg-gray-800 flex flex-col items-center space-y-4">
-                                    <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                                        <div className="relative">
-                                            <video
-                                                ref={localVideoRef}
-                                                autoPlay
-                                                muted
-                                                className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600"
-                                            />
-                                            <span className="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 py-1 rounded">
-                                                You
-                                            </span>
-                                        </div>
-                                        <div className="relative">
-                                            <video
-                                                ref={remoteVideoRef}
-                                                autoPlay
-                                                className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600"
-                                            />
-                                            <span className="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 py-1 rounded">
-                                                {selectedUser?.fullname || "Remote User"}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+    <div className="p-4 bg-gray-800 flex flex-col items-center space-y-4">
+        <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+            <div className="relative">
+                <video
+                    ref={localVideoRef}
+                    autoPlay
+                    muted
+                    className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600"
+                />
+                <span className="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 py-1 rounded">
+                    You
+                </span>
+            </div>
+            <div className="relative">
+                <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600"
+                />
+                <span className="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 py-1 rounded">
+                    {selectedUser?.fullname || "Remote User"}
+                </span>
+            </div>
+        </div>
+        <div className="flex space-x-4">
+            <button
+                onClick={toggleVideo}
+                className={`px-4 py-2 rounded-lg text-white ${
+                    isVideoOn ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
+                }`}
+            >
+                {isVideoOn ? "Turn Video Off" : "Turn Video On"}
+            </button>
+            <button
+                onClick={toggleMic}
+                className={`px-4 py-2 rounded-lg text-white ${
+                    isMicOn ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
+                }`}
+            >
+                {isMicOn ? "Mute Mic" : "Unmute Mic"}
+            </button>
+            <button
+                onClick={endVideoCall}
+                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+            >
+                End Call
+            </button>
+        </div>
+    </div>
+)}
 
                             {isMessageSearchVisible && (
                                 <div className="p-4 bg-gray-800 flex items-center">

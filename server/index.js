@@ -2276,7 +2276,7 @@ app.use(cors(corsOptions));
 
 const PORT = process.env.PORT || 8000;
 
-
+const activeCalls = new Map();
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/company", companyRoute);
 app.use("/api/v1/job", jobRoute);
@@ -3224,19 +3224,51 @@ io.on("connection", (socket) => {
         }
     });
     socket.on("startVideoCall", ({ caller, receiver, peerId }) => {
+        console.log("Received startVideoCall event:", { caller, receiver, peerId });
+
+        // Check if caller or receiver is already in a call
+        if (activeCalls.has(caller)) {
+            console.log(`Caller ${caller} is already in a call`);
+            socket.emit("callRejected", { message: "You are already in a video call" });
+            return;
+        }
+        if (activeCalls.has(receiver)) {
+            console.log(`Receiver ${receiver} is already in a call`);
+            socket.emit("callRejected", { message: "The user you are calling is already in a video call" });
+            return;
+        }
+
         const room = [caller, receiver].sort().join("_");
         const receiverSocketId = connectedUsers.get(receiver);
 
+        // Add both users to active calls
+        activeCalls.set(caller, { peerId, room });
+        activeCalls.set(receiver, { peerId, room });
+
         if (receiverSocketId) {
+            console.log("Notifying receiver:", receiver, "with socket ID:", receiverSocketId);
             io.to(receiverSocketId).emit("incomingVideoCall", {
                 caller,
                 peerId,
                 room,
             });
+        } else {
+            console.log("Receiver not found or not connected:", receiver);
+            // Remove caller from active calls if receiver is not found
+            activeCalls.delete(caller);
         }
     });
 
     socket.on("joinVideoCall", ({ caller, receiver, peerId }) => {
+        console.log("Received joinVideoCall event:", { caller, receiver, peerId });
+
+        // Check if receiver is already in a call (shouldn't happen due to client-side check, but adding for safety)
+        if (activeCalls.has(receiver) && activeCalls.get(receiver).room !== [caller, receiver].sort().join("_")) {
+            console.log(`Receiver ${receiver} is already in another call`);
+            socket.emit("callRejected", { message: "You are already in a video call" });
+            return;
+        }
+
         const room = [caller, receiver].sort().join("_");
         const callerSocketId = connectedUsers.get(caller);
 
@@ -3250,8 +3282,13 @@ io.on("connection", (socket) => {
     });
 
     socket.on("endVideoCall", ({ caller, receiver }) => {
+        console.log("Received endVideoCall event:", { caller, receiver });
         const room = [caller, receiver].sort().join("_");
         const receiverSocketId = connectedUsers.get(receiver);
+
+        // Remove both users from active calls
+        activeCalls.delete(caller);
+        activeCalls.delete(receiver);
 
         io.to(room).emit("videoCallEnded", { room });
 
@@ -3260,12 +3297,24 @@ io.on("connection", (socket) => {
         }
     });
 
-
     socket.on("disconnect", () => {
         for (let [email, socketId] of connectedUsers.entries()) {
             if (socketId === socket.id) {
                 connectedUsers.delete(email);
                 console.log(`User ${email} disconnected`);
+                // If the user was in a call, end it
+                if (activeCalls.has(email)) {
+                    const { room } = activeCalls.get(email);
+                    const [userA, userB] = room.split("_");
+                    const otherUser = userA === email ? userB : userA;
+                    activeCalls.delete(email);
+                    activeCalls.delete(otherUser);
+                    const otherUserSocketId = connectedUsers.get(otherUser);
+                    io.to(room).emit("videoCallEnded", { room });
+                    if (otherUserSocketId) {
+                        io.to(otherUserSocketId).emit("videoCallEndedNotification", { caller: email });
+                    }
+                }
                 break;
             }
         }
