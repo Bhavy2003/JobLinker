@@ -2853,46 +2853,82 @@ io.on("connection", (socket) => {
             .catch((error) => console.error("Error fetching messages:", error));
     });
 
+    // socket.on("sendMessage", async (msgData) => {
+    //     const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
+
+    //     if (!msgData.text && !fileUrl) {
+    //         return;
+    //     }
+
+    //     try {
+    //         const newMessage = new Message({
+    //             sender: msgData.sender,
+    //             receiver: msgData.receiver,
+    //             text: msgData.text || "",
+    //             fileUrl: fileUrl,
+    //             timestamp: new Date(msgData.timestamp),
+    //             status: 'sent',
+    //             isRead: false,
+    //             reactions: [],
+    //         });
+    //         const savedMessage = await newMessage.save();
+
+    //         const messageToEmit = {
+    //             ...savedMessage.toObject(),
+    //             tempId: msgData.tempId,
+    //         };
+
+    //         const room = [msgData.sender, msgData.receiver].sort().join("_");
+    //         io.to(room).emit("message", messageToEmit);
+
+    //         const receiverSocketId = connectedUsers.get(msgData.receiver);
+    //         if (receiverSocketId && msgData.receiver !== msgData.sender) {
+    //             await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: 'delivered' } });
+    //             const updatedMessage = await Message.findById(savedMessage._id);
+    //             io.to(room).emit("messageStatusUpdated", updatedMessage);
+    //             io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
+    //         }
+    //     } catch (error) {
+    //         console.error("Error processing sendMessage:", error);
+    //     }
+    // });
     socket.on("sendMessage", async (msgData) => {
-        const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
-
-        if (!msgData.text && !fileUrl) {
-            return;
+        if (!msgData.text && !msgData.file) {
+          return;
         }
-
+      
         try {
-            const newMessage = new Message({
-                sender: msgData.sender,
-                receiver: msgData.receiver,
-                text: msgData.text || "",
-                fileUrl: fileUrl,
-                timestamp: new Date(msgData.timestamp),
-                status: 'sent',
-                isRead: false,
-                reactions: [],
-            });
-            const savedMessage = await newMessage.save();
-
-            const messageToEmit = {
-                ...savedMessage.toObject(),
-                tempId: msgData.tempId,
-            };
-
-            const room = [msgData.sender, msgData.receiver].sort().join("_");
-            io.to(room).emit("message", messageToEmit);
-
-            const receiverSocketId = connectedUsers.get(msgData.receiver);
-            if (receiverSocketId && msgData.receiver !== msgData.sender) {
-                await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: 'delivered' } });
-                const updatedMessage = await Message.findById(savedMessage._id);
-                io.to(room).emit("messageStatusUpdated", updatedMessage);
-                io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
-            }
+          const newMessage = new Message({
+            sender: msgData.sender,
+            receiver: msgData.receiver,
+            text: msgData.text || "",
+            file: msgData.file || null, // Use the file object directly from msgData
+            timestamp: new Date(msgData.timestamp),
+            status: "sent",
+            isRead: false,
+            reactions: [],
+          });
+          const savedMessage = await newMessage.save();
+      
+          const messageToEmit = {
+            ...savedMessage.toObject(),
+            tempId: msgData.tempId,
+          };
+      
+          const room = [msgData.sender, msgData.receiver].sort().join("_");
+          io.to(room).emit("message", messageToEmit);
+      
+          const receiverSocketId = connectedUsers.get(msgData.receiver);
+          if (receiverSocketId && msgData.receiver !== msgData.sender) {
+            await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: "delivered" } });
+            const updatedMessage = await Message.findById(savedMessage._id);
+            io.to(room).emit("messageStatusUpdated", updatedMessage);
+            io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
+          }
         } catch (error) {
-            console.error("Error processing sendMessage:", error);
+          console.error("Error processing sendMessage:", error);
         }
-    });
-
+      });
 
  
     socket.on("addReaction", async ({ messageId, user, emoji }) => {

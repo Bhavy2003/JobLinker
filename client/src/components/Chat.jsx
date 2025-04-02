@@ -3624,302 +3624,279 @@ const ChatMessage = ({
     isSelectionModeNew,
     isSelectedNew,
     toggleSelectionNew,
-    isPinMode, // New prop
-    isPinSelected, // New prop
-    togglePinSelection, // New prop
-}) => {
+    isPinMode,
+    isPinSelected,
+    togglePinSelection,
+  }) => {
     if (!message) {
-        console.error("ChatMessage received undefined message");
-        return null;
+      console.error("ChatMessage received undefined message");
+      return null;
     }
-
+  
     const isSender = message.sender === user;
     const [showReactionPicker, setShowReactionPicker] = useState(false);
-
-    const renderFile = (file, fileUrl) => {
-        if (file || fileUrl) {
-            let fileData = file || {};
-            if (fileUrl) {
-                fileData.url = fileUrl;
-                fileData.name = fileUrl.split("/").pop();
-            }
-
-            let fileType;
-            if (file) {
-                fileType = file.type || "unknown";
-            } else if (fileUrl) {
-                const fileName = fileData.name.toLowerCase();
-                if (fileName.endsWith(".pdf")) fileType = "application/pdf";
-                else if (fileName.endsWith(".csv")) fileType = "text/csv";
-                else if (fileName.endsWith(".doc")) fileType = "application/msword";
-                else if (fileName.endsWith(".docx"))
-                    fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-                else if (fileName.endsWith(".xls")) fileType = "application/vnd.ms-excel";
-                else if (fileName.endsWith(".xlsx"))
-                    fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) fileType = "image";
-                else fileType = "application/octet-stream";
-            } else {
-                fileType = "unknown";
-            }
-
-            if (fileType === "application/pdf") {
-                return (
-                    <embed
-                        src={fileData.url}
-                        type="application/pdf"
-                        width="100%"
-                        height="300px"
-                        title={fileData.name}
-                    />
-                );
-            } else if (fileType.startsWith("image")) {
-                return (
-                    <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-                        <img
-                            src={fileData.url}
-                            alt={fileData.name}
-                            style={{ maxWidth: "100%", maxHeight: "300px" }}
-                        />
-                    </a>
-                );
-            } else {
-                return (
-                    <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-                        Download {fileData.name}
-                    </a>
-                );
-            }
-        }
+  
+    const renderFile = (file) => {
+      if (!file || !file.url) {
         return <div>File not available</div>;
+      }
+  
+      const fileType = file.type || "unknown";
+      const fileName = file.name || file.url.split("/").pop();
+  
+      if (fileType === "application/pdf") {
+        return (
+          <embed
+            src={file.url}
+            type="application/pdf"
+            width="100%"
+            height="300px"
+            title={fileName}
+          />
+        );
+      } else if (fileType.startsWith("image")) {
+        return (
+          <a href={file.url} download={fileName} target="_blank" className="text-blue-300 underline">
+            <img
+              src={file.url}
+              alt={fileName}
+              style={{ maxWidth: "100%", maxHeight: "300px" }}
+            />
+          </a>
+        );
+      } else {
+        return (
+          <a href={file.url} download={fileName} target="_blank" className="text-blue-300 underline">
+            Download {fileName}
+          </a>
+        );
+      }
     };
-
+  
     const renderTicks = () => {
-        if (!isSender) return null;
-        if (message.status === "sent") {
-            return <span className="text-gray-400 ml-2">✓</span>;
-        } else if (message.status === "delivered") {
-            return <span className="text-gray-400 ml-2">✓✓</span>;
-        } else if (message.status === "read") {
-            return <span className="text-yellow-400 ml-2">✓✓</span>;
-        }
-        return null;
+      if (!isSender) return null;
+      if (message.status === "sent") {
+        return <span className="text-gray-400 ml-2">✓</span>;
+      } else if (message.status === "delivered") {
+        return <span className="text-gray-400 ml-2">✓✓</span>;
+      } else if (message.status === "read") {
+        return <span className="text-yellow-400 ml-2">✓✓</span>;
+      }
+      return null;
     };
-
+  
     const handleAddReaction = (emoji) => {
-        const userReaction = message.reactions?.find((r) => r.user === user);
-
-        socket.emit("addReaction", {
-            messageId: message._id,
-            user: user,
-            emoji: userReaction && userReaction.emoji === emoji ? null : emoji,
-        });
-        setShowReactionPicker(false);
+      const userReaction = message.reactions?.find((r) => r.user === user);
+  
+      socket.emit("addReaction", {
+        messageId: message._id,
+        user: user,
+        emoji: userReaction && userReaction.emoji === emoji ? null : emoji,
+      });
+      setShowReactionPicker(false);
     };
-
+  
     const groupedReactions = message.reactions?.reduce((acc, reaction) => {
-        if (!acc[reaction.emoji]) {
-            acc[reaction.emoji] = { count: 0, users: [] };
-        }
-        acc[reaction.emoji].count += 1;
-        acc[reaction.emoji].users.push(reaction.user);
-        return acc;
+      if (!acc[reaction.emoji]) {
+        acc[reaction.emoji] = { count: 0, users: [] };
+      }
+      acc[reaction.emoji].count += 1;
+      acc[reaction.emoji].users.push(reaction.user);
+      return acc;
     }, {}) || {};
-
+  
     const userReaction = message.reactions?.find((r) => r.user === user)?.emoji;
-
+  
     return (
-        <div
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: isSender ? "flex-end" : "flex-start",
+          margin: "5px 0",
+          padding: "0",
+        }}
+      >
+        {isFirstNew && message.receiver === user && (
+          <span
             style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: isSender ? "flex-end" : "flex-start",
-                margin: "5px 0",
-                padding: "0",
+              color: "#FFD700",
+              fontSize: "12px",
+              fontWeight: "bold",
+              marginBottom: "5px",
+              alignSelf: "center",
             }}
+          >
+            New Message
+          </span>
+        )}
+        <div
+          className={`relative ${isSelected || isSelectedNew || isPinSelected ? "bg-opacity-75" : ""}`}
+          onClick={() => {
+            if (isPinMode && message._id) togglePinSelection();
+            else if (isSelectionMode && message._id) toggleSelection();
+            else if (isSelectionModeNew && message._id) toggleSelectionNew();
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (!isSelectionMode && !isSelectionModeNew && !isPinMode) {
+              setShowReactionPicker(true);
+            }
+          }}
         >
-            {isFirstNew && message.receiver === user && (
-                <span
-                    style={{
-                        color: "#FFD700",
-                        fontSize: "12px",
-                        fontWeight: "bold",
-                        marginBottom: "5px",
-                        alignSelf: "center",
-                    }}
-                >
-                    New Message
+          <div
+            style={{
+              backgroundColor: isSender ? "#1E40AF" : "#374151",
+              padding: "10px",
+              borderRadius: "12px",
+              maxWidth: "100%",
+              marginLeft: isSender ? "auto" : "0",
+              marginRight: isSender ? "0" : "auto",
+              textAlign: isSender ? "right" : "left",
+              width: "fit-content",
+              color: "white",
+              wordBreak: "break-word",
+              whiteSpace: "normal",
+              overflowWrap: "normal",
+            }}
+          >
+            {message.text && <div>{message.text}</div>}
+            {message.file && <div>{renderFile(message.file)}</div>}
+            <div className="flex items-center justify-end space-x-1">
+              <span className="text-xs text-gray-300">
+                {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              {renderTicks()}
+              {message.pinned && (
+                <span className="text-yellow-400 ml-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                    />
+                  </svg>
                 </span>
-            )}
-            <div
-                className={`relative ${isSelected || isSelectedNew || isPinSelected ? "bg-opacity-75" : ""}`}
-                onClick={() => {
-                    if (isPinMode && message._id) togglePinSelection(); // Enable selection in pin mode
-                    else if (isSelectionMode && message._id) toggleSelection();
-                    else if (isSelectionModeNew && message._id) toggleSelectionNew();
-                }}
-                onContextMenu={(e) => {
-                    e.preventDefault();
-                    if (!isSelectionMode && !isSelectionModeNew && !isPinMode) {
-                        setShowReactionPicker(true);
-                    }
-                }}
-            >
-                <div
-                    style={{
-                        backgroundColor: isSender ? "#1E40AF" : "#374151",
-                        padding: "10px",
-                        borderRadius: "12px",
-                        maxWidth: "100%",
-                        marginLeft: isSender ? "auto" : "0",
-                        marginRight: isSender ? "0" : "auto",
-                        textAlign: isSender ? "right" : "left",
-                        width: "fit-content",
-                        color: "white",
-                        wordBreak: "break-word",
-                        whiteSpace: "normal",
-                        overflowWrap: "normal",
-                    }}
-                >
-                    {message.text && <div>{message.text}</div>}
-                    {(message.file || message.fileUrl) && (
-                        <div>{renderFile(message.file, message.fileUrl)}</div>
-                    )}
-                    <div className="flex items-center justify-end space-x-1">
-                        <span className="text-xs text-gray-300">
-                            {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                        {renderTicks()}
-                        {message.pinned && (
-                            <span className="text-yellow-400 ml-2">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-5 w-5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-                                    />
-                                </svg>
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                {showReactionPicker && (
-                    <div
-                        className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 z-10`}
-                        onMouseLeave={() => setShowReactionPicker(false)}
-                    >
-                        <EmojiPicker
-                            onEmojiClick={(emojiObject) => handleAddReaction(emojiObject.emoji)}
-                            width={300}
-                            height={400}
-                            reactionsDefaultOpen={true}
-                        />
-                    </div>
-                )}
-
-                {Object.keys(groupedReactions).length > 0 && (
-                    <div
-                        className={`flex space-x-2 -mt-3 ${isSender ? "justify-end" : "justify-start"}`}
-                    >
-                        {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
-                            <div
-                                key={emoji}
-                                className={`bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1 cursor-pointer ${
-                                    userReaction === emoji ? "border-2 border-blue-500" : ""
-                                }`}
-                                title={users.join(", ")}
-                                onClick={() => userReaction === emoji && handleAddReaction(emoji)}
-                            >
-                                <span>{emoji}</span>
-                                {count > 1 && <span className="text-xs text-gray-300">{count}</span>}
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {isSelectionMode && message._id && (
-                    <div
-                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-red-500 flex items-center justify-center ${
-                            isSelected ? "bg-red-500" : "bg-transparent"
-                        }`}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            toggleSelection();
-                        }}
-                    >
-                        {isSelected && (
-                            <svg
-                                className="w-3 h-3 text-white"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                        )}
-                    </div>
-                )}
-
-                {isSelectionModeNew && message._id && (
-                    <div
-                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${
-                            isSelectedNew ? "bg-blue-500" : "bg-transparent"
-                        }`}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            toggleSelectionNew();
-                        }}
-                    >
-                        {isSelectedNew && (
-                            <svg
-                                className="w-3 h-3 text-white"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                        )}
-                    </div>
-                )}
-
-                {isPinMode && message._id && (
-                    <div
-                        className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-indigo-500 flex items-center justify-center ${
-                            isPinSelected ? "bg-indigo-500" : "bg-transparent"
-                        }`}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            togglePinSelection();
-                        }}
-                    >
-                        {isPinSelected && (
-                            <svg
-                                className="w-3 h-3 text-white"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                        )}
-                    </div>
-                )}
+              )}
             </div>
+          </div>
+  
+          {showReactionPicker && (
+            <div
+              className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 z-10`}
+              onMouseLeave={() => setShowReactionPicker(false)}
+            >
+              <EmojiPicker
+                onEmojiClick={(emojiObject) => handleAddReaction(emojiObject.emoji)}
+                width={300}
+                height={400}
+                reactionsDefaultOpen={true}
+              />
+            </div>
+          )}
+  
+          {Object.keys(groupedReactions).length > 0 && (
+            <div
+              className={`flex space-x-2 -mt-3 ${isSender ? "justify-end" : "justify-start"}`}
+            >
+              {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
+                <div
+                  key={emoji}
+                  className={`bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1 cursor-pointer ${
+                    userReaction === emoji ? "border-2 border-blue-500" : ""
+                  }`}
+                  title={users.join(", ")}
+                  onClick={() => userReaction === emoji && handleAddReaction(emoji)}
+                >
+                  <span>{emoji}</span>
+                  {count > 1 && <span className="text-xs text-gray-300">{count}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+  
+          {isSelectionMode && message._id && (
+            <div
+              className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-red-500 flex items-center justify-center ${
+                isSelected ? "bg-red-500" : "bg-transparent"
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSelection();
+              }}
+            >
+              {isSelected && (
+                <svg
+                  className="w-3 h-3 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+          )}
+  
+          {isSelectionModeNew && message._id && (
+            <div
+              className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${
+                isSelectedNew ? "bg-blue-500" : "bg-transparent"
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSelectionNew();
+              }}
+            >
+              {isSelectedNew && (
+                <svg
+                  className="w-3 h-3 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+          )}
+  
+          {isPinMode && message._id && (
+            <div
+              className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-indigo-500 flex items-center justify-center ${
+                isPinSelected ? "bg-indigo-500" : "bg-transparent"
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePinSelection();
+              }}
+            >
+              {isPinSelected && (
+                <svg
+                  className="w-3 h-3 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+          )}
         </div>
+      </div>
     );
-};
+  };
 // const VideoCall = ({ currentUserEmail, remoteUserEmail, onClose, peer, incomingCall, socket }) => {
 //     const localVideoRef = useRef(null);
 //     const remoteVideoRef = useRef(null);
