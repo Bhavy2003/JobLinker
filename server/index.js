@@ -2465,7 +2465,7 @@ const messageSchema = new mongoose.Schema({
     sender: String,
     receiver: String,
     text: String,
-    fileUrl: {
+    file: {
       name: String,
       type: String,
       url: String,
@@ -2541,13 +2541,13 @@ app.post("/api/upload-chat-file", chatFileUpload, async (req, res) => {
 
         await fsPromises.unlink(req.file.path);
 
-        const fileUrl = result.secure_url;
+        const file = result.secure_url;
 
         const response = {
             filename: req.file.filename,
             originalName: req.file.originalname,
             type: req.file.mimetype,
-            url: fileUrl,
+            url: file,
         };
         res.json(response);
     } catch (error) {
@@ -2863,8 +2863,8 @@ io.on("connection", (socket) => {
     });
 
     socket.on("sendMessage", async (msgData) => {
-        const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
-        if (!msgData.text && !msgData.fileUrl) {
+        const file = msgData.file && msgData.file.url ? msgData.file.url : null;
+        if (!msgData.text && !msgData.file) {
             console.log("No text or file in msgData:", msgData);
             return;
         }
@@ -2885,7 +2885,7 @@ io.on("connection", (socket) => {
                 receiver: msgData.receiver,
                 text: msgData.text || "",
                 // file: msgData.file || null,
-                fileUrl: fileUrl,
+                file: file,
                 timestamp: new Date(msgData.timestamp),
                 status: "sent",
                 isRead: false,

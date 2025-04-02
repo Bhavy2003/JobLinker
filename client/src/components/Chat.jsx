@@ -3641,18 +3641,16 @@ const ChatMessage = ({
 
     console.log(`Rendering message for ${isSender ? "sender" : "receiver"}:`, message); // Debug message being rendered
 
-    const renderFile = (file, fileUrl) => {
-        if (file || fileUrl) {
+    const renderFile = (file) => {
+        if (file || file) {
             let fileData = file || {};
-            if (fileUrl) {
-                fileData.url = fileUrl;
-                fileData.name = fileUrl.split("/").pop();
+            if (file) {
+                fileData.url = file;
+                fileData.name = file.split("/").pop();
             }
 
             let fileType;
-            if (file) {
-                fileType = file.type || "unknown";
-            } else if (fileUrl) {
+             if (file) {
                 const fileName = fileData.name.toLowerCase();
                 if (fileName.endsWith(".pdf")) fileType = "application/pdf";
                 else if (fileName.endsWith(".csv")) fileType = "text/csv";
@@ -3785,8 +3783,8 @@ const ChatMessage = ({
                     }}
                 >
                     {message.text && <div>{message.text}</div>}
-                    {(message.file || message.fileUrl) && (
-                        <div>{renderFile(message.file, message.fileUrl)}</div>
+                    {(message.file ) && (
+                        <div>{renderFile(message.file)}</div>
                     )}
                     <div className="flex items-center justify-end space-x-1">
                         <span className="text-xs text-gray-300">
