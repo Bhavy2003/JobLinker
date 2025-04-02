@@ -3642,58 +3642,41 @@ const ChatMessage = ({
     console.log(`Rendering message for ${isSender ? "sender" : "receiver"}:`, message); // Debug message being rendered
 
     const renderFile = (file) => {
-        if (file || file) {
-            let fileData = file || {};
-            if (file) {
-                fileData.url = file;
-                fileData.name = file.split("/").pop();
-            }
-
-            let fileType;
-             if (file) {
-                const fileName = fileData.name.toLowerCase();
-                if (fileName.endsWith(".pdf")) fileType = "application/pdf";
-                else if (fileName.endsWith(".csv")) fileType = "text/csv";
-                else if (fileName.endsWith(".doc")) fileType = "application/msword";
-                else if (fileName.endsWith(".docx")) fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-                else if (fileName.endsWith(".xls")) fileType = "application/vnd.ms-excel";
-                else if (fileName.endsWith(".xlsx")) fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) fileType = "image";
-                else fileType = "application/octet-stream";
-            } else {
-                fileType = "unknown";
-            }
-
-            if (fileType === "application/pdf") {
-                return (
-                    <embed
-                        src={fileData.url}
-                        type="application/pdf"
-                        width="100%"
-                        height="300px"
-                        title={fileData.name}
-                    />
-                );
-            } else if (fileType.startsWith("image")) {
-                return (
-                    <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-                        <img
-                            src={fileData.url}
-                            alt={fileData.name}
-                            style={{ maxWidth: "100%", maxHeight: "300px" }}
-                        />
-                    </a>
-                );
-            } else {
-                return (
-                    <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-                        Download {fileData.name}
-                    </a>
-                );
-            }
+        if (typeof file !== "string" || !file) {
+            return <div>File not available</div>;
         }
-        return <div>File not available</div>;
+    
+        let fileData = { url: file, name: file.split("/").pop() };
+    
+        let fileType;
+        const fileName = fileData.name.toLowerCase();
+    
+        if (fileName.endsWith(".pdf")) fileType = "application/pdf";
+        else if (fileName.endsWith(".csv")) fileType = "text/csv";
+        else if (fileName.endsWith(".doc")) fileType = "application/msword";
+        else if (fileName.endsWith(".docx")) fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        else if (fileName.endsWith(".xls")) fileType = "application/vnd.ms-excel";
+        else if (fileName.endsWith(".xlsx")) fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) fileType = "image";
+        else fileType = "application/octet-stream";
+    
+        if (fileType === "application/pdf") {
+            return <embed src={fileData.url} type="application/pdf" width="100%" height="300px" title={fileData.name} />;
+        } else if (fileType.startsWith("image")) {
+            return (
+                <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+                    <img src={fileData.url} alt={fileData.name} style={{ maxWidth: "100%", maxHeight: "300px" }} />
+                </a>
+            );
+        } else {
+            return (
+                <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+                    Download {fileData.name}
+                </a>
+            );
+        }
     };
+    
 
     const renderTicks = () => {
         if (!isSender) return null;
