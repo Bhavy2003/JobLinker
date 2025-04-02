@@ -2832,6 +2832,8 @@ io.on("connection", (socket) => {
         })
             .sort("timestamp")
             .then(async (messages) => {
+                console.log(`Messages fetched for ${sender} and ${receiver}:`, messages); // Debug fetched messages
+
                 await Message.updateMany(
                     { receiver: sender, sender: receiver, status: 'sent' },
                     { $set: { status: 'delivered' } }
@@ -2848,7 +2850,7 @@ io.on("connection", (socket) => {
                     deletedBy: { $ne: sender },
                 }).sort("timestamp");
 
-                console.log("Messages loaded for joinChat:", updatedMessages); // Debug loaded messages
+                console.log(`Updated messages for ${sender} and ${receiver}:`, updatedMessages); // Debug updated messages
                 socket.emit("loadMessages", updatedMessages);
 
                 updatedMessages.forEach((msg) => {
@@ -2868,6 +2870,14 @@ io.on("connection", (socket) => {
 
         try {
             console.log("Received msgData in sendMessage:", msgData); // Debug incoming msgData
+
+            // Validate the file field
+            if (msgData.file) {
+                if (!msgData.file.name || !msgData.file.type || !msgData.file.url) {
+                    console.error("Invalid file data:", msgData.file);
+                    return;
+                }
+            }
 
             const newMessage = new Message({
                 sender: msgData.sender,
