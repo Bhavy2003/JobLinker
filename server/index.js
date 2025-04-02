@@ -2465,7 +2465,7 @@ const messageSchema = new mongoose.Schema({
     sender: String,
     receiver: String,
     text: String,
-    file: {
+    fileUrl: {
       name: String,
       type: String,
       url: String,
