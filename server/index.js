@@ -2057,20 +2057,20 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 const PORT = process.env.PORT || 8000;
-const peerServer = ExpressPeerServer(server, {
+// const peerServer = ExpressPeerServer(server, {
 
-    path: "/newchat/peerjs",
-  });
+//     path: "/newchat/peerjs",
+//   });
   
-app.use("/newchat/peerjs", peerServer);
+// app.use("/newchat/peerjs", peerServer);
   
-  peerServer.on("connection", (client) => {
-    console.log(`PeerJS client connected: ${client.getId()}`);
-  });
+//   peerServer.on("connection", (client) => {
+//     console.log(`PeerJS client connected: ${client.getId()}`);
+//   });
   
-  peerServer.on("disconnect", (client) => {
-    console.log(`PeerJS client disconnected: ${client.getId()}`);
-  });
+//   peerServer.on("disconnect", (client) => {
+//     console.log(`PeerJS client disconnected: ${client.getId()}`);
+//   });
 
 
 

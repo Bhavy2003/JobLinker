@@ -2350,12 +2350,12 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
-    const [isVideoCallVisible, setIsVideoCallVisible] = useState(false);
+    // const [isVideoCallVisible, setIsVideoCallVisible] = useState(false);
     const [isPinMode, setIsPinMode] = useState(false);
     const [selectedPinMessage, setSelectedPinMessage] = useState(null);
     const peerRef = useRef(null);
-  const [incomingCall, setIncomingCall] = useState(null);
-  const [isIncomingCallModalVisible, setIsIncomingCallModalVisible] = useState(false);
+//   const [incomingCall, setIncomingCall] = useState(null);
+//   const [isIncomingCallModalVisible, setIsIncomingCallModalVisible] = useState(false);
 //   const [isVideoCallVisible, setIsVideoCallVisible] = useState(false);
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
@@ -2580,41 +2580,41 @@ export default function Chat() {
             socket.off("pinNotification");
         };
     }, [allUsers, currentUser]);
-    useEffect(() => {
-        const peer = new Peer(currentUser.replace(/[@.]/g, ""));
-        peerRef.current = peer;
+    // useEffect(() => {
+    //     const peer = new Peer(currentUser.replace(/[@.]/g, ""));
+    //     peerRef.current = peer;
       
-        peer.on("open", (id) => {
-          console.log(`My PeerJS ID is: ${id}`);
-        });
+    //     peer.on("open", (id) => {
+    //       console.log(`My PeerJS ID is: ${id}`);
+    //     });
       
-        peer.on("call", (call) => {
-          console.log("Incoming call received from:", call.peer);
-          setIncomingCall(call);
-          setIsIncomingCallModalVisible(true);
-        });
+    //     peer.on("call", (call) => {
+    //       console.log("Incoming call received from:", call.peer);
+    //       setIncomingCall(call);
+    //       setIsIncomingCallModalVisible(true);
+    //     });
       
-        peer.on("error", (err) => {
-          console.error("PeerJS error:", err);
-        });
+    //     peer.on("error", (err) => {
+    //       console.error("PeerJS error:", err);
+    //     });
       
-        return () => {
-          peer.destroy();
-        };
-      }, [currentUser]);
-      const acceptCall = () => {
-        setIsVideoCallVisible(true);
-        setIsIncomingCallModalVisible(false);
-        // The VideoCall component will handle answering the call
-      };
+    //     return () => {
+    //       peer.destroy();
+    //     };
+    //   }, [currentUser]);
+    //   const acceptCall = () => {
+    //     setIsVideoCallVisible(true);
+    //     setIsIncomingCallModalVisible(false);
+    //     // The VideoCall component will handle answering the call
+    //   };
     
-      const declineCall = () => {
-        if (incomingCall) {
-          incomingCall.close();
-        }
-        setIncomingCall(null);
-        setIsIncomingCallModalVisible(false);
-      };
+    //   const declineCall = () => {
+    //     if (incomingCall) {
+    //       incomingCall.close();
+    //     }
+    //     setIncomingCall(null);
+    //     setIsIncomingCallModalVisible(false);
+    //   };
     useEffect(() => {
         socket.on("message", (msg) => {
             if (
@@ -2883,34 +2883,34 @@ export default function Chat() {
         setConfirmAction(null);
         setConfirmData(null);
     };
-    useEffect(() => {
-        socket.on("incomingVideoCall", ({ caller }) => {
-          console.log(`Incoming video call from ${caller}`);
-          // Ensure PeerJS is ready
-          if (!peerRef.current) {
-            const peer = new Peer(currentUser.replace(/[@.]/g, ""));
-            peerRef.current = peer;
+    // useEffect(() => {
+    //     socket.on("incomingVideoCall", ({ caller }) => {
+    //       console.log(`Incoming video call from ${caller}`);
+    //       // Ensure PeerJS is ready
+    //       if (!peerRef.current) {
+    //         const peer = new Peer(currentUser.replace(/[@.]/g, ""));
+    //         peerRef.current = peer;
       
-            peer.on("open", (id) => {
-              console.log(`My PeerJS ID is: ${id}`);
-            });
+    //         peer.on("open", (id) => {
+    //           console.log(`My PeerJS ID is: ${id}`);
+    //         });
       
-            peer.on("call", (call) => {
-              console.log("Incoming call received from:", call.peer);
-              setIncomingCall(call);
-              setIsIncomingCallModalVisible(true);
-            });
+    //         peer.on("call", (call) => {
+    //           console.log("Incoming call received from:", call.peer);
+    //           setIncomingCall(call);
+    //           setIsIncomingCallModalVisible(true);
+    //         });
       
-            peer.on("error", (err) => {
-              console.error("PeerJS error:", err);
-            });
-          }
-        });
+    //         peer.on("error", (err) => {
+    //           console.error("PeerJS error:", err);
+    //         });
+    //       }
+    //     });
       
-        return () => {
-          socket.off("incomingVideoCall");
-        };
-      }, [currentUser]);
+    //     return () => {
+    //       socket.off("incomingVideoCall");
+    //     };
+    //   }, [currentUser]);
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -3203,7 +3203,7 @@ export default function Chat() {
                                             />
                                         </svg>
                                     </button>
-                                    <button
+                                    {/* <button
             onClick={() => setIsVideoCallVisible(true)}
             className="text-white hover:text-indigo-300"
             title="Start Video Call"
@@ -3222,9 +3222,9 @@ export default function Chat() {
                     d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
                 />
             </svg>
-        </button>
+        </button> */}
                                     {/* Pin Icon */}
-                                    <button
+                                    {/* <button
             onClick={togglePinMode}
             className="text-white hover:text-indigo-300"
             title={isPinMode ? "Cancel Pin Mode" : "Pin Message"}
@@ -3243,31 +3243,9 @@ export default function Chat() {
                     d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
                 />
             </svg>
-        </button>
+        </button> */}
                                     {/* Selection Mode Buttons */}
-                            
-                                    {isPinMode ? (
-            <>
-                <button
-                    className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-                    onClick={togglePinMode}
-                >
-                    Cancel Pin Mode
-                </button>
-                {selectedPinMessage && (
-                    <button
-                        className="bg-indigo-500 text-white px-3 py-1 rounded-lg hover:bg-indigo-600 transition sm:mt-[6px] md:mt-[6px]"
-                        onClick={() => {
-                            handlePinMessage(selectedPinMessage);
-                            setIsPinMode(false);
-                            setSelectedPinMessage(null);
-                        }}
-                    >
-                        Pin Message
-                    </button>
-                )}
-            </>
-        ) : isSelectionMode ? (
+            {isSelectionMode ? (
             <>
                 <button
                     className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
@@ -3331,7 +3309,7 @@ export default function Chat() {
         )}
     </div>
 </div>
-{isIncomingCallModalVisible && (
+{/* {isIncomingCallModalVisible && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
                   <div className="bg-gray-800 rounded-lg p-6">
                     <h2 className="text-xl font-bold text-white">
@@ -3353,8 +3331,8 @@ export default function Chat() {
                     </div>
                   </div>
                 </div>
-              )}
-{isVideoCallVisible && (
+              )} */}
+{/* {isVideoCallVisible && (
             <VideoCall
                 currentUserEmail={currentUser}
                 remoteUserEmail={selectedUser.email}
@@ -3362,7 +3340,7 @@ export default function Chat() {
                   peer={peerRef.current}
                   incomingCall={incomingCall}
             />
-        )}
+        )} */}
                             {isMessageSearchVisible && (
                                 <div className="p-4 bg-gray-800 flex items-center">
                                     <input
@@ -3942,121 +3920,121 @@ const ChatMessage = ({
         </div>
     );
 };
-const VideoCall = ({ currentUserEmail, remoteUserEmail, onClose, peer, incomingCall, socket }) => {
-    const localVideoRef = useRef(null);
-    const remoteVideoRef = useRef(null);
-    const [callActive, setCallActive] = useState(false);
+// const VideoCall = ({ currentUserEmail, remoteUserEmail, onClose, peer, incomingCall, socket }) => {
+//     const localVideoRef = useRef(null);
+//     const remoteVideoRef = useRef(null);
+//     const [callActive, setCallActive] = useState(false);
   
-    useEffect(() => {
-        const startCall = async () => {
-            try {
-              const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-              if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-              }
+//     useEffect(() => {
+//         const startCall = async () => {
+//             try {
+//               const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+//               if (localVideoRef.current) {
+//                 localVideoRef.current.srcObject = stream;
+//               }
           
-              if (incomingCall) {
-                incomingCall.answer(stream);
-                incomingCall.on("stream", (remoteStream) => {
-                  if (remoteVideoRef.current) {
-                    remoteVideoRef.current.srcObject = remoteStream;
-                  }
-                  setCallActive(true);
-                });
-              } else {
-                socket.emit("initiateVideoCall", {
-                  caller: currentUserEmail,
-                  receiver: remoteUserEmail,
-                });
+//               if (incomingCall) {
+//                 incomingCall.answer(stream);
+//                 incomingCall.on("stream", (remoteStream) => {
+//                   if (remoteVideoRef.current) {
+//                     remoteVideoRef.current.srcObject = remoteStream;
+//                   }
+//                   setCallActive(true);
+//                 });
+//               } else {
+//                 socket.emit("initiateVideoCall", {
+//                   caller: currentUserEmail,
+//                   receiver: remoteUserEmail,
+//                 });
           
-                const call = peer.call(remoteUserEmail.replace(/[@.]/g, ""), stream);
-                if (call) {
-                  call.on("stream", (remoteStream) => {
-                    if (remoteVideoRef.current) {
-                      remoteVideoRef.current.srcObject = remoteStream;
-                    }
-                    setCallActive(true);
-                  });
+//                 const call = peer.call(remoteUserEmail.replace(/[@.]/g, ""), stream);
+//                 if (call) {
+//                   call.on("stream", (remoteStream) => {
+//                     if (remoteVideoRef.current) {
+//                       remoteVideoRef.current.srcObject = remoteStream;
+//                     }
+//                     setCallActive(true);
+//                   });
           
-                  call.on("close", () => {
-                    setCallActive(false);
-                    onClose();
-                  });
+//                   call.on("close", () => {
+//                     setCallActive(false);
+//                     onClose();
+//                   });
           
-                  call.on("error", (err) => {
-                    console.error("Call error:", err);
-                    setCallActive(false);
-                    onClose();
-                  });
-                } else {
-                  console.error("Failed to initiate call: call object is undefined");
-                  onClose();
-                }
-              }
-            } catch (err) {
-              console.error("Failed to get local stream:", err);
-              if (err.name === "NotAllowedError") {
-                alert("Camera and microphone access is required for video calls. Please allow permissions in your browser settings.");
-              } else {
-                alert("An error occurred while accessing your camera and microphone: " + err.message);
-              }
-              onClose();
-            }
-          };
+//                   call.on("error", (err) => {
+//                     console.error("Call error:", err);
+//                     setCallActive(false);
+//                     onClose();
+//                   });
+//                 } else {
+//                   console.error("Failed to initiate call: call object is undefined");
+//                   onClose();
+//                 }
+//               }
+//             } catch (err) {
+//               console.error("Failed to get local stream:", err);
+//               if (err.name === "NotAllowedError") {
+//                 alert("Camera and microphone access is required for video calls. Please allow permissions in your browser settings.");
+//               } else {
+//                 alert("An error occurred while accessing your camera and microphone: " + err.message);
+//               }
+//               onClose();
+//             }
+//           };
   
-      startCall();
+//       startCall();
   
-      return () => {
-        if (localVideoRef.current && localVideoRef.current.srcObject) {
-          const tracks = localVideoRef.current.srcObject.getTracks();
-          tracks.forEach((track) => track.stop());
-        }
-        if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
-          const tracks = remoteVideoRef.current.srcObject.getTracks();
-          tracks.forEach((track) => track.stop());
-        }
-      };
-    }, [currentUserEmail, remoteUserEmail, peer, incomingCall, socket, onClose]);
+//       return () => {
+//         if (localVideoRef.current && localVideoRef.current.srcObject) {
+//           const tracks = localVideoRef.current.srcObject.getTracks();
+//           tracks.forEach((track) => track.stop());
+//         }
+//         if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+//           const tracks = remoteVideoRef.current.srcObject.getTracks();
+//           tracks.forEach((track) => track.stop());
+//         }
+//       };
+//     }, [currentUserEmail, remoteUserEmail, peer, incomingCall, socket, onClose]);
   
-    const endCall = () => {
-      if (incomingCall) {
-        incomingCall.close();
-      }
-      setCallActive(false);
-      onClose();
-    };
+//     const endCall = () => {
+//       if (incomingCall) {
+//         incomingCall.close();
+//       }
+//       setCallActive(false);
+//       onClose();
+//     };
   
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
-        <div className="relative w-full max-w-4xl p-4 bg-gray-800 rounded-lg">
-          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-            <div className="w-full sm:w-1/2">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                className="w-full h-64 bg-black rounded-lg"
-              />
-              <p className="text-white text-center mt-2">You</p>
-            </div>
-            <div className="w-full sm:w-1/2">
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                className="w-full h-64 bg-black rounded-lg"
-              />
-              <p className="text-white text-center mt-2">{remoteUserEmail}</p>
-            </div>
-          </div>
-          <div className="flex justify-center mt-4">
-            <button
-              onClick={endCall}
-              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
-            >
-              End Call
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
+//     return (
+//       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
+//         <div className="relative w-full max-w-4xl p-4 bg-gray-800 rounded-lg">
+//           <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+//             <div className="w-full sm:w-1/2">
+//               <video
+//                 ref={localVideoRef}
+//                 autoPlay
+//                 muted
+//                 className="w-full h-64 bg-black rounded-lg"
+//               />
+//               <p className="text-white text-center mt-2">You</p>
+//             </div>
+//             <div className="w-full sm:w-1/2">
+//               <video
+//                 ref={remoteVideoRef}
+//                 autoPlay
+//                 className="w-full h-64 bg-black rounded-lg"
+//               />
+//               <p className="text-white text-center mt-2">{remoteUserEmail}</p>
+//             </div>
+//           </div>
+//           <div className="flex justify-center mt-4">
+//             <button
+//               onClick={endCall}
+//               className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+//             >
+//               End Call
+//             </button>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   };
