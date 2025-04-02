@@ -2058,10 +2058,10 @@ app.use(cors(corsOptions));
 
 const PORT = process.env.PORT || 8000;
 const peerServer = ExpressPeerServer(server, {
-    path: "/myapp",
+    path: "/newchat",
   });
   
-  app.use("/myapp", peerServer);
+  app.use("/newchat", peerServer);
   
   peerServer.on("connection", (client) => {
     console.log(`PeerJS client connected: ${client.getId()}`);
