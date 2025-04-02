@@ -3285,13 +3285,13 @@ io.on("connection", (socket) => {
         console.log("Received endVideoCall event:", { caller, receiver });
         const room = [caller, receiver].sort().join("_");
         const receiverSocketId = connectedUsers.get(receiver);
-
+    
         // Remove both users from active calls
         activeCalls.delete(caller);
         activeCalls.delete(receiver);
-
+    
         io.to(room).emit("videoCallEnded", { room });
-
+    
         if (receiverSocketId) {
             io.to(receiverSocketId).emit("videoCallEndedNotification", { caller });
         }

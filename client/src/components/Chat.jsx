@@ -2679,7 +2679,7 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
-   
+    const [currentCall, setCurrentCall] = useState(null);
     const [isPinMode, setIsPinMode] = useState(false);
     const [selectedPinMessage, setSelectedPinMessage] = useState(null);
     const peerRef = useRef(null);
@@ -2731,73 +2731,7 @@ const [isUserInCall, setIsUserInCall] = useState(false);
         return cachedMessages ? JSON.parse(cachedMessages) : [];
     };
 
-    useEffect(() => {
-        const peerInstance = new Peer(undefined, {
-            host: window.location.hostname,
-            port: window.location.port || 80,
-            path: "/peerjs",
-            secure: window.location.protocol === "https:",
-        });
-    
-        peerInstance.on("open", (id) => {
-            console.log("PeerJS ID:", id);
-            setPeer(peerInstance);
-            setPeerId(id);
-        });
-    
-        peerInstance.on("call", (call) => {
-            console.log("Received incoming call:", call); // Debug log
-            if (isUserInCall) {
-                console.log("User is already in a call, rejecting incoming call");
-                call.close();
-                return;
-            }
-    
-            navigator.mediaDevices
-                .getUserMedia({ video: true, audio: true })
-                .then((stream) => {
-                    setLocalStream(stream);
-                    localVideoRef.current.srcObject = stream;
-                    setIsUserInCall(true); // Mark user as in a call
-    
-                    // Toggle video and audio based on state
-                    stream.getVideoTracks().forEach((track) => {
-                        track.enabled = isVideoOn;
-                    });
-                    stream.getAudioTracks().forEach((track) => {
-                        track.enabled = isMicOn;
-                    });
-    
-                    call.answer(stream);
-                    call.on("stream", (remoteStream) => {
-                        console.log("Received remote stream from sender:", remoteStream); // Debug log
-                        setRemoteStream(remoteStream);
-                        remoteVideoRef.current.srcObject = remoteStream;
-                    });
-                    call.on("error", (err) => {
-                        console.error("Call error:", err);
-                        toast.error("Error during video call");
-                    });
-                    call.on("close", () => {
-                        console.log("Call closed");
-                        endVideoCall();
-                    });
-                })
-                .catch((err) => {
-                    console.error("Failed to get local stream:", err);
-                    toast.error("Failed to access camera and microphone");
-                    setIsUserInCall(false); // Reset if failed
-                });
-        });
-    
-        peerInstance.on("error", (err) => {
-            console.error("PeerJS error:", err);
-        });
-    
-        return () => {
-            peerInstance.destroy();
-        };
-    }, []);
+   
 
     // Video Call Socket Events
     useEffect(() => {
@@ -2841,13 +2775,13 @@ const [isUserInCall, setIsUserInCall] = useState(false);
     }, [selectedUser, peer]);
 
     const startVideoCall = (remotePeerId) => {
-        console.log("Starting video call with remote peer:", remotePeerId); // Debug log
+        console.log("Starting video call with remote peer:", remotePeerId);
         navigator.mediaDevices
             .getUserMedia({ video: true, audio: true })
             .then((stream) => {
                 setLocalStream(stream);
                 localVideoRef.current.srcObject = stream;
-                setIsUserInCall(true); // Mark user as in a call
+                setIsUserInCall(true);
     
                 // Toggle video and audio based on state
                 stream.getVideoTracks().forEach((track) => {
@@ -2858,25 +2792,149 @@ const [isUserInCall, setIsUserInCall] = useState(false);
                 });
     
                 const call = peer.call(remotePeerId, stream);
+                setCurrentCall(call); // Store the call object
+    
                 call.on("stream", (remoteStream) => {
-                    console.log("Received remote stream from receiver:", remoteStream); // Debug log
+                    console.log("Sender received remote stream from receiver:", remoteStream);
                     setRemoteStream(remoteStream);
                     remoteVideoRef.current.srcObject = remoteStream;
                 });
                 call.on("error", (err) => {
-                    console.error("Call error:", err);
+                    console.error("Call error on sender side:", err);
                     toast.error("Error during video call");
+                    endVideoCall();
                 });
                 call.on("close", () => {
-                    console.log("Call closed");
+                    console.log("Call closed on sender side");
                     endVideoCall();
                 });
             })
             .catch((err) => {
-                console.error("Failed to get local stream:", err);
+                console.error("Failed to get local stream on sender side:", err);
                 toast.error("Failed to access camera and microphone");
-                setIsUserInCall(false); // Reset if failed
+                setIsUserInCall(false);
             });
+    };
+    
+    // Modify the PeerJS initialization to handle incoming calls correctly
+    useEffect(() => {
+        let peerInstance;
+    
+        const initializePeer = () => {
+            peerInstance = new Peer(undefined, {
+                host: window.location.hostname,
+                port: window.location.port || 80,
+                path: "/peerjs",
+                secure: window.location.protocol === "https:",
+            });
+    
+            peerInstance.on("open", (id) => {
+                console.log("PeerJS ID:", id);
+                setPeer(peerInstance);
+                setPeerId(id);
+            });
+    
+            peerInstance.on("call", (call) => {
+                console.log("Received incoming call:", call);
+                if (isUserInCall) {
+                    console.log("User is already in a call, rejecting incoming call");
+                    call.close();
+                    return;
+                }
+    
+                navigator.mediaDevices
+                    .getUserMedia({ video: true, audio: true })
+                    .then((stream) => {
+                        setLocalStream(stream);
+                        localVideoRef.current.srcObject = stream;
+                        setIsUserInCall(true);
+    
+                        stream.getVideoTracks().forEach((track) => {
+                            track.enabled = isVideoOn;
+                        });
+                        stream.getAudioTracks().forEach((track) => {
+                            track.enabled = isMicOn;
+                        });
+    
+                        call.answer(stream);
+                        setCurrentCall(call);
+    
+                        call.on("stream", (remoteStream) => {
+                            console.log("Receiver received remote stream from sender:", remoteStream);
+                            setRemoteStream(remoteStream);
+                            remoteVideoRef.current.srcObject = remoteStream;
+                        });
+                        call.on("error", (err) => {
+                            console.error("Call error on receiver side:", err);
+                            toast.error("Error during video call");
+                            endVideoCall();
+                        });
+                        call.on("close", () => {
+                            console.log("Call closed on receiver side");
+                            endVideoCall();
+                        });
+                    })
+                    .catch((err) => {
+                        console.error("Failed to get local stream on receiver side:", err);
+                        toast.error("Failed to access camera and microphone");
+                        setIsUserInCall(false);
+                    });
+            });
+    
+            peerInstance.on("error", (err) => {
+                console.error("PeerJS error:", err);
+                toast.error("PeerJS error: " + err.message);
+                // Reinitialize PeerJS on error
+                if (err.type === "disconnected" || err.type === "server-disconnected") {
+                    console.log("Reinitializing PeerJS connection...");
+                    peerInstance.destroy();
+                    initializePeer();
+                }
+            });
+    
+            peerInstance.on("disconnected", () => {
+                console.log("PeerJS disconnected, reinitializing...");
+                peerInstance.destroy();
+                initializePeer();
+            });
+        };
+    
+        initializePeer();
+    
+        return () => {
+            if (peerInstance) {
+                peerInstance.destroy();
+            }
+        };
+    }, []);
+    
+    // Update endVideoCall to clean up the call object
+    const endVideoCall = () => {
+        if (localStream) {
+            localStream.getTracks().forEach((track) => track.stop());
+        }
+        if (remoteStream) {
+            remoteStream.getTracks().forEach((track) => track.stop());
+        }
+        if (currentCall) {
+            currentCall.close();
+            setCurrentCall(null);
+        }
+        setLocalStream(null);
+        setRemoteStream(null);
+        setIsInCall(false);
+        setIncomingCall(null);
+        setRemotePeerId(null);
+        setIsUserInCall(false);
+        setIsVideoOn(true);
+        setIsMicOn(true);
+    
+        if (selectedUser) {
+            socket.emit("endVideoCall", {
+                caller: currentUser,
+                receiver: selectedUser.email,
+            });
+        }
     };
 
     const initiateVideoCall = () => {
@@ -2920,29 +2978,7 @@ const [isUserInCall, setIsUserInCall] = useState(false);
     };
     
     // Update endVideoCall to reset the in-call state
-    const endVideoCall = () => {
-        if (localStream) {
-            localStream.getTracks().forEach((track) => track.stop());
-        }
-        if (remoteStream) {
-            remoteStream.getTracks().forEach((track) => track.stop());
-        }
-        setLocalStream(null);
-        setRemoteStream(null);
-        setIsInCall(false);
-        setIncomingCall(null);
-        setRemotePeerId(null);
-        setIsUserInCall(false); // Reset in-call state
-        setIsVideoOn(true); // Reset video toggle
-        setIsMicOn(true); // Reset mic toggle
-    
-        if (selectedUser) {
-            socket.emit("endVideoCall", {
-                caller: currentUser,
-                receiver: selectedUser.email,
-            });
-        }
-    };
+
     
     // Add functions to toggle video and mic
     const toggleVideo = () => {
