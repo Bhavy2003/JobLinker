@@ -3643,7 +3643,7 @@ const ChatMessage = ({
 
     const renderFile = (file) => {
         if (typeof file !== "string" || !file) {
-            return <div>File not available</div>;
+            return <div>File sending ..</div>;
         }
     
         let fileData = { url: file, name: file.split("/").pop() };
