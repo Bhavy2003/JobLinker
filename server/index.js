@@ -2863,7 +2863,8 @@ io.on("connection", (socket) => {
     });
 
     socket.on("sendMessage", async (msgData) => {
-        if (!msgData.text && !msgData.file) {
+        const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
+        if (!msgData.text && !msgData.fileUrl) {
             console.log("No text or file in msgData:", msgData);
             return;
         }
@@ -2883,7 +2884,8 @@ io.on("connection", (socket) => {
                 sender: msgData.sender,
                 receiver: msgData.receiver,
                 text: msgData.text || "",
-                file: msgData.file || null,
+                // file: msgData.file || null,
+                fileUrl: fileUrl,
                 timestamp: new Date(msgData.timestamp),
                 status: "sent",
                 isRead: false,
@@ -2907,7 +2909,7 @@ io.on("connection", (socket) => {
             if (receiverSocketId && msgData.receiver !== msgData.sender) {
                 await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: "delivered" } });
                 const updatedMessage = await Message.findById(savedMessage._id);
-                console.log("Updated message status to delivered:", updatedMessage); // Debug updated message
+               // Debug updated message
                 io.to(room).emit("messageStatusUpdated", updatedMessage);
                 io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
             }
