@@ -3860,22 +3860,34 @@ const [isUserInCall, setIsUserInCall] = useState(false);
     <div className="p-4 bg-gray-800 flex flex-col items-center space-y-4">
         <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
             <div className="relative">
-                <video
-                    ref={localVideoRef}
-                    autoPlay
-                    muted
-                    className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600"
-                />
+                {localStream ? (
+                    <video
+                        ref={localVideoRef}
+                        autoPlay
+                        muted
+                        className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600"
+                    />
+                ) : (
+                    <div className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600 bg-gray-900 flex items-center justify-center text-gray-400">
+                        Local Video Unavailable
+                    </div>
+                )}
                 <span className="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 py-1 rounded">
                     You
                 </span>
             </div>
             <div className="relative">
-                <video
-                    ref={remoteVideoRef}
-                    autoPlay
-                    className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600"
-                />
+                {remoteStream ? (
+                    <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600"
+                    />
+                ) : (
+                    <div className="w-full sm:w-64 h-48 rounded-lg border-2 border-gray-600 bg-gray-900 flex items-center justify-center text-gray-400">
+                        Remote Video Unavailable
+                    </div>
+                )}
                 <span className="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 py-1 rounded">
                     {selectedUser?.fullname || "Remote User"}
                 </span>
