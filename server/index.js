@@ -2466,28 +2466,31 @@ const messageSchema = new mongoose.Schema({
     receiver: String,
     text: String,
     file: {
-        name: String,
-        type: String,
-        url: String,
+      name: String,
+      type: String,
+      url: String,
     },
     timestamp: { type: Date, default: Date.now },
     deletedBy: [{ type: String, default: [] }],
     isRead: { type: Boolean, default: false },
-    status: { type: String , default: 'sent', enum: ['sent', 'delivered', 'read'] },
+    status: { type: String, default: "sent", enum: ["sent", "delivered", "read"] },
     reactions: [
-        {
-            user: String, // The user who reacted
-            emoji: String, // The emoji used for the reaction (e.g., "👍")
-            timestamp: { type: Date, default: Date.now },
-        }
-    ], // Add status field
+      {
+        user: String,
+        emoji: String,
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
+    pinned: { type: Boolean, default: false }, // Ensure pinned field is defined
 }, {
     indexes: [
-        { key: { sender: 1, receiver: 1 } },
-        { key: { timestamp: 1 } },
-        { key: { status: 1 } },
-        { key: { "reactions.user": 1 } },
-    ]
+      { key: { sender: 1, receiver: 1 } },
+      { key: { timestamp: 1 } },
+      { key: { status: 1 } },
+      { key: { "reactions.user": 1 } },
+    ],
+    toJSON: { virtuals: true }, // Ensure virtuals are included in JSON serialization
+    toObject: { virtuals: true }, // Ensure virtuals are included in toObject
 });
 const Message = mongoose.model("Message", messageSchema);
 
@@ -2515,8 +2518,11 @@ app.get("/messages/:user1/:user2", async (req, res) => {
             ],
             deletedBy: { $ne: user1 },
         }).sort("timestamp");
+
+        console.log("Fetched messages for", user1, user2, ":", messages); // Debug fetched messages
         res.json(messages);
     } catch (error) {
+        console.error("Error fetching messages:", error);
         res.status(500).json({ error: "Server error" });
     }
 });
@@ -2842,6 +2848,7 @@ io.on("connection", (socket) => {
                     deletedBy: { $ne: sender },
                 }).sort("timestamp");
 
+                console.log("Messages loaded for joinChat:", updatedMessages); // Debug loaded messages
                 socket.emit("loadMessages", updatedMessages);
 
                 updatedMessages.forEach((msg) => {
@@ -2851,6 +2858,52 @@ io.on("connection", (socket) => {
                 });
             })
             .catch((error) => console.error("Error fetching messages:", error));
+    });
+
+    socket.on("sendMessage", async (msgData) => {
+        if (!msgData.text && !msgData.file) {
+            console.log("No text or file in msgData:", msgData);
+            return;
+        }
+
+        try {
+            console.log("Received msgData in sendMessage:", msgData); // Debug incoming msgData
+
+            const newMessage = new Message({
+                sender: msgData.sender,
+                receiver: msgData.receiver,
+                text: msgData.text || "",
+                file: msgData.file || null,
+                timestamp: new Date(msgData.timestamp),
+                status: "sent",
+                isRead: false,
+                reactions: [],
+                pinned: false,
+            });
+
+            const savedMessage = await newMessage.save();
+            console.log("Saved message in database:", savedMessage); // Debug saved message
+
+            const messageToEmit = {
+                ...savedMessage.toObject(),
+                tempId: msgData.tempId,
+            };
+            console.log("Emitting message to room:", messageToEmit); // Debug message to emit
+
+            const room = [msgData.sender, msgData.receiver].sort().join("_");
+            io.to(room).emit("message", messageToEmit);
+
+            const receiverSocketId = connectedUsers.get(msgData.receiver);
+            if (receiverSocketId && msgData.receiver !== msgData.sender) {
+                await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: "delivered" } });
+                const updatedMessage = await Message.findById(savedMessage._id);
+                console.log("Updated message status to delivered:", updatedMessage); // Debug updated message
+                io.to(room).emit("messageStatusUpdated", updatedMessage);
+                io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
+            }
+        } catch (error) {
+            console.error("Error processing sendMessage:", error);
+        }
     });
 
     // socket.on("sendMessage", async (msgData) => {
@@ -2892,43 +2945,7 @@ io.on("connection", (socket) => {
     //         console.error("Error processing sendMessage:", error);
     //     }
     // });
-    socket.on("sendMessage", async (msgData) => {
-        if (!msgData.text && !msgData.file) {
-          return;
-        }
-      
-        try {
-          const newMessage = new Message({
-            sender: msgData.sender,
-            receiver: msgData.receiver,
-            text: msgData.text || "",
-            file: msgData.file || null, // Use the file object directly from msgData
-            timestamp: new Date(msgData.timestamp),
-            status: "sent",
-            isRead: false,
-            reactions: [],
-          });
-          const savedMessage = await newMessage.save();
-      
-          const messageToEmit = {
-            ...savedMessage.toObject(),
-            tempId: msgData.tempId,
-          };
-      
-          const room = [msgData.sender, msgData.receiver].sort().join("_");
-          io.to(room).emit("message", messageToEmit);
-      
-          const receiverSocketId = connectedUsers.get(msgData.receiver);
-          if (receiverSocketId && msgData.receiver !== msgData.sender) {
-            await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: "delivered" } });
-            const updatedMessage = await Message.findById(savedMessage._id);
-            io.to(room).emit("messageStatusUpdated", updatedMessage);
-            io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
-          }
-        } catch (error) {
-          console.error("Error processing sendMessage:", error);
-        }
-      });
+    
 
  
     socket.on("addReaction", async ({ messageId, user, emoji }) => {

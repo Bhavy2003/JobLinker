@@ -24,29 +24,31 @@ const messageSchema = new mongoose.Schema({
     receiver: String,
     text: String,
     file: {
-        name: String,
-        type: String,
-        url: String,
+      name: String,
+      type: String,
+      url: String,
     },
     timestamp: { type: Date, default: Date.now },
     deletedBy: [{ type: String, default: [] }],
     isRead: { type: Boolean, default: false },
-    status: { type: String, default: 'sent', enum: ['sent', 'delivered', 'read'] },
+    status: { type: String, default: "sent", enum: ["sent", "delivered", "read"] },
     reactions: [
-        {
-            user: String,
-            emoji: String,
-            timestamp: { type: Date, default: Date.now },
-        }
+      {
+        user: String,
+        emoji: String,
+        timestamp: { type: Date, default: Date.now },
+      },
     ],
-    pinned: { type: Boolean, default: false }, // New field for pinned messages
+    pinned: { type: Boolean, default: false }, // Ensure pinned field is defined
 }, {
     indexes: [
-        { key: { sender: 1, receiver: 1 } },
-        { key: { timestamp: 1 } },
-        { key: { status: 1 } },
-        { key: { "reactions.user": 1 } },
-    ]
+      { key: { sender: 1, receiver: 1 } },
+      { key: { timestamp: 1 } },
+      { key: { status: 1 } },
+      { key: { "reactions.user": 1 } },
+    ],
+    toJSON: { virtuals: true }, // Ensure virtuals are included in JSON serialization
+    toObject: { virtuals: true }, // Ensure virtuals are included in toObject
 });
 // const messageSchema = new mongoose.Schema({
 //     sender: String,
