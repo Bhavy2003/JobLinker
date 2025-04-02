@@ -2582,7 +2582,7 @@ export default function Chat() {
     }, [allUsers, currentUser]);
     useEffect(() => {
         const peer = new Peer(currentUser.replace(/[@.]/g, ""), {
-          host: new URL(process.env.FRONTEND_URL).hostname, // Should be "joblinker-1.onrender.com"
+          host: new URL(process.env.REACT_APP_BACKEND_URL).hostname, // Should be "joblinker-1.onrender.com"
           path: "/myapp",
         });
         peerRef.current = peer;
@@ -2892,7 +2892,7 @@ export default function Chat() {
           // Ensure PeerJS is ready
           if (!peerRef.current) {
             const peer = new Peer(currentUser.replace(/[@.]/g, ""), {
-              host: new URL(process.env.FRONTEND_URL).hostname, // Should be "joblinker-1.onrender.com"
+              host: new URL(process.env.REACT_APP_BACKEND_URL).hostname, // Should be "joblinker-1.onrender.com"
               path: "/myapp",
             });
             peerRef.current = peer;
