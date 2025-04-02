@@ -2725,17 +2725,20 @@ const remoteVideoRef = useRef(null);
 
     useEffect(() => {
         const peerInstance = new Peer(undefined, {
-            host: "joblinker-1.onrender.com",
-            path: "/peerjs",
+            host: window.location.hostname, // e.g., joblinker-1.onrender.com
+            port: window.location.port || 80, // Use the deployed port (80 for HTTP, 443 for HTTPS)
+            path: "/peerjs", // PeerJS path
+            secure: window.location.protocol === "https:", // Use secure connection for HTTPS
         });
-
+    
         peerInstance.on("open", (id) => {
-            console.log("PeerJS ID:", id);
+            console.log("PeerJS ID:", id); // Debug log
             setPeer(peerInstance);
             setPeerId(id);
         });
-
+    
         peerInstance.on("call", (call) => {
+            console.log("Received incoming call:", call); // Debug log
             navigator.mediaDevices
                 .getUserMedia({ video: true, audio: true })
                 .then((stream) => {
@@ -2752,7 +2755,11 @@ const remoteVideoRef = useRef(null);
                     toast.error("Failed to access camera and microphone");
                 });
         });
-
+    
+        peerInstance.on("error", (err) => {
+            console.error("PeerJS error:", err); // Debug log
+        });
+    
         return () => {
             peerInstance.destroy();
         };
@@ -2761,26 +2768,30 @@ const remoteVideoRef = useRef(null);
     // Video Call Socket Events
     useEffect(() => {
         socket.on("incomingVideoCall", ({ caller, peerId, room }) => {
+            console.log("Incoming video call:", { caller, peerId, room }); // Debug log
             setIncomingCall({ caller, peerId, room });
             toast.info(`Incoming video call from ${caller}`);
         });
-
+    
         socket.on("videoCallJoined", ({ receiver, peerId, room }) => {
+            console.log("Video call joined:", { receiver, peerId, room }); // Debug log
             setRemotePeerId(peerId);
             setIsInCall(true);
             startVideoCall(peerId);
         });
-
+    
         socket.on("videoCallEnded", () => {
+            console.log("Video call ended"); // Debug log
             endVideoCall();
         });
-
+    
         socket.on("videoCallEndedNotification", ({ caller }) => {
+            console.log("Video call ended notification:", { caller }); // Debug log
             toast.info(`${caller} ended the video call`);
             setIncomingCall(null);
             endVideoCall();
         });
-
+    
         return () => {
             socket.off("incomingVideoCall");
             socket.off("videoCallJoined");
