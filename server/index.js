@@ -2032,6 +2032,8 @@ import { updateCompany } from './controllers/company.controller.js';
 import { companyLogoUpload } from "./middlewares/mutler.js";
  import { createServer } from "http";
 import { PeerServer } from "peer";
+import { ExpressPeerServer } from "peer";
+
 dotenv.config();
 connectDB();
 
@@ -2070,7 +2072,7 @@ const peerServer = ExpressPeerServer(server, {
   });
 
 
-  
+
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/company", companyRoute);
 app.use("/api/v1/job", jobRoute);
