@@ -2893,7 +2893,7 @@ export default function Chat() {
           if (!peerRef.current) {
             const peer = new Peer(currentUser.replace(/[@.]/g, ""), {
               host: new URL(process.env.REACT_APP_BACKEND_URL).hostname, // Should be "joblinker-1.onrender.com"
-              path: "/newchat",
+              path: "/newchat/peerjs",
             });
             peerRef.current = peer;
       
