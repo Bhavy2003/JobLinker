@@ -3858,11 +3858,7 @@ const VideoCall = ({ currentUserEmail, remoteUserEmail, onClose }) => {
     const peerInstance = useRef(null);
 
     useEffect(() => {
-        const peer = new Peer(currentUserEmail.replace(/[@.]/g, ""), {
-            host: "localhost",
-            port: 8000,
-            path: "/myapp",
-        });
+        const peer = new Peer(currentUserEmail.replace(/[@.]/g, ""));
         peerInstance.current = peer;
 
         peer.on("open", (id) => {
