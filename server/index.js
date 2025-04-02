@@ -2030,7 +2030,7 @@ import tesseract from "node-tesseract-ocr";
 import { fromPath } from "pdf2pic";
 import { updateCompany } from './controllers/company.controller.js';
 import { companyLogoUpload } from "./middlewares/mutler.js";
-import { createServer } from "http";
+ import { createServer } from "http";
 import { PeerServer } from "peer";
 dotenv.config();
 connectDB();
@@ -2055,12 +2055,22 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 const PORT = process.env.PORT || 8000;
-const peerServer = PeerServer({
-  // This will be ignored since we're using the Express server
+const peerServer = ExpressPeerServer(server, {
     path: "/myapp",
-    server: server, // Attach PeerJS to the same HTTP server as Express
-});
-// API Routes
+  });
+  
+  app.use("/myapp", peerServer);
+  
+  peerServer.on("connection", (client) => {
+    console.log(`PeerJS client connected: ${client.getId()}`);
+  });
+  
+  peerServer.on("disconnect", (client) => {
+    console.log(`PeerJS client disconnected: ${client.getId()}`);
+  });
+
+
+  
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/company", companyRoute);
 app.use("/api/v1/job", jobRoute);
