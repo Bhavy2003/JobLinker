@@ -2465,7 +2465,6 @@ const messageSchema = new mongoose.Schema({
     sender: String,
     receiver: String,
     text: String,
-    pinned: { type: Boolean, default: false },
     file: {
         name: String,
         type: String,
