@@ -2727,7 +2727,7 @@ export default function Chat() {
         const cachedMessages = localStorage.getItem(chatKey);
         return cachedMessages ? JSON.parse(cachedMessages) : [];
     };
-    onst startVideoCall = async () => {
+    const startVideoCall = async () => {
         if (!selectedUser) {
             toast.error("Please select a user to call");
             return;
