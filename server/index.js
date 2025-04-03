@@ -2306,7 +2306,37 @@ const PORT = process.env.PORT || 8000;
 //     console.log(`PeerJS client disconnected: ${client.getId()}`);
 //   });
 
+import nodemailer from "nodemailer";
 
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: process.env.EMAIL,
+        pass: process.env.EMAIL_PASSWORD,
+    },
+});
+
+const sendJoinEmail = async (caller, receiver, callId) => {
+    const joinLink = `https://joblinker-1.onrender.com/join-call/${callId}`;
+    const mailOptions = {
+        from: process.env.EMAIL,
+        to: receiver,
+        subject: `Video Call Invitation from ${caller}`,
+        html: `
+            <p>You have an incoming video call from ${caller}.</p>
+            <p>Click the link below to join the call:</p>
+            <a href="${joinLink}">Join Video Call</a>
+            <p>Call ID: ${callId}</p>
+        `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Join email sent to ${receiver} for call ${callId}`);
+    } catch (error) {
+        console.error("Error sending email:", error);
+    }
+};
 
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/company", companyRoute);
@@ -2770,6 +2800,53 @@ app.get("/api/unread-messages/:email", async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: "Server error" });
     }
+});
+
+app.get("/api/v1/video-calls/history/:userEmail", async (req, res) => {
+    try {
+      const { userEmail } = req.params;
+      const { limit = 10, skip = 0 } = req.query;
+      
+      const callHistory = await VideoCall.find({
+        participants: userEmail
+      })
+      .sort({ startTime: -1 })
+      .skip(parseInt(skip))
+      .limit(parseInt(limit));
+      
+      res.status(200).json(callHistory);
+    } catch (error) {
+      console.error("Error fetching call history:", error);
+      res.status(500).json({ error: "Failed to fetch call history" });
+    }
+  });
+  
+  // Get information about a specific call
+  app.get("/api/v1/video-calls/:callId", async (req, res) => {
+    try {
+      const { callId } = req.params;
+      
+      // Check in-memory first for most up-to-date info
+      if (activeVideoCallsMap.has(callId)) {
+        return res.status(200).json(activeVideoCallsMap.get(callId));
+      }
+      
+      // Fall back to database
+      const call = await VideoCall.findOne({ callId });
+      
+      if (!call) {
+        return res.status(404).json({ error: "Call not found" });
+      }
+      
+      res.status(200).json(call);
+    } catch (error) {
+      console.error("Error fetching call information:", error);
+      res.status(500).json({ error: "Failed to fetch call information" });
+    }
+  });
+  app.get("/join-call/:callId", (req, res) => {
+    const { callId } = req.params;
+    res.redirect(`https://joblinker-1.onrender.com/chat?callId=${callId}`); // Redirect to chat page with callId
 });
 
 app.get("/messages/:user1/:user2", async (req, res) => {
@@ -3345,6 +3422,9 @@ io.on("connection", (socket) => {
                 receiver,
                 timestamp,
             });
+
+            // Send email to receiver
+            await sendJoinEmail(caller, receiver, callId);
             console.log(`Video call request from ${caller} to ${receiver}, Call ID: ${callId}`);
         } catch (error) {
             console.error("Error creating video call:", error);
@@ -3595,49 +3675,11 @@ app.get("/api/v1/video-calls/active/:userEmail", async (req, res) => {
   });
   
   // Get call history for a user
-  app.get("/api/v1/video-calls/history/:userEmail", async (req, res) => {
-    try {
-      const { userEmail } = req.params;
-      const { limit = 10, skip = 0 } = req.query;
-      
-      const callHistory = await VideoCall.find({
-        participants: userEmail
-      })
-      .sort({ startTime: -1 })
-      .skip(parseInt(skip))
-      .limit(parseInt(limit));
-      
-      res.status(200).json(callHistory);
-    } catch (error) {
-      console.error("Error fetching call history:", error);
-      res.status(500).json({ error: "Failed to fetch call history" });
-    }
-  });
+ 
   
-  // Get information about a specific call
-  app.get("/api/v1/video-calls/:callId", async (req, res) => {
-    try {
-      const { callId } = req.params;
-      
-      // Check in-memory first for most up-to-date info
-      if (activeVideoCallsMap.has(callId)) {
-        return res.status(200).json(activeVideoCallsMap.get(callId));
-      }
-      
-      // Fall back to database
-      const call = await VideoCall.findOne({ callId });
-      
-      if (!call) {
-        return res.status(404).json({ error: "Call not found" });
-      }
-      
-      res.status(200).json(call);
-    } catch (error) {
-      console.error("Error fetching call information:", error);
-      res.status(500).json({ error: "Failed to fetch call information" });
-    }
-  });
-// ... (rest of the index.js file remains the same)
+
+
+
 app.use(express.static(path.join(__dirname, "client", "dist")));
 app.get("*", (_req, res) => {
     res.sendFile(path.join(__dirname, "client", "dist", "index.html"));

@@ -1,7 +1,7 @@
 import React from "react";
 import { BsCameraVideo } from "react-icons/bs";
 
-const IncomingCallNotification = ({ incomingCall, joinVideoCall, rejectVideoCall }) => {
+const IncomingCallNotification = ({ incomingCall, rejectVideoCall }) => {
     if (!incomingCall) return null;
 
     return (
@@ -12,7 +12,7 @@ const IncomingCallNotification = ({ incomingCall, joinVideoCall, rejectVideoCall
                 </div>
                 <div>
                     <h3 className="font-medium">Incoming Video Call</h3>
-                    <p className="text-gray-600">{incomingCall.caller}</p>
+                    <p className="text-gray-600">{incomingCall.caller} is calling you. Check your email to join.</p>
                 </div>
             </div>
             <div className="flex justify-end gap-2">
@@ -21,12 +21,6 @@ const IncomingCallNotification = ({ incomingCall, joinVideoCall, rejectVideoCall
                     className="px-4 py-2 bg-gray-200 rounded-lg"
                 >
                     Decline
-                </button>
-                <button
-                    onClick={() => joinVideoCall(incomingCall)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg"
-                >
-                    Answer
                 </button>
             </div>
         </div>

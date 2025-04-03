@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BsCameraVideo, BsCameraVideoOff, BsMic, BsMicMute } from "react-icons/bs";
 
 const VideoCallModal = ({
@@ -13,6 +13,12 @@ const VideoCallModal = ({
     isVideoOn,
     isAudioOn,
 }) => {
+    useEffect(() => {
+        if (showVideoModal && localVideoRef.current && localVideoRef.current.srcObject) {
+            localVideoRef.current.play().catch(err => console.error("Error playing local video:", err));
+        }
+    }, [showVideoModal]);
+
     if (!showVideoModal || !isInVideoCall) return null;
 
     return (
@@ -30,7 +36,7 @@ const VideoCallModal = ({
                     </button>
                 </div>
 
-                <div className="video-grid grid grid-cols-2 gap-4">
+                <div className="video-grid grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Local Video */}
                     <div className="video-container relative">
                         <video
@@ -38,7 +44,7 @@ const VideoCallModal = ({
                             autoPlay
                             muted
                             playsInline
-                            className="w-full h-64 bg-gray-800 rounded-lg"
+                            className="w-full h-64 bg-gray-800 rounded-lg object-cover"
                         />
                         <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
                             <button
@@ -66,9 +72,12 @@ const VideoCallModal = ({
                                 <video
                                     autoPlay
                                     playsInline
-                                    className="w-full h-64 bg-gray-800 rounded-lg"
+                                    className="w-full h-64 bg-gray-800 rounded-lg object-cover"
                                     ref={(el) => {
-                                        if (el && stream) el.srcObject = stream;
+                                        if (el && stream) {
+                                            el.srcObject = stream;
+                                            el.play().catch(err => console.error("Error playing remote video:", err));
+                                        }
                                     }}
                                 />
                                 <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
