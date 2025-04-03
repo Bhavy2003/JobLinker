@@ -2696,7 +2696,8 @@ export default function Chat() {
     const [incomingCall, setIncomingCall] = useState(null);
     const peerConnections = useRef({});
     const localStreamRef = useRef(null);
-
+    const localVideoRef = useRef(null);
+    const remoteVideoRef = useRef(null);
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
             transports: ["websocket"],
@@ -2731,43 +2732,32 @@ export default function Chat() {
             toast.error("Please select a user to call");
             return;
         }
-    
+
         try {
-            // Request camera and microphone permissions
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: true, 
-                audio: true 
-            });
-            
-            // Save stream to reference for later use
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localStreamRef.current = stream;
-            
-            // Attach local stream to video element
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
             }
-            
+
             const callId = uuidv4();
-            
-            // Send call request to the selected user
             socket.emit("videoCallRequest", {
                 callId,
                 caller: currentUser,
                 callerName: currentUser,
                 receiver: selectedUser.email,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             });
-            
+
             setVideoCallData({
                 callId,
                 participants: [currentUser, selectedUser.email],
-                isInitiator: true
+                isInitiator: true,
             });
-            
+
             setIsInVideoCall(true);
             setShowVideoModal(true);
-            
-            // Save call info in chat
+
             const callMessage = {
                 sender: currentUser,
                 receiver: selectedUser.email,
@@ -2776,13 +2766,11 @@ export default function Chat() {
                 timestamp: new Date().toISOString(),
                 type: "video-call",
                 callId,
-                callStatus: "initiated"
+                callStatus: "initiated",
             };
-            
             socket.emit("message", callMessage);
-            
         } catch (error) {
-            console.error("Error accessing media devices:", error);
+            console.error("Error starting video call:", error);
             toast.error("Could not access camera or microphone. Please check permissions.");
         }
     };
@@ -2791,31 +2779,26 @@ export default function Chat() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localStreamRef.current = stream;
-            
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
             }
-            
+
             setVideoCallData({
                 callId: callData.callId,
                 participants: [callData.caller, currentUser],
-                isInitiator: false
+                isInitiator: false,
             });
-            
-            // Close incoming call notification
+
             setIncomingCall(null);
-            
-            // Join the call
             socket.emit("joinVideoCall", {
                 callId: callData.callId,
                 participant: currentUser,
-                to: callData.caller
+                to: callData.caller,
             });
-            
+
             setIsInVideoCall(true);
             setShowVideoModal(true);
-            
-            // Send response message to chat
+
             const responseMessage = {
                 sender: currentUser,
                 receiver: callData.caller,
@@ -2823,13 +2806,21 @@ export default function Chat() {
                 text: `Joined the video call.`,
                 timestamp: new Date().toISOString(),
                 type: "video-call-join",
-                callId: callData.callId
+                callId: callData.callId,
             };
-            
             socket.emit("message", responseMessage);
-            
+
+            const pc = createPeerConnection(callData.caller);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket.emit("videoCallOffer", {
+                callId: callData.callId,
+                offer: pc.localDescription,
+                from: currentUser,
+                to: callData.caller,
+            });
         } catch (error) {
-            console.error("Error accessing media devices:", error);
+            console.error("Error joining video call:", error);
             toast.error("Could not access camera or microphone");
         }
     };
@@ -4186,8 +4177,23 @@ export default function Chat() {
                     t={t}
                 />
             )}
-            <VideoCallModal/>
-            <IncomingCallNotification />
+           <IncomingCallNotification
+                incomingCall={incomingCall}
+                joinVideoCall={joinVideoCall}
+                rejectVideoCall={rejectVideoCall}
+            />
+            <VideoCallModal
+                showVideoModal={showVideoModal}
+                isInVideoCall={isInVideoCall}
+                selectedUser={selectedUser}
+                localVideoRef={localVideoRef}
+                remoteStreams={remoteStreams}
+                endVideoCall={endVideoCall}
+                toggleVideo={toggleVideo}
+                toggleAudio={toggleAudio}
+                isVideoOn={isVideoOn}
+                isAudioOn={isAudioOn}
+            />
             <Footer />
         </>
     );

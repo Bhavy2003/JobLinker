@@ -3285,84 +3285,7 @@ io.on("connection", (socket) => {
             console.error("Error marking messages as read:", error);
         }
     });
-    socket.on("videoCallRequest", async (data) => {
-        const { callId, caller, callerName, receiver, timestamp } = data;
-        
-        try {
-          // Create new call record
-          const newVideoCall = new VideoCall({
-            callId,
-            caller,
-            participants: [caller],
-            status: 'initiated'
-          });
-          
-          await newVideoCall.save();
-          
-          // Track active call
-          activeVideoCallsMap.set(callId, {
-            callId,
-            caller,
-            participants: [caller],
-            startTime: new Date(),
-            status: 'initiated'
-          });
-          
-          // Notify receiver
-          io.to(receiver).emit("videoCallRequest", {
-            callId,
-            caller,
-            callerName,
-            receiver,
-            timestamp
-          });
-          
-          console.log(`Video call request from ${caller} to ${receiver}, Call ID: ${callId}`);
-        } catch (error) {
-          console.error("Error creating video call:", error);
-        }
-      });
-    
-      // Join video call handler
-      socket.on("joinVideoCall", async (data) => {
-        const { callId, participant, to } = data;
-        
-        try {
-          // Update call record
-          const call = await VideoCall.findOne({ callId });
-          
-          if (call) {
-            if (!call.participants.includes(participant)) {
-              call.participants.push(participant);
-              call.status = 'ongoing';
-              await call.save();
-            }
-            
-            // Update in-memory tracking
-            if (activeVideoCallsMap.has(callId)) {
-              const activeCall = activeVideoCallsMap.get(callId);
-              if (!activeCall.participants.includes(participant)) {
-                activeCall.participants.push(participant);
-                activeCall.status = 'ongoing';
-              }
-            }
-            
-            // Notify other participants
-            io.to(to).emit("videoCallJoined", {
-              callId,
-              participant,
-              timestamp: new Date().toISOString()
-            });
-            
-            console.log(`${participant} joined call ${callId}`);
-          } else {
-            console.log(`Call ${callId} not found`);
-          }
-        } catch (error) {
-          console.error("Error joining video call:", error);
-        }
-      });
-    
+   
       // Reject video call handler
       socket.on("rejectVideoCall", async (data) => {
         const { callId, rejector, caller } = data;
@@ -3397,45 +3320,102 @@ io.on("connection", (socket) => {
       });
     
       // End video call handler
-      socket.on("endVideoCall", async (data) => {
-        const { callId, sender } = data;
-        
+      socket.on("videoCallRequest", async (data) => {
+        const { callId, caller, callerName, receiver, timestamp } = data;
         try {
-          // Update call record
-          const call = await VideoCall.findOne({ callId });
-          
-          if (call) {
-            call.status = 'ended';
-            call.endTime = new Date();
-            await call.save();
-            
-            // Get participants to notify
-            const participants = activeVideoCallsMap.has(callId) 
-              ? activeVideoCallsMap.get(callId).participants 
-              : call.participants;
-            
-            // Update in-memory tracking
-            if (activeVideoCallsMap.has(callId)) {
-              activeVideoCallsMap.delete(callId);
-            }
-            
-            // Notify all participants
-            participants.forEach(participant => {
-              if (participant !== sender) {
-                io.to(participant).emit("videoCallEnded", {
-                  callId,
-                  sender,
-                  timestamp: new Date().toISOString()
-                });
-              }
+            const newVideoCall = new VideoCall({
+                callId,
+                caller,
+                participants: [caller],
+                status: "initiated",
             });
-            
-            console.log(`Call ${callId} ended by ${sender}`);
-          }
+            await newVideoCall.save();
+            activeVideoCallsMap.set(callId, {
+                callId,
+                caller,
+                participants: [caller],
+                startTime: new Date(),
+                status: "initiated",
+            });
+
+            io.to(receiver).emit("videoCallRequest", {
+                callId,
+                caller,
+                callerName,
+                receiver,
+                timestamp,
+            });
+            console.log(`Video call request from ${caller} to ${receiver}, Call ID: ${callId}`);
         } catch (error) {
-          console.error("Error ending video call:", error);
+            console.error("Error creating video call:", error);
         }
-      });
+    });
+
+    socket.on("joinVideoCall", async (data) => {
+        const { callId, participant, to } = data;
+        try {
+            const call = await VideoCall.findOne({ callId });
+            if (call) {
+                if (!call.participants.includes(participant)) {
+                    call.participants.push(participant);
+                    call.status = "ongoing";
+                    await call.save();
+                }
+
+                if (activeVideoCallsMap.has(callId)) {
+                    const activeCall = activeVideoCallsMap.get(callId);
+                    if (!activeCall.participants.includes(participant)) {
+                        activeCall.participants.push(participant);
+                        activeCall.status = "ongoing";
+                    }
+                }
+
+                // Notify all participants, not just the caller
+                call.participants.forEach((p) => {
+                    if (p !== participant) {
+                        io.to(p).emit("videoCallJoined", {
+                            callId,
+                            participant,
+                            timestamp: new Date().toISOString(),
+                        });
+                    }
+                });
+                console.log(`${participant} joined call ${callId}`);
+            }
+        } catch (error) {
+            console.error("Error joining video call:", error);
+        }
+    });
+
+    socket.on("endVideoCall", async (data) => {
+        const { callId, sender } = data;
+        try {
+            const call = await VideoCall.findOne({ callId });
+            if (call) {
+                call.status = "ended";
+                call.endTime = new Date();
+                await call.save();
+
+                const participants = activeVideoCallsMap.has(callId)
+                    ? activeVideoCallsMap.get(callId).participants
+                    : call.participants;
+                activeVideoCallsMap.delete(callId);
+
+                participants.forEach((participant) => {
+                    if (participant !== sender) {
+                        io.to(participant).emit("videoCallEnded", {
+                            callId,
+                            sender,
+                            timestamp: new Date().toISOString(),
+                        });
+                    }
+                });
+                console.log(`Call ${callId} ended by ${sender}`);
+            }
+        } catch (error) {
+            console.error("Error ending video call:", error);
+        }
+    });
     
       // WebRTC signaling for video calls
       socket.on("videoCallOffer", (data) => {
