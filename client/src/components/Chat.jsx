@@ -2730,11 +2730,18 @@ export default function Chat() {
             toast.error("Please select a user to call");
             return;
         }
-
+    
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            // Request camera and microphone permissions
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: true, 
+                audio: true 
+            });
+            
+            // Save stream to reference for later use
             localStreamRef.current = stream;
             
+            // Attach local stream to video element
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
             }
@@ -2775,7 +2782,7 @@ export default function Chat() {
             
         } catch (error) {
             console.error("Error accessing media devices:", error);
-            toast.error("Could not access camera or microphone");
+            toast.error("Could not access camera or microphone. Please check permissions.");
         }
     };
 
@@ -3110,13 +3117,14 @@ export default function Chat() {
                         </h2>
                         <button 
                             onClick={endVideoCall}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg"
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
                         >
                             End Call
                         </button>
                     </div>
                     
                     <div className="video-grid grid grid-cols-2 gap-4">
+                        {/* Local video */}
                         <div className="video-container relative">
                             <video
                                 ref={localVideoRef}
@@ -3144,27 +3152,32 @@ export default function Chat() {
                             </div>
                         </div>
                         
-                        {Object.entries(remoteStreams).map(([email, stream]) => (
-                            <div key={email} className="video-container relative">
-                                <video
-                                    autoPlay
-                                    playsInline
-                                    className="w-full h-64 bg-gray-800 rounded-lg"
-                                    ref={el => {
-                                        if (el) el.srcObject = stream;
-                                    }}
-                                />
-                                <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                                    {email}
+                        {/* Remote video streams */}
+                        {Object.entries(remoteStreams).length > 0 ? (
+                            Object.entries(remoteStreams).map(([email, stream]) => (
+                                <div key={email} className="video-container relative">
+                                    <video
+                                        autoPlay
+                                        playsInline
+                                        className="w-full h-64 bg-gray-800 rounded-lg"
+                                        ref={el => {
+                                            if (el && stream) el.srcObject = stream;
+                                        }}
+                                    />
+                                    <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+                                        {email}
+                                    </div>
                                 </div>
+                            ))
+                        ) : (
+                            <div className="video-container flex items-center justify-center h-64 bg-gray-800 rounded-lg">
+                                <p className="text-white text-center">Waiting for others to join...</p>
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
             </div>
         );
-
-
     };
 
 
@@ -3396,18 +3409,7 @@ export default function Chat() {
         if (!selectedUser) return null;
         
         return (
-            <div className="flex justify-between items-center p-4 border-b">
-                <div className="flex items-center gap-2">
-                    <img
-                        src={selectedUser.photo || DUMMY_PHOTO_URL}
-                        alt={selectedUser.name}
-                        className="w-10 h-10 rounded-full"
-                    />
-                    <div>
-                        <h3 className="font-medium">{selectedUser.name || selectedUser.email}</h3>
-                        <p className="text-sm text-gray-600">Online</p>
-                    </div>
-                </div>
+            
                 <div className="flex gap-2">
                     <button
                         onClick={startVideoCall}
@@ -3416,15 +3418,9 @@ export default function Chat() {
                     >
                         <BsCameraVideo className="text-blue-500" />
                     </button>
-                    <button
-                        onClick={() => deleteChat(selectedUser.email)}
-                        className="p-2 rounded-full hover:bg-gray-100"
-                        title="Delete chat"
-                    >
-                        {/* Delete icon */}
-                    </button>
+                
                 </div>
-            </div>
+           
         );
     };
     
@@ -4058,6 +4054,8 @@ export default function Chat() {
         )}
     </div>
 </div>
+<VideoCallModal />
+<IncomingCallNotification />
 
             {isMessageSearchVisible && (
                                 <div className="p-4 bg-gray-800 flex items-center">
@@ -4291,8 +4289,7 @@ export default function Chat() {
                     t={t}
                 />
             )}
-            <VideoCallModal />
-            <IncomingCallNotification />
+
             <Footer />
         </>
     );
