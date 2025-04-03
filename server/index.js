@@ -3045,7 +3045,7 @@ app.post("/api/messages/delete-for-me", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
-
+const activeCalls = new Map();
 
 io.on("connection", (socket) => {
     socket.on("register", (email) => {
@@ -3256,20 +3256,22 @@ io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
 
     socket.on("callUser", (data) => {
-        io.emit("callUser", { to: data.to, from: data.from, signal: data.signal });
+        if (!activeCalls.has(data.to)) {
+            activeCalls.set(data.to, data.from);
+            io.emit("callUser", data);
+        }
     });
 
     socket.on("acceptCall", (data) => {
-        io.emit("callAccepted", { to: data.to, signal: data.signal });
+        io.emit("callAccepted", data);
     });
 
     socket.on("endCall", (data) => {
+        activeCalls.delete(data.to);
         io.emit("endCall", { to: data.to });
     });
 
-    socket.on("disconnect", () => {
-        console.log("User disconnected:", socket.id);
-    });
+   
 
     socket.on("pinMessage", async ({ messageId, sender, receiver }) => {
         try {
@@ -3322,6 +3324,11 @@ io.on("connection", (socket) => {
                 break;
             }
         }
+        activeCalls.forEach((from, to) => {
+            if (from === socket.id || to === socket.id) {
+                activeCalls.delete(to);
+            }
+        });
     });
 });
 

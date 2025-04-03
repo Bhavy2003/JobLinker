@@ -1,120 +1,85 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 
-const socket = io("https://localhost:8000"); // Ensure same port as your app
+const socket = io("https://your-backend.onrender.com", {
+    transports: ["websocket"],
+    withCredentials: true
+});
 
-const VideoCallModal = ({ selectedUserEmail, currentUserEmail }) => {
+const VideoCallModal = ({ selectedUser }) => {
     const [stream, setStream] = useState(null);
-    const [remoteStream, setRemoteStream] = useState(null);
-    const [isCalling, setIsCalling] = useState(false);
-    const [isReceiving, setIsReceiving] = useState(false);
-    const [callAccepted, setCallAccepted] = useState(false);
-    const [peerConnection, setPeerConnection] = useState(null);
-
-    const localVideoRef = useRef();
-    const remoteVideoRef = useRef();
+    const [callActive, setCallActive] = useState(false);
+    const peerConnection = useRef(null);
 
     useEffect(() => {
-        const newPeerConnection = new RTCPeerConnection({
-            iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-        });
-
-        setPeerConnection(newPeerConnection);
-
         socket.on("callUser", (data) => {
-            if (data.to === currentUserEmail) {
-                setIsReceiving(true);
-            }
-        });
-
-        socket.on("callAccepted", async (signal) => {
-            setCallAccepted(true);
-            if (peerConnection) {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+            if (!callActive) {
+                handleIncomingCall(data);
             }
         });
 
         return () => {
             socket.off("callUser");
-            socket.off("callAccepted");
         };
-    }, [peerConnection]);
+    }, [callActive]);
 
-    const startCall = async () => {
-        setIsCalling(true);
-        const userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        setStream(userStream);
-        localVideoRef.current.srcObject = userStream;
+    const startVideoCall = async () => {
+        if (!selectedUser || callActive) return;
 
-        userStream.getTracks().forEach((track) => {
-            peerConnection.addTrack(track, userStream);
-        });
+        setCallActive(true);
 
-        peerConnection.ontrack = (event) => {
-            setRemoteStream(event.streams[0]);
-            remoteVideoRef.current.srcObject = event.streams[0];
-        };
+        try {
+            const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            setStream(localStream);
 
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
+            if (!peerConnection.current) {
+                peerConnection.current = new RTCPeerConnection();
+                peerConnection.current.addStream(localStream);
+            }
 
-        socket.emit("callUser", {
-            from: currentUserEmail,
-            to: selectedUserEmail,
-            signal: offer,
-        });
+            const offer = await peerConnection.current.createOffer();
+            await peerConnection.current.setLocalDescription(offer);
+
+            socket.emit("callUser", {
+                to: selectedUser.email,
+                from: "your-email@example.com", // Replace with actual sender
+                offer
+            });
+
+        } catch (error) {
+            console.error("Error starting video call:", error);
+        }
     };
 
-    const acceptCall = async () => {
-        setCallAccepted(true);
-        const userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        setStream(userStream);
-        localVideoRef.current.srcObject = userStream;
+    const handleIncomingCall = async (data) => {
+        setCallActive(true);
 
-        userStream.getTracks().forEach((track) => {
-            peerConnection.addTrack(track, userStream);
-        });
+        try {
+            const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            setStream(localStream);
 
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
+            if (!peerConnection.current) {
+                peerConnection.current = new RTCPeerConnection();
+                peerConnection.current.addStream(localStream);
+            }
 
-        socket.emit("acceptCall", { signal: answer, to: selectedUserEmail });
-    };
+            await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await peerConnection.current.createAnswer();
+            await peerConnection.current.setLocalDescription(answer);
 
-    const toggleVideo = () => {
-        stream.getVideoTracks()[0].enabled = !stream.getVideoTracks()[0].enabled;
-    };
+            socket.emit("acceptCall", { to: data.from, answer });
 
-    const toggleAudio = () => {
-        stream.getAudioTracks()[0].enabled = !stream.getAudioTracks()[0].enabled;
-    };
-
-    const endCall = () => {
-        setIsCalling(false);
-        setIsReceiving(false);
-        setCallAccepted(false);
-        peerConnection.close();
-        setPeerConnection(null);
-        socket.emit("endCall", { to: selectedUserEmail });
+        } catch (error) {
+            console.error("Error handling incoming call:", error);
+        }
     };
 
     return (
-        <div className="video-call-container">
-            {isCalling ? <p>Calling {selectedUserEmail}...</p> : null}
-            {isReceiving && !callAccepted ? (
-                <button onClick={acceptCall} className="join-call-button">Join Call</button>
-            ) : null}
-
-            <div className="video-container">
-                <video ref={localVideoRef} autoPlay muted className="local-video" />
-                <video ref={remoteVideoRef} autoPlay className="remote-video" />
-            </div>
-
-            <div className="controls">
-                <button onClick={toggleVideo}>Toggle Video</button>
-                <button onClick={toggleAudio}>Toggle Audio</button>
-                <button onClick={endCall} className="end-call">End Call</button>
-            </div>
+        <div>
+            <button onClick={startVideoCall} disabled={callActive}>
+                Start Video Call
+            </button>
+            {stream && <video autoPlay playsInline srcObject={stream} />}
         </div>
     );
 };
