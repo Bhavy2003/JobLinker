@@ -2644,6 +2644,7 @@ import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
 import { v4 as uuidv4 } from "uuid";
 import EmojiPicker from "emoji-picker-react";
+import { BsCameraVideo } from "react-icons/bs";
 
 
 export default function Chat() {
