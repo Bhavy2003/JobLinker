@@ -2644,9 +2644,7 @@ import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
 import { v4 as uuidv4 } from "uuid";
 import EmojiPicker from "emoji-picker-react";
-import { BsCameraVideo } from "react-icons/bs";
 import VideoCallModal from "./VideoCallModal";
-import IncomingCallNotification from "./IncomingCallNotification";
 
 export default function Chat() {
     const { t } = useTranslation();
@@ -2686,18 +2684,6 @@ export default function Chat() {
     const [selectedPinMessage, setSelectedPinMessage] = useState(null);
     const peerRef = useRef(null);
 
-
-    const [isInVideoCall, setIsInVideoCall] = useState(false);
-    const [videoCallData, setVideoCallData] = useState(null);
-    const [isVideoOn, setIsVideoOn] = useState(true);
-    const [isAudioOn, setIsAudioOn] = useState(true);
-    const [remoteStreams, setRemoteStreams] = useState({});
-    const [showVideoModal, setShowVideoModal] = useState(false);
-    const [incomingCall, setIncomingCall] = useState(null);
-    const peerConnections = useRef({});
-    const localStreamRef = useRef(null);
-    const localVideoRef = useRef(null);
-    const remoteVideoRef = useRef(null);
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
             transports: ["websocket"],
@@ -2727,340 +2713,7 @@ export default function Chat() {
         const cachedMessages = localStorage.getItem(chatKey);
         return cachedMessages ? JSON.parse(cachedMessages) : [];
     };
-    const startVideoCall = async () => {
-        if (!selectedUser) {
-            toast.error("Please select a user to call");
-            return;
-        }
 
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            localStreamRef.current = stream;
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-            }
-
-            const callId = uuidv4();
-            socket.emit("videoCallRequest", {
-                callId,
-                caller: currentUser,
-                callerName: currentUser,
-                receiver: selectedUser.email,
-                timestamp: new Date().toISOString(),
-            });
-
-            setVideoCallData({
-                callId,
-                participants: [currentUser, selectedUser.email],
-                isInitiator: true,
-            });
-
-            setIsInVideoCall(true);
-            setShowVideoModal(true);
-
-            const callMessage = {
-                sender: currentUser,
-                receiver: selectedUser.email,
-                tempId: uuidv4(),
-                text: `Started a video call. Call ID: ${callId}`,
-                timestamp: new Date().toISOString(),
-                type: "video-call",
-                callId,
-                callStatus: "initiated",
-            };
-            socket.emit("message", callMessage);
-        } catch (error) {
-            console.error("Error starting video call:", error);
-            toast.error("Could not access camera or microphone. Please check permissions.");
-        }
-    };
-
-    const joinVideoCall = async (callId) => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            localStreamRef.current = stream;
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-            }
-
-            const callData = await fetch(`https://joblinker-1.onrender.com/api/v1/video-calls/${callId}`).then(res => res.json());
-            setVideoCallData({
-                callId,
-                participants: callData.participants,
-                isInitiator: false,
-            });
-
-            socket.emit("joinVideoCall", {
-                callId,
-                participant: currentUser,
-                to: callData.caller,
-            });
-
-            setIsInVideoCall(true);
-            setShowVideoModal(true);
-            setIncomingCall(null);
-
-            const responseMessage = {
-                sender: currentUser,
-                receiver: callData.caller,
-                tempId: uuidv4(),
-                text: `Joined the video call.`,
-                timestamp: new Date().toISOString(),
-                type: "video-call-join",
-                callId,
-            };
-            socket.emit("message", responseMessage);
-
-            const pc = createPeerConnection(callData.caller);
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socket.emit("videoCallOffer", {
-                callId,
-                offer: pc.localDescription,
-                from: currentUser,
-                to: callData.caller,
-            });
-        } catch (error) {
-            console.error("Error joining video call:", error);
-            toast.error("Could not access camera or microphone");
-        }
-    };
-
-    const rejectVideoCall = (callData) => {
-        socket.emit("rejectVideoCall", {
-            callId: callData.callId,
-            rejector: currentUser,
-            caller: callData.caller,
-        });
-        setIncomingCall(null);
-    };
-
-    const endVideoCall = () => {
-        if (!videoCallData) return;
-
-        socket.emit("endVideoCall", {
-            callId: videoCallData.callId,
-            sender: currentUser,
-        });
-
-        if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => track.stop());
-            localStreamRef.current = null;
-        }
-
-        Object.values(peerConnections.current).forEach(pc => {
-            if (pc && pc.close) pc.close();
-        });
-        peerConnections.current = {};
-
-        setIsInVideoCall(false);
-        setShowVideoModal(false);
-        setVideoCallData(null);
-        setRemoteStreams({});
-    };
-
-    const toggleVideo = () => {
-        if (localStreamRef.current) {
-            const videoTracks = localStreamRef.current.getVideoTracks();
-            videoTracks.forEach(track => {
-                track.enabled = !track.enabled;
-            });
-            setIsVideoOn(!isVideoOn);
-        }
-    };
-
-    const toggleAudio = () => {
-        if (localStreamRef.current) {
-            const audioTracks = localStreamRef.current.getAudioTracks();
-            audioTracks.forEach(track => {
-                track.enabled = !track.enabled;
-            });
-            setIsAudioOn(!isAudioOn);
-        }
-    };
-
-    const createPeerConnection = (remoteUser) => {
-        if (peerConnections.current[remoteUser]) {
-            return peerConnections.current[remoteUser];
-        }
-
-        const pc = new RTCPeerConnection({
-            iceServers: [
-                { urls: "stun:stun.l.google.com:19302" },
-                { urls: "stun:stun1.l.google.com:19302" },
-            ],
-        });
-
-        if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => {
-                pc.addTrack(track, localStreamRef.current);
-            });
-        }
-
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit("videoCallIceCandidate", {
-                    callId: videoCallData.callId,
-                    candidate: event.candidate,
-                    from: currentUser,
-                    to: remoteUser,
-                });
-            }
-        };
-
-        pc.ontrack = (event) => {
-            setRemoteStreams(prev => ({
-                ...prev,
-                [remoteUser]: event.streams[0],
-            }));
-        };
-
-        peerConnections.current[remoteUser] = pc;
-        return pc;
-    };
-    // WebRTC connection establishment
-   
-    // Socket event listeners for video calling
-    useEffect(() => {
-        socket.on("videoCallRequest", (data) => {
-            if (data.receiver === currentUser) {
-                setIncomingCall(data);
-                toast.info(`Incoming video call from ${data.caller}. Check your email to join.`);
-            }
-        });
-
-        socket.on("videoCallJoined", async (data) => {
-            if (videoCallData && videoCallData.callId === data.callId) {
-                const pc = createPeerConnection(data.participant);
-                if (videoCallData.isInitiator) {
-                    const offer = await pc.createOffer();
-                    await pc.setLocalDescription(offer);
-                    socket.emit("videoCallOffer", {
-                        callId: data.callId,
-                        offer: pc.localDescription,
-                        from: currentUser,
-                        to: data.participant,
-                    });
-                }
-            }
-        });
-        
-        socket.on("videoCallRejected", (data) => {
-            if (data.caller === currentUser) {
-                toast.info(`${data.rejector} rejected your call`);
-                if (videoCallData && videoCallData.callId === data.callId) {
-                    endVideoCall();
-                }
-            }
-        });
-        
-        
-        
-        socket.on("videoCallOffer", async (data) => {
-            if (videoCallData && videoCallData.callId === data.callId && data.to === currentUser) {
-                const pc = createPeerConnection(data.from);
-                
-                try {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
-                    
-                    socket.emit("videoCallAnswer", {
-                        callId: data.callId,
-                        answer: pc.localDescription,
-                        from: currentUser,
-                        to: data.from
-                    });
-                } catch (error) {
-                    console.error("Error handling offer:", error);
-                }
-            }
-        });
-        
-        socket.on("videoCallAnswer", async (data) => {
-            if (videoCallData && videoCallData.callId === data.callId && data.to === currentUser) {
-                try {
-                    const pc = peerConnections.current[data.from];
-                    if (pc) {
-                        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                    }
-                } catch (error) {
-                    console.error("Error handling answer:", error);
-                }
-            }
-        });
-        
-        socket.on("videoCallIceCandidate", async (data) => {
-            if (videoCallData && videoCallData.callId === data.callId && data.to === currentUser) {
-                try {
-                    const pc = peerConnections.current[data.from];
-                    if (pc) {
-                        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-                    }
-                } catch (error) {
-                    console.error("Error adding ICE candidate:", error);
-                }
-            }
-        });
-        
-        socket.on("videoCallEnded", (data) => {
-            if (videoCallData && videoCallData.callId === data.callId) {
-                toast.info(`Call ended by ${data.sender}`);
-                
-                // Clean up resources
-                if (localStreamRef.current) {
-                    localStreamRef.current.getTracks().forEach(track => track.stop());
-                    localStreamRef.current = null;
-                }
-                
-                // Clean up peer connections
-                Object.values(peerConnections.current).forEach(pc => {
-                    if (pc && pc.close) pc.close();
-                });
-                peerConnections.current = {};
-                
-                setIsInVideoCall(false);
-                setShowVideoModal(false);
-                setVideoCallData(null);
-                setRemoteStreams({});
-            }
-        });
-        
-        return () => {
-            socket.off("videoCallRequest");
-            socket.off("videoCallRejected");
-            socket.off("videoCallJoined");
-            socket.off("videoCallOffer");
-            socket.off("videoCallAnswer");
-            socket.off("videoCallIceCandidate");
-            socket.off("videoCallEnded");
-        };
-    }, [currentUser, videoCallData]);
-
-    // Clean up on component unmount
-    useEffect(() => {
-        return () => {
-            if (localStreamRef.current) {
-                localStreamRef.current.getTracks().forEach(track => track.stop());
-            }
-            
-            Object.values(peerConnections.current).forEach(pc => {
-                if (pc && pc.close) pc.close();
-            });
-        };
-    }, []);
-
-    // JSX video call components
-    
-
-    useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const callId = urlParams.get("callId");
-        if (callId) {
-            joinVideoCall(callId);
-        }
-    }, []);
-    
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
@@ -3254,24 +2907,6 @@ export default function Chat() {
             socket.off("pinNotification");
         };
     }, [allUsers, currentUser]);
-    const renderChatHeader = () => {
-        if (!selectedUser) return null;
-        
-        return (
-            
-                <div className="flex gap-2">
-                    <button
-                        onClick={startVideoCall}
-                        className="p-2 rounded-full hover:bg-gray-100"
-                        title="Start video call"
-                    >
-                        <BsCameraVideo className="text-blue-500" />
-                    </button>
-                
-                </div>
-           
-        );
-    };
     
     useEffect(() => {
         socket.on("message", (msg) => {
@@ -3837,7 +3472,7 @@ export default function Chat() {
                                             />
                                         </svg>
                                     </button>
-                                    {renderChatHeader()}
+                                   <VideoCallModal/>
                                     {/* Selection Mode Buttons */}
             {isSelectionMode ? (
             <>
@@ -3903,7 +3538,6 @@ export default function Chat() {
         )}
     </div>
 </div>
-
 
             {isMessageSearchVisible && (
                                 <div className="p-4 bg-gray-800 flex items-center">
@@ -4137,22 +3771,6 @@ export default function Chat() {
                     t={t}
                 />
             )}
-          <IncomingCallNotification
-                incomingCall={incomingCall}
-                rejectVideoCall={rejectVideoCall}
-            />
-            <VideoCallModal
-                showVideoModal={showVideoModal}
-                isInVideoCall={isInVideoCall}
-                selectedUser={selectedUser}
-                localVideoRef={localVideoRef}
-                remoteStreams={remoteStreams}
-                endVideoCall={endVideoCall}
-                toggleVideo={toggleVideo}
-                toggleAudio={toggleAudio}
-                isVideoOn={isVideoOn}
-                isAudioOn={isAudioOn}
-            />
             <Footer />
         </>
     );

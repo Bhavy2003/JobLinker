@@ -1,96 +1,119 @@
-import React, { useEffect } from "react";
-import { BsCameraVideo, BsCameraVideoOff, BsMic, BsMicMute } from "react-icons/bs";
+import { useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
 
-const VideoCallModal = ({
-    showVideoModal,
-    isInVideoCall,
-    selectedUser,
-    localVideoRef,
-    remoteStreams,
-    endVideoCall,
-    toggleVideo,
-    toggleAudio,
-    isVideoOn,
-    isAudioOn,
-}) => {
+const socket = io("https://localhost:8000"); // Ensure same port as your app
+
+const VideoCallModal = ({ selectedUserEmail, currentUserEmail }) => {
+    const [stream, setStream] = useState(null);
+    const [remoteStream, setRemoteStream] = useState(null);
+    const [isCalling, setIsCalling] = useState(false);
+    const [isReceiving, setIsReceiving] = useState(false);
+    const [callAccepted, setCallAccepted] = useState(false);
+    const [peerConnection, setPeerConnection] = useState(null);
+
+    const localVideoRef = useRef();
+    const remoteVideoRef = useRef();
+
     useEffect(() => {
-        if (showVideoModal && localVideoRef.current && localVideoRef.current.srcObject) {
-            localVideoRef.current.play().catch(err => console.error("Error playing local video:", err));
-        }
-    }, [showVideoModal]);
+        const newPeerConnection = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        });
 
-    if (!showVideoModal || !isInVideoCall) return null;
+        setPeerConnection(newPeerConnection);
+
+        socket.on("callUser", (data) => {
+            if (data.to === currentUserEmail) {
+                setIsReceiving(true);
+            }
+        });
+
+        socket.on("callAccepted", async (signal) => {
+            setCallAccepted(true);
+            if (peerConnection) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+            }
+        });
+
+        return () => {
+            socket.off("callUser");
+            socket.off("callAccepted");
+        };
+    }, [peerConnection]);
+
+    const startCall = async () => {
+        setIsCalling(true);
+        const userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setStream(userStream);
+        localVideoRef.current.srcObject = userStream;
+
+        userStream.getTracks().forEach((track) => {
+            peerConnection.addTrack(track, userStream);
+        });
+
+        peerConnection.ontrack = (event) => {
+            setRemoteStream(event.streams[0]);
+            remoteVideoRef.current.srcObject = event.streams[0];
+        };
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        socket.emit("callUser", {
+            from: currentUserEmail,
+            to: selectedUserEmail,
+            signal: offer,
+        });
+    };
+
+    const acceptCall = async () => {
+        setCallAccepted(true);
+        const userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setStream(userStream);
+        localVideoRef.current.srcObject = userStream;
+
+        userStream.getTracks().forEach((track) => {
+            peerConnection.addTrack(track, userStream);
+        });
+
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+
+        socket.emit("acceptCall", { signal: answer, to: selectedUserEmail });
+    };
+
+    const toggleVideo = () => {
+        stream.getVideoTracks()[0].enabled = !stream.getVideoTracks()[0].enabled;
+    };
+
+    const toggleAudio = () => {
+        stream.getAudioTracks()[0].enabled = !stream.getAudioTracks()[0].enabled;
+    };
+
+    const endCall = () => {
+        setIsCalling(false);
+        setIsReceiving(false);
+        setCallAccepted(false);
+        peerConnection.close();
+        setPeerConnection(null);
+        socket.emit("endCall", { to: selectedUserEmail });
+    };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-4 w-full max-w-5xl">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">
-                        Video Call with {selectedUser?.email || ""}
-                    </h2>
-                    <button
-                        onClick={endVideoCall}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-                    >
-                        End Call
-                    </button>
-                </div>
+        <div className="video-call-container">
+            {isCalling ? <p>Calling {selectedUserEmail}...</p> : null}
+            {isReceiving && !callAccepted ? (
+                <button onClick={acceptCall} className="join-call-button">Join Call</button>
+            ) : null}
 
-                <div className="video-grid grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Local Video */}
-                    <div className="video-container relative">
-                        <video
-                            ref={localVideoRef}
-                            autoPlay
-                            muted
-                            playsInline
-                            className="w-full h-64 bg-gray-800 rounded-lg object-cover"
-                        />
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
-                            <button
-                                onClick={toggleVideo}
-                                className={`p-2 rounded-full ${isVideoOn ? "bg-blue-500" : "bg-red-500"} text-white`}
-                            >
-                                {isVideoOn ? <BsCameraVideo /> : <BsCameraVideoOff />}
-                            </button>
-                            <button
-                                onClick={toggleAudio}
-                                className={`p-2 rounded-full ${isAudioOn ? "bg-blue-500" : "bg-red-500"} text-white`}
-                            >
-                                {isAudioOn ? <BsMic /> : <BsMicMute />}
-                            </button>
-                        </div>
-                        <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                            You
-                        </div>
-                    </div>
+            <div className="video-container">
+                <video ref={localVideoRef} autoPlay muted className="local-video" />
+                <video ref={remoteVideoRef} autoPlay className="remote-video" />
+            </div>
 
-                    {/* Remote Video Streams */}
-                    {Object.entries(remoteStreams).length > 0 ? (
-                        Object.entries(remoteStreams).map(([email, stream]) => (
-                            <div key={email} className="video-container relative">
-                                <video
-                                    autoPlay
-                                    playsInline
-                                    className="w-full h-64 bg-gray-800 rounded-lg object-cover"
-                                    ref={(el) => {
-                                        if (el && stream) {
-                                            el.srcObject = stream;
-                                            el.play().catch(err => console.error("Error playing remote video:", err));
-                                        }
-                                    }}
-                                />
-                                <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                                    {email}
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="video-container flex items-center justify-center h-64 bg-gray-800 rounded-lg">
-                            <p className="text-white text-center">Waiting for others to join...</p>
-                        </div>
-                    )}
-                </div>
+            <div className="controls">
+                <button onClick={toggleVideo}>Toggle Video</button>
+                <button onClick={toggleAudio}>Toggle Audio</button>
+                <button onClick={endCall} className="end-call">End Call</button>
             </div>
         </div>
     );

@@ -2306,37 +2306,7 @@ const PORT = process.env.PORT || 8000;
 //     console.log(`PeerJS client disconnected: ${client.getId()}`);
 //   });
 
-import nodemailer from "nodemailer";
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: process.env.EMAIL,
-        pass: process.env.EMAIL_PASSWORD,
-    },
-});
-
-const sendJoinEmail = async (caller, receiver, callId) => {
-    const joinLink = `https://joblinker-1.onrender.com/join-call/${callId}`;
-    const mailOptions = {
-        from: process.env.EMAIL,
-        to: receiver,
-        subject: `Video Call Invitation from ${caller}`,
-        html: `
-            <p>You have an incoming video call from ${caller}.</p>
-            <p>Click the link below to join the call:</p>
-            <a href="${joinLink}">Join Video Call</a>
-            <p>Call ID: ${callId}</p>
-        `,
-    };
-
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log(`Join email sent to ${receiver} for call ${callId}`);
-    } catch (error) {
-        console.error("Error sending email:", error);
-    }
-};
 
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/company", companyRoute);
@@ -2757,37 +2727,7 @@ const messageSchema = new mongoose.Schema({
     toObject: { virtuals: true }, // Ensure virtuals are included in toObject
 });
 const Message = mongoose.model("Message", messageSchema);
-const VideoCallSchema = new mongoose.Schema({
-    callId: {
-      type: String,
-      required: true,
-      unique: true
-    },
-    caller: {
-      type: String,
-      required: true
-    },
-    participants: [{
-      type: String
-    }],
-    startTime: {
-      type: Date,
-      default: Date.now
-    },
-    endTime: {
-      type: Date
-    },
-    status: {
-      type: String,
-      enum: ['initiated', 'ongoing', 'ended', 'rejected'],
-      default: 'initiated'
-    }
-  });
-  
-  const VideoCall = mongoose.model('VideoCall', VideoCallSchema);
-  
-  // Active calls tracking (in-memory)
-  const activeVideoCallsMap = new Map();
+
 app.get("/api/unread-messages/:email", async (req, res) => {
     const { email } = req.params;
     try {
@@ -2800,53 +2740,6 @@ app.get("/api/unread-messages/:email", async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: "Server error" });
     }
-});
-
-app.get("/api/v1/video-calls/history/:userEmail", async (req, res) => {
-    try {
-      const { userEmail } = req.params;
-      const { limit = 10, skip = 0 } = req.query;
-      
-      const callHistory = await VideoCall.find({
-        participants: userEmail
-      })
-      .sort({ startTime: -1 })
-      .skip(parseInt(skip))
-      .limit(parseInt(limit));
-      
-      res.status(200).json(callHistory);
-    } catch (error) {
-      console.error("Error fetching call history:", error);
-      res.status(500).json({ error: "Failed to fetch call history" });
-    }
-  });
-  
-  // Get information about a specific call
-  app.get("/api/v1/video-calls/:callId", async (req, res) => {
-    try {
-      const { callId } = req.params;
-      
-      // Check in-memory first for most up-to-date info
-      if (activeVideoCallsMap.has(callId)) {
-        return res.status(200).json(activeVideoCallsMap.get(callId));
-      }
-      
-      // Fall back to database
-      const call = await VideoCall.findOne({ callId });
-      
-      if (!call) {
-        return res.status(404).json({ error: "Call not found" });
-      }
-      
-      res.status(200).json(call);
-    } catch (error) {
-      console.error("Error fetching call information:", error);
-      res.status(500).json({ error: "Failed to fetch call information" });
-    }
-  });
-  app.get("/join-call/:callId", (req, res) => {
-    const { callId } = req.params;
-    res.redirect(`https://joblinker-1.onrender.com/chat?callId=${callId}`); // Redirect to chat page with callId
 });
 
 app.get("/messages/:user1/:user2", async (req, res) => {
@@ -3155,7 +3048,6 @@ app.post("/api/messages/delete-for-me", async (req, res) => {
 
 
 io.on("connection", (socket) => {
-    let userEmail = null;
     socket.on("register", (email) => {
         connectedUsers.set(email, socket.id);
         console.log(`User ${email} connected with socket ID: ${socket.id}`);
@@ -3260,6 +3152,47 @@ io.on("connection", (socket) => {
         }
     });
 
+    // socket.on("sendMessage", async (msgData) => {
+    //     const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
+
+    //     if (!msgData.text && !fileUrl) {
+    //         return;
+    //     }
+
+    //     try {
+    //         const newMessage = new Message({
+    //             sender: msgData.sender,
+    //             receiver: msgData.receiver,
+    //             text: msgData.text || "",
+    //             fileUrl: fileUrl,
+    //             timestamp: new Date(msgData.timestamp),
+    //             status: 'sent',
+    //             isRead: false,
+    //             reactions: [],
+    //         });
+    //         const savedMessage = await newMessage.save();
+
+    //         const messageToEmit = {
+    //             ...savedMessage.toObject(),
+    //             tempId: msgData.tempId,
+    //         };
+
+    //         const room = [msgData.sender, msgData.receiver].sort().join("_");
+    //         io.to(room).emit("message", messageToEmit);
+
+    //         const receiverSocketId = connectedUsers.get(msgData.receiver);
+    //         if (receiverSocketId && msgData.receiver !== msgData.sender) {
+    //             await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: 'delivered' } });
+    //             const updatedMessage = await Message.findById(savedMessage._id);
+    //             io.to(room).emit("messageStatusUpdated", updatedMessage);
+    //             io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
+    //         }
+    //     } catch (error) {
+    //         console.error("Error processing sendMessage:", error);
+    //     }
+    // });
+    
+
  
     socket.on("addReaction", async ({ messageId, user, emoji }) => {
         try {
@@ -3320,6 +3253,24 @@ io.on("connection", (socket) => {
             console.error("Error deleting chat:", error);
         }
     });
+    console.log("User connected:", socket.id);
+
+    socket.on("callUser", (data) => {
+        io.emit("callUser", { to: data.to, from: data.from, signal: data.signal });
+    });
+
+    socket.on("acceptCall", (data) => {
+        io.emit("callAccepted", { to: data.to, signal: data.signal });
+    });
+
+    socket.on("endCall", (data) => {
+        io.emit("endCall", { to: data.to });
+    });
+
+    socket.on("disconnect", () => {
+        console.log("User disconnected:", socket.id);
+    });
+
     socket.on("pinMessage", async ({ messageId, sender, receiver }) => {
         try {
             const message = await Message.findById(messageId);
@@ -3362,185 +3313,8 @@ io.on("connection", (socket) => {
             console.error("Error marking messages as read:", error);
         }
     });
-   
-      // Reject video call handler
-      socket.on("rejectVideoCall", async (data) => {
-        const { callId, rejector, caller } = data;
-        
-        try {
-          // Update call record
-          const call = await VideoCall.findOne({ callId });
-          
-          if (call) {
-            call.status = 'rejected';
-            call.endTime = new Date();
-            await call.save();
-            
-            // Update in-memory tracking
-            if (activeVideoCallsMap.has(callId)) {
-              activeVideoCallsMap.delete(callId);
-            }
-            
-            // Notify caller
-            io.to(caller).emit("videoCallRejected", {
-              callId,
-              rejector,
-              caller,
-              timestamp: new Date().toISOString()
-            });
-            
-            console.log(`${rejector} rejected call ${callId} from ${caller}`);
-          }
-        } catch (error) {
-          console.error("Error rejecting video call:", error);
-        }
-      });
-    
-      // End video call handler
-      socket.on("videoCallRequest", async (data) => {
-        const { callId, caller, callerName, receiver, timestamp } = data;
-        try {
-            const newVideoCall = new VideoCall({
-                callId,
-                caller,
-                participants: [caller],
-                status: "initiated",
-            });
-            await newVideoCall.save();
-            activeVideoCallsMap.set(callId, {
-                callId,
-                caller,
-                participants: [caller],
-                startTime: new Date(),
-                status: "initiated",
-            });
 
-            io.to(receiver).emit("videoCallRequest", {
-                callId,
-                caller,
-                callerName,
-                receiver,
-                timestamp,
-            });
-
-            // Send email to receiver
-            await sendJoinEmail(caller, receiver, callId);
-            console.log(`Video call request from ${caller} to ${receiver}, Call ID: ${callId}`);
-        } catch (error) {
-            console.error("Error creating video call:", error);
-        }
-    });
-
-    socket.on("joinVideoCall", async (data) => {
-        const { callId, participant, to } = data;
-        try {
-            const call = await VideoCall.findOne({ callId });
-            if (call) {
-                if (!call.participants.includes(participant)) {
-                    call.participants.push(participant);
-                    call.status = "ongoing";
-                    await call.save();
-                }
-
-                if (activeVideoCallsMap.has(callId)) {
-                    const activeCall = activeVideoCallsMap.get(callId);
-                    if (!activeCall.participants.includes(participant)) {
-                        activeCall.participants.push(participant);
-                        activeCall.status = "ongoing";
-                    }
-                }
-
-                // Notify all participants, not just the caller
-                call.participants.forEach((p) => {
-                    if (p !== participant) {
-                        io.to(p).emit("videoCallJoined", {
-                            callId,
-                            participant,
-                            timestamp: new Date().toISOString(),
-                        });
-                    }
-                });
-                console.log(`${participant} joined call ${callId}`);
-            }
-        } catch (error) {
-            console.error("Error joining video call:", error);
-        }
-    });
-
-    socket.on("endVideoCall", async (data) => {
-        const { callId, sender } = data;
-        try {
-            const call = await VideoCall.findOne({ callId });
-            if (call) {
-                call.status = "ended";
-                call.endTime = new Date();
-                await call.save();
-
-                const participants = activeVideoCallsMap.has(callId)
-                    ? activeVideoCallsMap.get(callId).participants
-                    : call.participants;
-                activeVideoCallsMap.delete(callId);
-
-                participants.forEach((participant) => {
-                    if (participant !== sender) {
-                        io.to(participant).emit("videoCallEnded", {
-                            callId,
-                            sender,
-                            timestamp: new Date().toISOString(),
-                        });
-                    }
-                });
-                console.log(`Call ${callId} ended by ${sender}`);
-            }
-        } catch (error) {
-            console.error("Error ending video call:", error);
-        }
-    });
-    
-      // WebRTC signaling for video calls
-      socket.on("videoCallOffer", (data) => {
-        const { callId, offer, from, to } = data;
-        
-        // Forward offer to receiver
-        io.to(to).emit("videoCallOffer", {
-          callId,
-          offer,
-          from,
-          to
-        });
-        
-        console.log(`Forwarded offer from ${from} to ${to} for call ${callId}`);
-      });
-    
-      socket.on("videoCallAnswer", (data) => {
-        const { callId, answer, from, to } = data;
-        
-        // Forward answer to original caller
-        io.to(to).emit("videoCallAnswer", {
-          callId,
-          answer,
-          from,
-          to
-        });
-        
-        console.log(`Forwarded answer from ${from} to ${to} for call ${callId}`);
-      });
-    
-      socket.on("videoCallIceCandidate", (data) => {
-        const { callId, candidate, from, to } = data;
-        
-        // Forward ICE candidate to the intended recipient
-        io.to(to).emit("videoCallIceCandidate", {
-          callId,
-          candidate,
-          from,
-          to
-        });
-        
-        // Debug logging but keep compact due to frequent events
-        console.log(`ICE candidate from ${from} to ${to}`);
-      });
-      socket.on("disconnect", async () => {
+    socket.on("disconnect", () => {
         for (let [email, socketId] of connectedUsers.entries()) {
             if (socketId === socket.id) {
                 connectedUsers.delete(email);
@@ -3548,138 +3322,10 @@ io.on("connection", (socket) => {
                 break;
             }
         }
-        if (userEmail) {
-          // Check if user is in any active calls
-          for (const [callId, callData] of activeVideoCallsMap.entries()) {
-            if (callData.participants.includes(userEmail)) {
-              try {
-                // Update call record
-                const call = await VideoCall.findOne({ callId });
-                
-                if (call) {
-                  // If caller disconnects, end call for everyone
-                  if (call.caller === userEmail) {
-                    call.status = 'ended';
-                    call.endTime = new Date();
-                    await call.save();
-                    
-                    // Notify other participants
-                    callData.participants.forEach(participant => {
-                      if (participant !== userEmail) {
-                        io.to(participant).emit("videoCallEnded", {
-                          callId,
-                          sender: userEmail,
-                          reason: "caller_disconnected",
-                          timestamp: new Date().toISOString()
-                        });
-                      }
-                    });
-                    
-                    // Remove from active calls
-                    activeVideoCallsMap.delete(callId);
-                    
-                    console.log(`Call ${callId} ended due to caller ${userEmail} disconnection`);
-                  } else {
-                    // If participant disconnects, just remove them
-                    call.participants = call.participants.filter(p => p !== userEmail);
-                    await call.save();
-                    
-                    // Update in-memory tracking
-                    const activeCall = activeVideoCallsMap.get(callId);
-                    if (activeCall) {
-                      activeCall.participants = activeCall.participants.filter(p => p !== userEmail);
-                      
-                      // If no participants left, end the call
-                      if (activeCall.participants.length <= 1) {
-                        call.status = 'ended';
-                        call.endTime = new Date();
-                        await call.save();
-                        
-                        // Notify remaining participant
-                        if (activeCall.participants.length === 1) {
-                          io.to(activeCall.participants[0]).emit("videoCallEnded", {
-                            callId,
-                            sender: userEmail,
-                            reason: "participants_left",
-                            timestamp: new Date().toISOString()
-                          });
-                        }
-                        
-                        // Remove from active calls
-                        activeVideoCallsMap.delete(callId);
-                        
-                        console.log(`Call ${callId} ended due to no active participants`);
-                      }
-                    }
-                  }
-                }
-              } catch (error) {
-                console.error(`Error handling disconnect for user ${userEmail} in call ${callId}:`, error);
-              }
-            }
-          }
-        }
-        
-        console.log("User disconnected:", userEmail);
-      });
-  
-    
-
-    // socket.on("disconnect", () => {
-    //     for (let [email, socketId] of connectedUsers.entries()) {
-    //         if (socketId === socket.id) {
-    //             connectedUsers.delete(email);
-    //             console.log(`User ${email} disconnected`);
-    //             break;
-    //         }
-    //     }
-    // });
+    });
 });
-app.get("/api/v1/video-calls/active/:userEmail", async (req, res) => {
-    try {
-      const { userEmail } = req.params;
-      
-      // Check both database and in-memory map
-      const activeCalls = [];
-      
-      // Check in-memory active calls
-      for (const [callId, callData] of activeVideoCallsMap.entries()) {
-        if (callData.participants.includes(userEmail)) {
-          activeCalls.push(callData);
-        }
-      }
-      
-      // If no in-memory calls found, check database as fallback
-      if (activeCalls.length === 0) {
-        const dbCalls = await VideoCall.find({
-          participants: userEmail,
-          status: { $in: ['initiated', 'ongoing'] }
-        }).sort({ startTime: -1 });
-        
-        dbCalls.forEach(call => {
-          activeCalls.push({
-            callId: call.callId,
-            caller: call.caller,
-            participants: call.participants,
-            startTime: call.startTime,
-            status: call.status
-          });
-        });
-      }
-      
-      res.status(200).json(activeCalls);
-    } catch (error) {
-      console.error("Error fetching active calls:", error);
-      res.status(500).json({ error: "Failed to fetch active calls" });
-    }
-  });
-  
-  // Get call history for a user
- 
-  
 
-
-
+// ... (rest of the index.js file remains the same)
 app.use(express.static(path.join(__dirname, "client", "dist")));
 app.get("*", (_req, res) => {
     res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
