@@ -3078,7 +3078,9 @@ app.use(express.static(path.join(__dirname, "client", "dist")));
 app.get("*", (_req, res) => {
     res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
 });
-
+app.get('/googlecafbaf78ff53268f.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'googlecafbaf78ff53268f.html'));
+});
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
