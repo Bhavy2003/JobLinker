@@ -2211,6 +2211,31 @@ io.on("connection", (socket) => {
             console.error("Error marking messages as read:", error);
         }
     });
+    socket.on("call-user", (data) => {
+        io.to(data.to).emit("call-made", {
+          offer: data.offer,
+          socket: socket.id
+        });
+      });
+    
+      socket.on("make-answer", (data) => {
+        io.to(data.to).emit("answer-made", {
+          answer: data.answer,
+          socket: socket.id
+        });
+      });
+    
+      socket.on("ice-candidate", (data) => {
+        io.to(data.to).emit("ice-candidate", {
+          candidate: data.candidate,
+          socket: socket.id
+        });
+      });
+    
+      socket.on("end-call", (id) => {
+        io.to(id).emit("end-call");
+      });
+    
 
     socket.on("disconnect", () => {
         for (let [email, socketId] of connectedUsers.entries()) {

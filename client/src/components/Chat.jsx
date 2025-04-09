@@ -1251,10 +1251,20 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
-   
+    const [micOn, setMicOn] = useState(true);
+    const [videoOn, setVideoOn] = useState(true);
+    
     const [isPinMode, setIsPinMode] = useState(false);
     const [selectedPinMessage, setSelectedPinMessage] = useState(null);
     const peerRef = useRef(null);
+    const [localStream, setLocalStream] = useState(null);
+const [remoteStream, setRemoteStream] = useState(null);
+const [isCalling, setIsCalling] = useState(false);
+const [incomingCall, setIncomingCall] = useState(null);
+const localVideoRef = useRef();
+const remoteVideoRef = useRef();
+const peerConnection = useRef(null);
+
 
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
@@ -1351,6 +1361,121 @@ export default function Chat() {
             })
             .catch((err) => console.error("Error fetching users:", err));
     }, [currentUser, storageKey]);
+    const startCall = async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setLocalStream(stream);
+        localVideoRef.current.srcObject = stream;
+      
+        peerConnection.current = new RTCPeerConnection();
+      
+        stream.getTracks().forEach(track => peerConnection.current.addTrack(track, stream));
+      
+        peerConnection.current.ontrack = (event) => {
+          setRemoteStream(event.streams[0]);
+          remoteVideoRef.current.srcObject = event.streams[0];
+        };
+      
+        peerConnection.current.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit("ice-candidate", { to: selectedUserSocket, candidate: event.candidate });
+          }
+        };
+      
+        const offer = await peerConnection.current.createOffer();
+        await peerConnection.current.setLocalDescription(offer);
+      
+        socket.emit("call-user", { offer, to: selectedUserSocket });
+        setIsCalling(true);
+      };
+      useEffect(() => {
+        socket.on("call-made", async (data) => {
+          setIncomingCall(data);
+        });
+      
+        socket.on("answer-made", async (data) => {
+          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+        });
+      
+        socket.on("ice-candidate", async (data) => {
+          if (data.candidate) {
+            try {
+              await peerConnection.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (e) {
+              console.error("Error adding ice candidate", e);
+            }
+          }
+        });
+      
+        socket.on("end-call", () => {
+          if (peerConnection.current) {
+            peerConnection.current.close();
+            setIsCalling(false);
+            setIncomingCall(null);
+            setRemoteStream(null);
+            remoteVideoRef.current.srcObject = null;
+          }
+        });
+      }, []);
+      
+      const joinCall = async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setLocalStream(stream);
+        localVideoRef.current.srcObject = stream;
+      
+        peerConnection.current = new RTCPeerConnection();
+      
+        stream.getTracks().forEach(track => peerConnection.current.addTrack(track, stream));
+      
+        peerConnection.current.ontrack = (event) => {
+          setRemoteStream(event.streams[0]);
+          remoteVideoRef.current.srcObject = event.streams[0];
+        };
+      
+        peerConnection.current.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit("ice-candidate", { to: incomingCall.socket, candidate: event.candidate });
+          }
+        };
+      
+        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
+        const answer = await peerConnection.current.createAnswer();
+        await peerConnection.current.setLocalDescription(answer);
+      
+        socket.emit("make-answer", {
+          answer,
+          to: incomingCall.socket
+        });
+      
+        setIsCalling(true);
+        setIncomingCall(null);
+      };
+      const endCall = () => {
+        if (peerConnection.current) {
+          peerConnection.current.close();
+          setIsCalling(false);
+          setRemoteStream(null);
+          socket.emit("end-call", selectedUserSocket);
+        }
+      };
+        
+      const toggleMic = () => {
+        if (localStream) {
+          localStream.getAudioTracks().forEach(track => {
+            track.enabled = !track.enabled;
+            setMicOn(track.enabled);
+          });
+        }
+      };
+        
+      const toggleVideo = () => {
+        if (localStream) {
+          localStream.getVideoTracks().forEach(track => {
+            track.enabled = !track.enabled;
+            setVideoOn(track.enabled);
+          });
+        }
+      };
+      
 
     useEffect(() => {
         fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`)
@@ -2044,6 +2169,44 @@ export default function Chat() {
                                             />
                                         </svg>
                                     </button>
+                                    <div style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}>
+  <button onClick={startCall} title="Start Video Call">
+    📹
+  </button>
+  {incomingCall && (
+    <button onClick={joinCall} style={{ marginLeft: "10px" }}>
+      Join Call
+    </button>
+  )}
+  {isCalling && (
+    <button onClick={endCall} style={{ marginLeft: "10px", color: "red" }}>
+      End Call
+    </button>
+  )}
+</div>
+
+{/* Video Call Box */}
+{isCalling && (
+  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", marginTop: "10px" }}>
+    <div style={{ display: "flex", gap: "10px" }}>
+      <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "45%", borderRadius: "10px" }} />
+      <video ref={remoteVideoRef} autoPlay playsInline style={{ width: "45%", borderRadius: "10px" }} />
+    </div>
+    
+    <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+      <button onClick={toggleMic} style={{ padding: "5px 10px" }}>
+        {micOn ? "Mute Mic 🔇" : "Unmute Mic 🎙️"}
+      </button>
+      <button onClick={toggleVideo} style={{ padding: "5px 10px" }}>
+        {videoOn ? "Turn Off Camera 📷" : "Turn On Camera 📸"}
+      </button>
+      <button onClick={endCall} style={{ padding: "5px 10px", backgroundColor: "red", color: "white" }}>
+        End Call 🔚
+      </button>
+    </div>
+  </div>
+)}
+
                                    
                                     {/* Selection Mode Buttons */}
             {isSelectionMode ? (
