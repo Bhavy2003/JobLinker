@@ -2067,91 +2067,6 @@ io.on("connection", (socket) => {
             console.error("Error processing sendMessage:", error);
         }
     });
-    socket.on('callRequest', ({ to, from, username }) => {
-        console.log(`Call request from ${from} to ${to}`);
-        
-        // Find the socket ID of the recipient
-        const recipientSocket = findSocketByUser(to);
-        
-        if (recipientSocket) {
-            io.to(recipientSocket).emit('callRequest', { from, username });
-        }
-    });
-    
-    // Handle call accepted
-    socket.on('callAccepted', ({ to }) => {
-        console.log(`Call accepted for ${to}`);
-        
-        const callerSocket = findSocketByUser(to);
-        
-        if (callerSocket) {
-            io.to(callerSocket).emit('callAccepted');
-        }
-    });
-    
-    // Handle call rejected
-    socket.on('callRejected', ({ to }) => {
-        console.log(`Call rejected for ${to}`);
-        
-        const callerSocket = findSocketByUser(to);
-        
-        if (callerSocket) {
-            io.to(callerSocket).emit('callRejected');
-        }
-    });
-    
-    // Handle WebRTC offer
-    socket.on('offer', ({ to, offer }) => {
-        console.log(`Offer sent to ${to}`);
-        
-        const recipientSocket = findSocketByUser(to);
-        
-        if (recipientSocket) {
-            io.to(recipientSocket).emit('offer', {
-                from: socket.id,
-                offer
-            });
-        }
-    });
-    
-    // Handle WebRTC answer
-    socket.on('answer', ({ to, answer }) => {
-        console.log(`Answer sent to ${to}`);
-        
-        const callerSocket = findSocketByUser(to);
-        
-        if (callerSocket) {
-            io.to(callerSocket).emit('answer', {
-                from: socket.id,
-                answer
-            });
-        }
-    });
-    
-    // Handle ICE candidates
-    socket.on('iceCandidate', ({ to, candidate }) => {
-        console.log(`ICE candidate for ${to}`);
-        
-        const recipientSocket = findSocketByUser(to);
-        
-        if (recipientSocket) {
-            io.to(recipientSocket).emit('iceCandidate', {
-                from: socket.id,
-                candidate
-            });
-        }
-    });
-    
-    // Handle end call
-    socket.on('endCall', ({ to }) => {
-        console.log(`Call ended for ${to}`);
-        
-        const recipientSocket = findSocketByUser(to);
-        
-        if (recipientSocket) {
-            io.to(recipientSocket).emit('callEnded');
-        }
-    });
 
     // socket.on("sendMessage", async (msgData) => {
     //     const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
@@ -2307,16 +2222,6 @@ io.on("connection", (socket) => {
         }
     });
 });
-function findSocketByUser(userEmail) {
-    // This implementation depends on how you're tracking users in your app
-    // You might need to modify this to fit your existing code
-    for (const [socketId, socket] of io.sockets.sockets) {
-        if (socket.userEmail === userEmail) {
-            return socketId;
-        }
-    }
-    return null;
-}
 
 // ... (rest of the index.js file remains the same)
 app.use(express.static(path.join(__dirname, "client", "dist")));

@@ -1,8 +1,5 @@
 
 
-
-
-
 // import React, { useState, useEffect, useRef } from "react";
 // import io from "socket.io-client";
 // import Navbar from "./shared/Navbar";
@@ -13,7 +10,6 @@
 // import "../../src/i18n.jsx";
 // import { v4 as uuidv4 } from "uuid";
 // import EmojiPicker from "emoji-picker-react";
-
 
 // export default function Chat() {
 //     const { t } = useTranslation();
@@ -37,9 +33,7 @@
 //     const [confirmAction, setConfirmAction] = useState(null);
 //     const [confirmData, setConfirmData] = useState(null);
 //     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-//     const [isMessageSearchVisible, setIsMessageSearchVisible] = useState(false);
-//     const [messageSearchQuery, setMessageSearchQuery] = useState("");
-//     const [pinnedMessages, setPinnedMessages] = useState([]);
+//     const [reactionNotifications, setReactionNotifications] = useState({});
 //     const userEmail = localStorage.getItem("email");
 //     const currentUser = userEmail;
 //     const storageKey = `sentUsers_${currentUser}`;
@@ -48,10 +42,6 @@
 //     const fileInputRef = useRef(null);
 //     const chatContainerRef = useRef(null);
 //     const emojiPickerRef = useRef(null);
-   
-//     const [isPinMode, setIsPinMode] = useState(false);
-//     const [selectedPinMessage, setSelectedPinMessage] = useState(null);
-//     const peerRef = useRef(null);
 
 //     const socketRef = useRef(
 //         io("https://joblinker-1.onrender.com", {
@@ -177,7 +167,6 @@
 //             .catch((err) => console.error("Error fetching unread messages:", err));
 //     }, [allUsers, currentUser, storageKey]);
 
-    
 //     useEffect(() => {
 //         socket.on("newMessageNotification", (msgData) => {
 //             if (msgData.receiver === currentUser) {
@@ -207,12 +196,7 @@
 //                 });
 //             }
 //         });
-
-//         socket.on("reactionNotification", ({ messageId, reactor, emoji }) => {
-//             if (reactor !== currentUser) {
-//                 toast.info(`${reactor} reacted to a message with ${emoji}`);
-//             }
-//         });
+        
 
 //         socket.on("messageDeleted", ({ messageIds }) => {
 //             setMessages((prevMessages) => {
@@ -242,45 +226,16 @@
 //             });
 //         });
 
-//         socket.on("messagePinned", (updatedMessage) => {
-//             setMessages((prevMessages) => {
-//                 const updatedMessages = prevMessages.map((msg) =>
-//                     msg._id === updatedMessage._id
-//                         ? { ...msg, pinned: updatedMessage.pinned }
-//                         : { ...msg, pinned: false } // Unpin all other messages
-//                 );
-//                 saveMessagesToLocalStorage(updatedMessages);
-//                 return updatedMessages;
-//             });
-        
-//             if (updatedMessage.pinned) {
-//                 setPinnedMessages([updatedMessage]); // Only one pinned message
-//             } else {
-//                 setPinnedMessages([]); // Clear pinned messages if unpinned
-//             }
-//         });
-
-//         socket.on("pinNotification", ({ messageId, pinner, pinned }) => {
-//             if (pinner !== currentUser) {
-//                 toast.info(`${pinner} ${pinned ? "pinned" : "unpinned"} a message`);
-//             }
-//         });
-
 //         return () => {
 //             socket.off("newMessageNotification");
-//             socket.off("reactionNotification");
 //             socket.off("messageDeleted");
 //             socket.off("messagesDeletedForMe");
 //             socket.off("messageStatusUpdated");
-//             socket.off("messagePinned");
-//             socket.off("pinNotification");
 //         };
 //     }, [allUsers, currentUser]);
-    
+
 //     useEffect(() => {
 //         socket.on("message", (msg) => {
-//             console.log("Received message on client:", msg); // Debug received message
-    
 //             if (
 //                 (msg.sender === currentUser && msg.receiver === selectedUser?.email) ||
 //                 (msg.receiver === currentUser && msg.sender === selectedUser?.email)
@@ -289,7 +244,7 @@
 //                     const messageIndex = prevMessages.findIndex(
 //                         (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
 //                     );
-    
+
 //                     let updatedMessages;
 //                     if (messageIndex !== -1) {
 //                         updatedMessages = [...prevMessages];
@@ -297,7 +252,7 @@
 //                     } else {
 //                         updatedMessages = [...prevMessages, msg];
 //                     }
-    
+
 //                     saveMessagesToLocalStorage(updatedMessages);
 //                     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current || {};
 //                     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
@@ -306,7 +261,7 @@
 //                     }
 //                     return updatedMessages;
 //                 });
-    
+
 //                 if (msg.receiver === currentUser && !msg.isRead) {
 //                     setShowPopup(true);
 //                     setTimeout(() => setShowPopup(false), 3000);
@@ -321,25 +276,23 @@
 //                 }
 //             }
 //         });
-    
+
 //         return () => {
 //             socket.off("message");
 //         };
 //     }, [selectedUser, currentUser, firstNewMessageId]);
-    
+
 //     useEffect(() => {
 //         if (selectedUser) {
 //             const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
 //             setMessages(cachedMessages);
-    
+
 //             socket.emit("joinChat", {
 //                 sender: currentUser,
 //                 receiver: selectedUser.email,
 //             });
-    
+
 //             socket.on("loadMessages", (serverMessages) => {
-//                 console.log("Loaded messages on client:", serverMessages); // Debug loaded messages
-    
 //                 setMessages((prevMessages) => {
 //                     const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
 //                     const filteredMessages = serverMessages.filter(
@@ -350,9 +303,9 @@
 //                     setTimeout(() => scrollToBottom(), 100);
 //                     return updatedMessages;
 //                 });
-    
+
 //                 setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
-    
+
 //                 const firstUnread = serverMessages.find(
 //                     (msg) => msg.receiver === currentUser && !msg.isRead
 //                 );
@@ -364,17 +317,14 @@
 //                         setFirstNewMessageId(null);
 //                     }, 5000);
 //                 }
-    
+
 //                 socket.emit("markAsRead", {
 //                     sender: selectedUser.email,
 //                     receiver: currentUser,
 //                 });
 //             });
-    
-//             const initialPinned = cachedMessages.filter((msg) => msg.pinned);
-//             setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
 //         }
-    
+
 //         return () => {
 //             socket.off("loadMessages");
 //         };
@@ -395,45 +345,6 @@
 //         };
 //     }, [currentUser, selectedUser, chatStorageKey]);
 
-//     const handlePinMessage = (messageId) => {
-//         const messageToPin = messages.find((msg) => msg._id === messageId);
-//         if (!messageToPin) {
-//             console.error("Message not found for pinning:", messageId);
-//             return;
-//         }
-    
-//         const currentlyPinned = pinnedMessages.length > 0 ? pinnedMessages[0] : null;
-    
-//         if (currentlyPinned && currentlyPinned._id === messageId) {
-//             // Unpin the message if it's already pinned
-//             socket.emit("pinMessage", {
-//                 messageId,
-//                 sender: currentUser,
-//                 receiver: selectedUser.email,
-//                 pinned: false, // Explicitly set to unpin
-//             });
-//         } else {
-//             // Unpin the currently pinned message (if any) and pin the new one
-//             if (currentlyPinned) {
-//                 socket.emit("pinMessage", {
-//                     messageId: currentlyPinned._id,
-//                     sender: currentUser,
-//                     receiver: selectedUser.email,
-//                     pinned: false,
-//                 });
-//             }
-//             // Pin the new message
-//             socket.emit("pinMessage", {
-//                 messageId,
-//                 sender: currentUser,
-//                 receiver: selectedUser.email,
-//                 pinned: true,
-//             });
-//         }
-//     };
-//     const togglePinMessageSelection = (messageId) => {
-//         setSelectedPinMessage((prev) => (prev === messageId ? null : messageId));
-//     };
 //     const deleteChat = (userEmail) => {
 //         if (!selectedUser) return;
 //         setConfirmAction("deleteChat");
@@ -548,7 +459,7 @@
 //         setConfirmAction(null);
 //         setConfirmData(null);
 //     };
-   
+
 //     const handleFileUpload = async (e) => {
 //         const file = e.target.files[0];
 //         if (!file) return;
@@ -599,7 +510,7 @@
 //             file: selectedFile || null,
 //             timestamp: new Date().toISOString(),
 //             isRead: false,
-//             status: "sent",
+//             status: 'sent',
 //             tempId,
 //         };
 
@@ -659,13 +570,11 @@
 //     const toggleSelectionMode = () => {
 //         setIsSelectionMode(!isSelectionMode);
 //         setSelectedMessages([]);
-//         setIsSelectionModeNew(false); // Ensure only one mode is active
 //     };
 
 //     const toggleSelectionModeNew = () => {
 //         setIsSelectionModeNew(!isSelectionModeNew);
 //         setSelectedMessagesNew([]);
-//         setIsSelectionMode(false); // Ensure only one mode is active
 //     };
 
 //     const toggleMessageSelection = (messageId) => {
@@ -676,12 +585,6 @@
 //                 return [...prev, messageId];
 //             }
 //         });
-//     };
-//     const togglePinMode = () => {
-//         setIsPinMode(!isPinMode);
-//     setSelectedPinMessage(null); // Reset selected message for pinning
-//     setIsSelectionMode(false); // Ensure other modes are off
-//     setIsSelectionModeNew(false);
 //     };
 
 //     const toggleMessageSelectionNew = (messageId) => {
@@ -718,11 +621,11 @@
 //     );
 
 //     const groupedMessages = messages.reduce((acc, msg, index) => {
-//         const messageDate = new Date(msg.timestamp).toLocaleDateString("en-US", {
-//             weekday: "long",
-//             year: "numeric",
-//             month: "long",
-//             day: "numeric",
+//         const messageDate = new Date(msg.timestamp).toLocaleDateString('en-US', {
+//             weekday: 'long',
+//             year: 'numeric',
+//             month: 'long',
+//             day: 'numeric',
 //         });
 //         if (!acc[messageDate]) {
 //             acc[messageDate] = [];
@@ -821,234 +724,101 @@
 //                                     </h2>
 //                                 </div>
 //                                 <div className="flex flex-col sm:flex-col md:flex-col lg:flex-row xl:flex-row items-center space-x-2">
-//                                     {/* Search Icon */}
-//                                     <button
-//                                         onClick={() => setIsMessageSearchVisible(!isMessageSearchVisible)}
-//                                         className="text-white hover:text-indigo-300"
-//                                     >
-//                                         <svg
-//                                             xmlns="http://www.w3.org/2000/svg"
-//                                             className="h-6 w-6"
-//                                             fill="none"
-//                                             viewBox="0 0 24 24"
-//                                             stroke="currentColor"
-//                                         >
-//                                             <path
-//                                                 strokeLinecap="round"
-//                                                 strokeLinejoin="round"
-//                                                 strokeWidth="2"
-//                                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-//                                             />
-//                                         </svg>
-//                                     </button>
-                                   
-//                                     {/* Selection Mode Buttons */}
-//             {isSelectionMode ? (
-//             <>
-//                 <button
-//                     className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-//                     onClick={selectAllMessages}
-//                 >
-//                     Select All
-//                 </button>
-//                 <button
-//                     className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-//                     onClick={toggleSelectionMode}
-//                 >
-//                     Cancel
-//                 </button>
-//                 {selectedMessages.length > 0 && (
-//                     <button
-//                         className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
-//                         onClick={() => deleteMessages(selectedMessages)}
-//                     >
-//                         Delete For Everyone ({selectedMessages.length})
-//                     </button>
-//                 )}
-//             </>
-//         ) : isSelectionModeNew ? (
-//             <>
-//                 <button
-//                     className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
-//                     onClick={selectAllMessagesNew}
-//                 >
-//                     Select All
-//                 </button>
-//                 <button
-//                     className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
-//                     onClick={toggleSelectionModeNew}
-//                 >
-//                     Cancel
-//                 </button>
-//                 {selectedMessagesNew.length > 0 && (
-//                     <button
-//                         className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
-//                         onClick={() => deleteChatForMeWithSelection(selectedMessagesNew)}
-//                     >
-//                         Delete For Me ({selectedMessagesNew.length})
-//                     </button>
-//                 )}
-//             </>
-//         ) : (
-//             <>
-//                 <button
-//                     className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
-//                     onClick={toggleSelectionMode}
-//                 >
-//                     Delete For Everyone
-//                 </button>
-//                 <button
-//                     className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
-//                     onClick={toggleSelectionModeNew}
-//                 >
-//                     Delete For Me
-//                 </button>
-//             </>
-//         )}
-//     </div>
-// </div>
-
-//             {isMessageSearchVisible && (
-//                                 <div className="p-4 bg-gray-800 flex items-center">
-//                                     <input
-//                                         type="text"
-//                                         className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-indigo-500"
-//                                         placeholder="Search messages..."
-//                                         value={messageSearchQuery}
-//                                         onChange={(e) => setMessageSearchQuery(e.target.value)}
-//                                     />
-//                                     <button
-//                                         onClick={() => {
-//                                             setIsMessageSearchVisible(false);
-//                                             setMessageSearchQuery("");
-//                                         }}
-//                                         className="ml-2 text-white hover:text-red-300"
-//                                     >
-//                                         <svg
-//                                             xmlns="http://www.w3.org/2000/svg"
-//                                             className="h-6 w-6"
-//                                             fill="none"
-//                                             viewBox="0 0 24 24"
-//                                             stroke="currentColor"
-//                                         >
-//                                             <path
-//                                                 strokeLinecap="round"
-//                                                 strokeLinejoin="round"
-//                                                 strokeWidth="2"
-//                                                 d="M6 18L18 6M6 6l12 12"
-//                                             />
-//                                         </svg>
-//                                     </button>
+//                                     {isSelectionMode ? (
+//                                         <>
+//                                             <button
+//                                                 className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
+//                                                 onClick={selectAllMessages}
+//                                             >
+//                                                 Select All
+//                                             </button>
+//                                             <button
+//                                                 className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+//                                                 onClick={toggleSelectionMode}
+//                                             >
+//                                                 Cancel
+//                                             </button>
+//                                             {selectedMessages.length > 0 && (
+//                                                 <button
+//                                                     className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition sm:mt-[6px] md:mt-[6px]"
+//                                                     onClick={() => deleteMessages(selectedMessages)}
+//                                                 >
+//                                                     Delete For Everyone ({selectedMessages.length})
+//                                                 </button>
+//                                             )}
+//                                         </>
+//                                     ) : isSelectionModeNew ? (
+//                                         <>
+//                                             <button
+//                                                 className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition sm:mt-[6px] md:mt-[6px]"
+//                                                 onClick={selectAllMessagesNew}
+//                                             >
+//                                                 Select All
+//                                             </button>
+//                                             <button
+//                                                 className="bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition sm:mt-[6px] md:mt-[6px]"
+//                                                 onClick={toggleSelectionModeNew}
+//                                             >
+//                                                 Cancel
+//                                             </button>
+//                                             {selectedMessagesNew.length > 0 && (
+//                                                 <button
+//                                                     className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition sm:mt-[6px] md:mt-[6px]"
+//                                                     onClick={() => deleteChatForMeWithSelection(selectedMessagesNew)}
+//                                                 >
+//                                                     Delete For Me ({selectedMessagesNew.length})
+//                                                 </button>
+//                                             )}
+//                                         </>
+//                                     ) : (
+//                                         <>
+//                                             <button
+//                                                 className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+//                                                 onClick={toggleSelectionMode}
+//                                             >
+//                                                 Delete For Everyone
+//                                             </button>
+//                                             <button
+//                                                 className="bg-blue-500 text-white px-3 py-1  rounded-lg hover:bg-blue-600 transition"
+//                                                 onClick={toggleSelectionModeNew}
+//                                             >
+//                                                 Delete For Me
+//                                             </button>
+//                                             {/* <button
+//                                                 className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition"
+//                                                 onClick={() => deleteChat(selectedUser.email)}
+//                                             >
+//                                                 {t("DeleteChat For me")}
+//                                             </button> */}
+//                                         </>
+//                                     )}
 //                                 </div>
-//                             )}
+//                             </div>
 //                             <div
 //                                 ref={chatContainerRef}
 //                                 className="flex-1 overflow-y-auto p-10 max-h-[calc(100vh-200px)]"
 //                             >
-//                                 {/* Pinned Messages Section */}
-//                                 {pinnedMessages.length > 0 && (
-//         <div className="mb-4 bg-gray-700 p-2 rounded-lg">
-//             <div className="text-center text-gray-300 font-semibold my-2 flex items-center justify-center">
-//                 <svg
-//                     xmlns="http://www.w3.org/2000/svg"
-//                     className="h-5 w-5 mr-1"
-//                     fill="none"
-//                     viewBox="0 0 24 24"
-//                     stroke="currentColor"
-//                 >
-//                     <path
-//                         strokeLinecap="round"
-//                         strokeLinejoin="round"
-//                         strokeWidth="2"
-//                         d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-//                     />
-//                 </svg>
-//                 Pinned Message
-//             </div>
-//             {pinnedMessages.map((msg) => (
-//                 <div key={msg._id || msg.tempId} className="flex items-center justify-between">
-//                     <div className="flex-1">
-//                         <ChatMessage
-//                             message={msg}
-//                             user={currentUser}
-//                             socket={socket}
-//                             isFirstNew={false}
-//                             onDelete={deleteMessages}
-//                             isSelectionMode={isSelectionMode}
-//                             isSelected={selectedMessages.includes(msg._id)}
-//                             toggleSelection={() => toggleMessageSelection(msg._id)}
-//                             isSelectionModeNew={isSelectionModeNew}
-//                             isSelectedNew={selectedMessagesNew.includes(msg._id)}
-//                             toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
-//                             isPinMode={isPinMode}
-//                             isPinSelected={selectedPinMessage === msg._id}
-//                             togglePinSelection={() => togglePinMessageSelection(msg._id)}
-//                         />
-//                     </div>
-//                     {/* Unpin Button Beside the Message */}
-//                     <button
-//                         onClick={() => handlePinMessage(msg._id)} // Unpin the message
-//                         className="ml-2 text-yellow-400 hover:text-yellow-500"
-//                         title="Unpin Message"
-//                     >
-//                         <svg
-//                             xmlns="http://www.w3.org/2000/svg"
-//                             className="h-5 w-5"
-//                             fill="none"
-//                             viewBox="0 0 24 24"
-//                             stroke="currentColor"
-//                         >
-//                             <path
-//                                 strokeLinecap="round"
-//                                 strokeLinejoin="round"
-//                                 strokeWidth="2"
-//                                 d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-//                             />
-//                         </svg>
-//                     </button>
-//                 </div>
-//             ))}
-//             <hr className="border-gray-600 my-2" />
-//         </div>
-//     )}
 //                                 {Object.keys(groupedMessages).map((date) => (
 //                                     <div key={date}>
 //                                         <div className="text-center text-gray-400 my-2">{date}</div>
-//                                         {groupedMessages[date]
-//                                             .filter((msg) =>
-//                                                 messageSearchQuery
-//                                                     ? msg.text.toLowerCase().includes(messageSearchQuery.toLowerCase())
-//                                                     : true
-//                                             )
-//                                             .map((msg) => (
-//                                                 <ChatMessage
-//                                                     key={msg._id || msg.tempId || msg.index}
-//                                                     message={msg}
-//                                                     user={currentUser}
-//                                                     socket={socket}
-//                                                     isFirstNew={
-//                                                         showNewMessage &&
-//                                                         (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)
-//                                                     }
-//                                                     onDelete={deleteMessages}
-//                                                     isSelectionMode={isSelectionMode}
-//                                                     isSelected={selectedMessages.includes(msg._id)}
-//                                                     toggleSelection={() => toggleMessageSelection(msg._id)}
-//                                                     isSelectionModeNew={isSelectionModeNew}
-//                                                     isSelectedNew={selectedMessagesNew.includes(msg._id)}
-//                                                     toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
-//                                                 />
-//                                             ))}
+//                                         {groupedMessages[date].map((msg) => (
+//                                             <ChatMessage
+//                                                 key={msg._id || msg.tempId || msg.index}
+//                                                 message={msg}
+//                                                 user={currentUser}
+//                                                 socket={socket}
+//                                                 isFirstNew={showNewMessage && (msg._id === firstNewMessageId || msg.tempId === firstNewMessageId)}
+//                                                 onDelete={deleteMessages}
+//                                                 isSelectionMode={isSelectionMode}
+//                                                 isSelected={selectedMessages.includes(msg._id)}
+//                                                 toggleSelection={() => toggleMessageSelection(msg._id)}
+//                                                 isSelectionModeNew={isSelectionModeNew}
+//                                                 isSelectedNew={selectedMessagesNew.includes(msg._id)}
+//                                                 toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
+//                                             />
+//                                         ))}
 //                                     </div>
 //                                 ))}
-//                                 {Object.keys(groupedMessages).every((date) =>
-//                                     groupedMessages[date].every(
-//                                         (msg) => !msg.text.toLowerCase().includes(messageSearchQuery.toLowerCase())
-//                                     )
-//                                 ) &&
-//                                     messageSearchQuery && (
-//                                         <div className="text-center text-gray-500">No matching messages found</div>
-//                                     )}
 //                             </div>
 //                             {selectedUser && showScrollButton && (
 //                                 <button
@@ -1179,21 +949,18 @@
 //     );
 // };
 
-// const ChatMessage = ({
-//     message,
-//     user,
-//     socket,
-//     isFirstNew,
-//     onDelete,
-//     isSelectionMode,
-//     isSelected,
+// const ChatMessage = ({ 
+//     message, 
+//     user, 
+//     socket, 
+//     isFirstNew, 
+//     onDelete, 
+//     isSelectionMode, 
+//     isSelected, 
 //     toggleSelection,
 //     isSelectionModeNew,
 //     isSelectedNew,
-//     toggleSelectionNew,
-//     isPinMode,
-//     isPinSelected,
-//     togglePinSelection,
+//     toggleSelectionNew
 // }) => {
 //     if (!message) {
 //         console.error("ChatMessage received undefined message");
@@ -1203,60 +970,78 @@
 //     const isSender = message.sender === user;
 //     const [showReactionPicker, setShowReactionPicker] = useState(false);
 
-//     console.log(`Rendering message for ${isSender ? "sender" : "receiver"}:`, message); // Debug message being rendered
+//     const renderFile = (file, fileUrl) => {
+//         if (file || fileUrl) {
+//             let fileData = file || {};
+//             if (fileUrl) {
+//                 fileData.url = fileUrl;
+//                 fileData.name = fileUrl.split("/").pop();
+//             }
 
-//     const renderFile = (file) => {
-//         if (typeof file !== "string" || !file) {
-//             return <div>File sending ..</div>;
+//             let fileType;
+//             if (file) {
+//                 fileType = file.type || "unknown";
+//             } else if (fileUrl) {
+//                 const fileName = fileData.name.toLowerCase();
+//                 if (fileName.endsWith(".pdf")) fileType = "application/pdf";
+//                 else if (fileName.endsWith(".csv")) fileType = "text/csv";
+//                 else if (fileName.endsWith(".doc")) fileType = "application/msword";
+//                 else if (fileName.endsWith(".docx")) fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+//                 else if (fileName.endsWith(".xls")) fileType = "application/vnd.ms-excel";
+//                 else if (fileName.endsWith(".xlsx")) fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+//                 else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) fileType = "image";
+//                 else fileType = "application/octet-stream";
+//             } else {
+//                 fileType = "unknown";
+//             }
+
+//             if (fileType === "application/pdf") {
+//                 return (
+//                     <embed
+//                         src={fileData.url}
+//                         type="application/pdf"
+//                         width="100%"
+//                         height="300px"
+//                         title={fileData.name}
+//                     />
+//                 );
+//             } else if (fileType.startsWith("image")) {
+//                 return (
+//                     <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+//                         <img
+//                             src={fileData.url}
+//                             alt={fileData.name}
+//                             style={{ maxWidth: "100%", maxHeight: "300px" }}
+//                         />
+//                     </a>
+//                 );
+//             } else {
+//                 return (
+//                     <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
+//                         Download {fileData.name}
+//                     </a>
+//                 );
+//             }
 //         }
-    
-//         let fileData = { url: file, name: file.split("/").pop() };
-    
-//         let fileType;
-//         const fileName = fileData.name.toLowerCase();
-    
-//         if (fileName.endsWith(".pdf")) fileType = "application/pdf";
-//         else if (fileName.endsWith(".csv")) fileType = "text/csv";
-//         else if (fileName.endsWith(".doc")) fileType = "application/msword";
-//         else if (fileName.endsWith(".docx")) fileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-//         else if (fileName.endsWith(".xls")) fileType = "application/vnd.ms-excel";
-//         else if (fileName.endsWith(".xlsx")) fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-//         else if (fileName.match(/\.(jpg|jpeg|png|gif)$/)) fileType = "image";
-//         else fileType = "application/octet-stream";
-    
-//         if (fileType === "application/pdf") {
-//             return <embed src={fileData.url} type="application/pdf" width="100%" height="300px" title={fileData.name} />;
-//         } else if (fileType.startsWith("image")) {
-//             return (
-//                 <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-//                     <img src={fileData.url} alt={fileData.name} style={{ maxWidth: "100%", maxHeight: "300px" }} />
-//                 </a>
-//             );
-//         } else {
-//             return (
-//                 <a href={fileData.url} download={fileData.name} target="_blank" className="text-blue-300 underline">
-//                     Download {fileData.name}
-//                 </a>
-//             );
-//         }
+//         return <div>File not available</div>;
 //     };
-    
 
 //     const renderTicks = () => {
-//         if (!isSender) return null;
-//         if (message.status === "sent") {
+//         if (!isSender) return null; // Only show ticks for sender
+//         if (message.status === 'sent') {
 //             return <span className="text-gray-400 ml-2">✓</span>;
-//         } else if (message.status === "delivered") {
+//         } else if (message.status === 'delivered') {
 //             return <span className="text-gray-400 ml-2">✓✓</span>;
-//         } else if (message.status === "read") {
+//         } else if (message.status === 'read') {
 //             return <span className="text-yellow-400 ml-2">✓✓</span>;
 //         }
 //         return null;
 //     };
 
 //     const handleAddReaction = (emoji) => {
-//         const userReaction = message.reactions?.find((r) => r.user === user);
-
+//         const userReaction = message.reactions?.find(r => r.user === user);
+        
+//         // If user already reacted with this emoji, remove it; otherwise add/replace
 //         socket.emit("addReaction", {
 //             messageId: message._id,
 //             user: user,
@@ -1274,7 +1059,7 @@
 //         return acc;
 //     }, {}) || {};
 
-//     const userReaction = message.reactions?.find((r) => r.user === user)?.emoji;
+//     const userReaction = message.reactions?.find(r => r.user === user)?.emoji;
 
 //     return (
 //         <div
@@ -1300,12 +1085,11 @@
 //                 </span>
 //             )}
 //             <div
-//                 className={`relative ${isSelected || isSelectedNew || isPinSelected ? "bg-opacity-75" : ""}`}
+//                 className={`relative ${isSelected || isSelectedNew ? "bg-opacity-75" : ""}`}
 //                 onClick={() => {
-//                     if (isSelectionMode && message._id) toggleSelection();
-//                     else if (isSelectionModeNew && message._id) toggleSelectionNew();
+//                     if (isSelectionMode) toggleSelection();
+//                     else if (isSelectionModeNew) toggleSelectionNew();
 //                 }}
-                
 //             >
 //                 <div
 //                     style={{
@@ -1324,21 +1108,20 @@
 //                     }}
 //                     onContextMenu={(e) => {
 //                         e.preventDefault();
-//                         if (!isSelectionMode && !isSelectionModeNew && !isPinMode) {
+//                         if (!isSelectionMode && !isSelectionModeNew) {
 //                             setShowReactionPicker(true);
 //                         }
 //                     }}
 //                 >
 //                     {message.text && <div>{message.text}</div>}
-//                     {(message.file ) && (
-//                         <div>{renderFile(message.file)}</div>
+//                     {(message.file || message.fileUrl) && (
+//                         <div>{renderFile(message.file, message.fileUrl)}</div>
 //                     )}
 //                     <div className="flex items-center justify-end space-x-1">
 //                         <span className="text-xs text-gray-300">
-//                             {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+//                             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 //                         </span>
 //                         {renderTicks()}
-                        
 //                     </div>
 //                 </div>
 
@@ -1347,7 +1130,7 @@
 //                         className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 z-10`}
 //                         onMouseLeave={() => setShowReactionPicker(false)}
 //                     >
-//                         <EmojiPicker
+//                         <EmojiPicker 
 //                             onEmojiClick={(emojiObject) => handleAddReaction(emojiObject.emoji)}
 //                             width={300}
 //                             height={400}
@@ -1363,9 +1146,7 @@
 //                         {Object.entries(groupedReactions).map(([emoji, { count, users }]) => (
 //                             <div
 //                                 key={emoji}
-//                                 className={`bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1 cursor-pointer ${
-//                                     userReaction === emoji ? "border-2 border-blue-500" : ""
-//                                 }`}
+//                                 className={`bg-gray-600 rounded-full px-2 py-1 text-sm flex items-center space-x-1 cursor-pointer ${userReaction === emoji ? 'border-2 border-blue-500' : ''}`}
 //                                 title={users.join(", ")}
 //                                 onClick={() => userReaction === emoji && handleAddReaction(emoji)}
 //                             >
@@ -1378,9 +1159,7 @@
 
 //                 {isSelectionMode && message._id && (
 //                     <div
-//                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-red-500 flex items-center justify-center ${
-//                             isSelected ? "bg-red-500" : "bg-transparent"
-//                         }`}
+//                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-red-500 flex items-center justify-center ${isSelected ? "bg-red-500" : "bg-transparent"}`}
 //                         onClick={(e) => {
 //                             e.stopPropagation();
 //                             toggleSelection();
@@ -1402,9 +1181,7 @@
 
 //                 {isSelectionModeNew && message._id && (
 //                     <div
-//                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${
-//                             isSelectedNew ? "bg-blue-500" : "bg-transparent"
-//                         }`}
+//                         className={`absolute top-1/2 ${isSender ? "-left-8" : "-right-8"} transform -translate-y-1/2 w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center ${isSelectedNew ? "bg-blue-500" : "bg-transparent"}`}
 //                         onClick={(e) => {
 //                             e.stopPropagation();
 //                             toggleSelectionNew();
@@ -1423,17 +1200,10 @@
 //                         )}
 //                     </div>
 //                 )}
-
-                
 //             </div>
 //         </div>
 //     );
 // };
-
-
-
-
-
 
 
 import React, { useState, useEffect, useRef } from "react";
@@ -1446,8 +1216,6 @@ import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
 import { v4 as uuidv4 } from "uuid";
 import EmojiPicker from "emoji-picker-react";
-import { BsCameraVideo, BsCameraVideoOff, BsMicMute, BsMic } from 'react-icons/bs';
-import { MdCallEnd } from 'react-icons/md';
 
 
 export default function Chat() {
@@ -1495,264 +1263,6 @@ export default function Chat() {
         })
     );
     const socket = socketRef.current;
-    const [isIncomingCall, setIsIncomingCall] = useState(false);
-const [isCallActive, setIsCallActive] = useState(false);
-const [caller, setCaller] = useState(null);
-const [isCameraOn, setIsCameraOn] = useState(true);
-const [isMicOn, setIsMicOn] = useState(true);
-
-// Add these refs
-const localVideoRef = useRef(null);
-const remoteVideoRef = useRef(null);
-const peerConnection = useRef(null);
-const localStream = useRef(null);
-
-// Add this useEffect hook for handling video call signaling
-useEffect(() => {
-    if (!socket) return;
-    
-    // Handle call request
-    socket.on("callRequest", ({ from, username }) => {
-        console.log("Incoming call from", username);
-        setCaller({ id: from, name: username });
-        setIsIncomingCall(true);
-    });
-    
-    // Handle call acceptance
-    socket.on("callAccepted", async () => {
-        console.log("Call accepted");
-        try {
-            await createPeerConnection();
-            // Create and send offer
-            const offer = await peerConnection.current.createOffer();
-            await peerConnection.current.setLocalDescription(offer);
-            
-            socket.emit("offer", {
-                to: selectedUser.email,
-                offer: peerConnection.current.localDescription
-            });
-        } catch (error) {
-            console.error("Error creating offer:", error);
-        }
-    });
-    
-    // Handle WebRTC offer
-    socket.on("offer", async (data) => {
-        console.log("Received offer");
-        if (!peerConnection.current) {
-            await createPeerConnection();
-        }
-        
-        try {
-            await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await peerConnection.current.createAnswer();
-            await peerConnection.current.setLocalDescription(answer);
-            
-            socket.emit("answer", {
-                to: data.from,
-                answer: peerConnection.current.localDescription
-            });
-        } catch (error) {
-            console.error("Error handling offer:", error);
-        }
-    });
-    
-    // Handle WebRTC answer
-    socket.on("answer", async (data) => {
-        console.log("Received answer");
-        try {
-            await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.answer));
-        } catch (error) {
-            console.error("Error setting remote description:", error);
-        }
-    });
-    
-    // Handle ICE candidates
-    socket.on("iceCandidate", async (data) => {
-        console.log("Received ICE candidate");
-        try {
-            if (peerConnection.current) {
-                await peerConnection.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-            }
-        } catch (error) {
-            console.error("Error adding ICE candidate:", error);
-        }
-    });
-    
-    // Handle call ended
-    socket.on("callEnded", () => {
-        console.log("Call ended by remote user");
-        endCall();
-    });
-    
-    // Handle call rejected
-    socket.on("callRejected", () => {
-        console.log("Call rejected");
-        toast.info("Call was rejected");
-        endCall();
-    });
-    
-    return () => {
-        socket.off("callRequest");
-        socket.off("callAccepted");
-        socket.off("offer");
-        socket.off("answer");
-        socket.off("iceCandidate");
-        socket.off("callEnded");
-        socket.off("callRejected");
-    };
-}, [socket, selectedUser]);
-
-// Create peer connection and handle media streams
-const createPeerConnection = async () => {
-    try {
-        peerConnection.current = new RTCPeerConnection({
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
-        });
-        
-        // Get local media
-        localStream.current = await navigator.mediaDevices.getUserMedia({ 
-            video: true, 
-            audio: true 
-        });
-        
-        // Display local video
-        if (localVideoRef.current) {
-            localVideoRef.current.srcObject = localStream.current;
-        }
-        
-        // Add local stream to peer connection
-        localStream.current.getTracks().forEach(track => {
-            peerConnection.current.addTrack(track, localStream.current);
-        });
-        
-        // Handle ICE candidates
-        peerConnection.current.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit("iceCandidate", {
-                    to: selectedUser.email,
-                    candidate: event.candidate
-                });
-            }
-        };
-        
-        // Handle remote stream
-        peerConnection.current.ontrack = (event) => {
-            console.log("Received remote track");
-            if (remoteVideoRef.current && event.streams[0]) {
-                remoteVideoRef.current.srcObject = event.streams[0];
-            }
-        };
-        
-        setIsCallActive(true);
-        return true;
-    } catch (error) {
-        console.error("Error creating peer connection:", error);
-        toast.error("Failed to access camera or microphone");
-        return false;
-    }
-};
-
-// Initiate a call
-const initiateCall = async () => {
-    if (!selectedUser) {
-        toast.error("Please select a user to call");
-        return;
-    }
-    
-    try {
-        // Notify the other user about the call
-        socket.emit("callRequest", {
-            to: selectedUser.email,
-            from: currentUser,
-            username: allUsers.find(user => user.email === currentUser)?.fullname || currentUser
-        });
-        
-        toast.info(`Calling ${selectedUser.fullname}...`);
-    } catch (error) {
-        console.error("Error initiating call:", error);
-        toast.error("Failed to initiate call");
-    }
-};
-
-// Accept an incoming call
-const acceptCall = async () => {
-    try {
-        setIsIncomingCall(false);
-        
-        socket.emit("callAccepted", {
-            to: caller.id
-        });
-        
-        await createPeerConnection();
-    } catch (error) {
-        console.error("Error accepting call:", error);
-        toast.error("Failed to accept call");
-    }
-};
-
-// Reject an incoming call
-const rejectCall = () => {
-    setIsIncomingCall(false);
-    
-    socket.emit("callRejected", {
-        to: caller.id
-    });
-};
-
-// End an active call
-const endCall = () => {
-    if (selectedUser) {
-        socket.emit("endCall", {
-            to: selectedUser.email
-        });
-    }
-    
-    if (peerConnection.current) {
-        peerConnection.current.close();
-        peerConnection.current = null;
-    }
-    
-    if (localStream.current) {
-        localStream.current.getTracks().forEach(track => track.stop());
-        localStream.current = null;
-    }
-    
-    if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
-    }
-    
-    if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null;
-    }
-    
-    setIsCallActive(false);
-};
-
-// Toggle camera on/off
-const toggleCamera = () => {
-    if (localStream.current) {
-        const videoTrack = localStream.current.getVideoTracks()[0];
-        if (videoTrack) {
-            videoTrack.enabled = !videoTrack.enabled;
-            setIsCameraOn(videoTrack.enabled);
-        }
-    }
-};
-
-// Toggle mic on/off
-const toggleMic = () => {
-    if (localStream.current) {
-        const audioTrack = localStream.current.getAudioTracks()[0];
-        if (audioTrack) {
-            audioTrack.enabled = !audioTrack.enabled;
-            setIsMicOn(audioTrack.enabled);
-        }
-    }
-};
 
     const scrollToBottom = () => {
         if (chatContainerRef.current) {
@@ -2534,14 +2044,6 @@ const toggleMic = () => {
                                             />
                                         </svg>
                                     </button>
-                                    <button
-        onClick={initiateCall}
-        disabled={!selectedUser || isCallActive}
-        className="text-white hover:text-indigo-300 mr-2"
-        title="Start Video Call"
-    >
-        <BsCameraVideo className="h-6 w-6" />
-    </button>
                                    
                                     {/* Selection Mode Buttons */}
             {isSelectionMode ? (
@@ -2642,7 +2144,6 @@ const toggleMic = () => {
                                     </button>
                                 </div>
                             )}
-
                             <div
                                 ref={chatContainerRef}
                                 className="flex-1 overflow-y-auto p-10 max-h-[calc(100vh-200px)]"
@@ -2842,83 +2343,6 @@ const toggleMic = () => {
                     t={t}
                 />
             )}
-            {isIncomingCall && (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg text-center border border-gray-700">
-            <h3 className="text-xl mb-4 text-white">Incoming call from {caller?.name}</h3>
-            <div className="flex justify-center gap-4">
-                <button 
-                    onClick={acceptCall}
-                    className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded"
-                >
-                    Accept
-                </button>
-                <button 
-                    onClick={rejectCall}
-                    className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded"
-                >
-                    Reject
-                </button>
-            </div>
-        </div>
-    </div>
-)}
-
-{/* Video call UI */}
-{isCallActive && (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        <div className="flex-1 relative">
-            {/* Remote video (full screen) */}
-            <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover"
-            />
-            
-            {/* Local video (small overlay) */}
-            <div className="absolute bottom-4 right-4 w-1/4 h-1/4 border-2 border-white rounded-lg overflow-hidden">
-                <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                />
-            </div>
-        </div>
-        
-        {/* Call controls */}
-        <div className="bg-gray-800 p-4 flex justify-center gap-6">
-            <button 
-                onClick={toggleMic} 
-                className={`p-3 rounded-full ${isMicOn ? 'bg-gray-600' : 'bg-red-500'}`}
-                title={isMicOn ? "Mute Microphone" : "Unmute Microphone"}
-            >
-                {isMicOn ? <BsMic className="text-white text-xl" /> : <BsMicMute className="text-white text-xl" />}
-            </button>
-            
-            <button 
-                onClick={endCall} 
-                className="p-3 rounded-full bg-red-500"
-                title="End Call"
-            >
-                <MdCallEnd className="text-white text-xl" />
-            </button>
-            
-            <button 
-                onClick={toggleCamera} 
-                className={`p-3 rounded-full ${isCameraOn ? 'bg-gray-600' : 'bg-red-500'}`}
-                title={isCameraOn ? "Turn Off Camera" : "Turn On Camera"}
-            >
-                {isCameraOn ? 
-                    <BsCameraVideo className="text-white text-xl" /> : 
-                    <BsCameraVideoOff className="text-white text-xl" />
-                }
-            </button>
-        </div>
-    </div>
-)}
             <Footer />
         </>
     );
