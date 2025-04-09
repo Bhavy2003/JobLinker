@@ -2210,7 +2210,7 @@ io.on("connection", (socket) => {
         } catch (error) {
             console.error("Error marking messages as read:", error);
         }
-    });z
+    });
 
     socket.on("disconnect", () => {
         for (let [email, socketId] of connectedUsers.entries()) {
