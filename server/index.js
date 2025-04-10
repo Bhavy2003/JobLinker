@@ -2226,9 +2226,9 @@ io.on("connection", (socket) => {
 // ... (rest of the index.js file remains the same)
 app.use(express.static(path.join(__dirname, "client", "dist")));
 app.get("/sitemap.xml", (_req, res) => {
-    
     res.sendFile(path.join(__dirname, "client", "dist", "sitemap.xml"));
-});
+  });
+  //fh
 app.get("*", (_req, res) => {
     res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
     
