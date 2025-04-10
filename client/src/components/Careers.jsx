@@ -34,9 +34,9 @@ const Careers = () => {
             <Link to="/meetteams" onClick={() => window.scrollTo(0, 0)} className="hover:text-gray-300 pt-2 hover:font-bold">
                               {t("MeetTeams")}
                 </Link>
-                <Link className="hover:text-gray-300 pt-2">
+                {/* <Link className="hover:text-gray-300 pt-2">
                 {t("DD")}
-                </Link>
+                </Link> */}
 
            
 
@@ -56,9 +56,9 @@ const Careers = () => {
             <Link to="/meetteams" onClick={() => window.scrollTo(0, 0)} className="hover:text-gray-300 pt-2 hover:font-bold">
                               {t("MeetTeams")}
                 </Link>
-                <Link className="hover:text-gray-300 pt-2">
+                {/* <Link className="hover:text-gray-300 pt-2">
                 {t("DD")}
-                </Link>
+                </Link> */}
 
             {/* Conditionally show Open Positions */}
             {user?.role !== "recruiter" && (
