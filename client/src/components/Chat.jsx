@@ -1653,12 +1653,16 @@ export default function Chat() {
                         sender: selectedUser.email,
                         receiver: currentUser,
                     });
+    
+                    // Update pinned messages after messages are set
+                    const initialPinned = updatedMessages.filter((msg) => msg.pinned && msg._id);
+                    setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
                 } catch (error) {
                     console.error("Error fetching messages:", error);
                 }
             };
     
-            fetchAndUpdateMessages();
+            fetchAndUpdateMessages(); // Call the async function
     
             socket.emit("joinChat", {
                 sender: currentUser,
@@ -1675,19 +1679,22 @@ export default function Chat() {
                     setTimeout(() => scrollToBottom(), 100);
                     return updatedMessages;
                 });
-            });
     
-            const initialPinned = updatedMessages.filter((msg) => msg.pinned);
-            setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
+                // Update pinned messages when new messages are loaded
+                const initialPinned = serverMessages.filter((msg) => msg.pinned && msg._id);
+                setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
+            });
         } else {
             setMessages([]); // Clear messages when no user is selected
             saveMessagesToLocalStorage([]); // Clear local storage for the previous chat
+            setPinnedMessages([]); // Clear pinned messages
         }
     
         return () => {
             socket.off("loadMessages");
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
+    
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
             if (selectedUser?.email === receiver) {
