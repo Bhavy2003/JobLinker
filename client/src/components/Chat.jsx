@@ -1243,6 +1243,7 @@ export default function Chat() {
     const [isMessageSearchVisible, setIsMessageSearchVisible] = useState(false);
     const [messageSearchQuery, setMessageSearchQuery] = useState("");
     const [pinnedMessages, setPinnedMessages] = useState([]);
+    const [contextMenu, setContextMenu] = useState(null);
     const userEmail = localStorage.getItem("email");
     const currentUser = userEmail;
     const storageKey = `sentUsers_${currentUser}`;
@@ -1251,14 +1252,14 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const chatContainerRef = useRef(null);
     const emojiPickerRef = useRef(null);
-   
+    
     
     const [isPinMode, setIsPinMode] = useState(false);
     const [selectedPinMessage, setSelectedPinMessage] = useState(null);
     const peerRef = useRef(null);
     const [localStream, setLocalStream] = useState(null);
-    const [contextMenu, setContextMenu] = useState(null);
-  
+    
+    
 
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
