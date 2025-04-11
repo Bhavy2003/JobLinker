@@ -1384,19 +1384,7 @@ export default function Chat() {
             .catch((err) => console.error("Error fetching unread messages:", err));
     }, [allUsers, currentUser, storageKey]);
 
-    useEffect(() => {
-        socket.on("messageDeleted", ({ messageIds }) => {
-            setMessages((prevMessages) => {
-                const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
-                saveMessagesToLocalStorage(updatedMessages); // Update local storage
-                return updatedMessages;
-            });
-        });
-
-        return () => {
-            socket.off("messageDeleted");
-        };
-    }, []);
+    
     useEffect(() => {
         socket.on("newMessageNotification", (msgData) => {
             if (msgData.receiver === currentUser) {
@@ -1433,14 +1421,13 @@ export default function Chat() {
             }
         });
 
-        // socket.on("messageDeleted", ({ messageIds }) => {
-        //     setMessages((prevMessages) => {
-        //         const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
-        //         saveMessagesToLocalStorage(updatedMessages);
-        //         return updatedMessages;
-        //     });
-        // });
-        
+        socket.on("messageDeleted", ({ messageIds }) => {
+            setMessages((prevMessages) => {
+                const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
+                saveMessagesToLocalStorage(updatedMessages);
+                return updatedMessages;
+            });
+        });
 
         socket.on("messagesDeletedForMe", ({ messageIds }) => {
             setMessages((prevMessages) => {
@@ -1547,127 +1534,59 @@ export default function Chat() {
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
     
-    // useEffect(() => {
-    //     if (selectedUser) {
-    //         const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
-    //         setMessages(cachedMessages);
-    
-    //         socket.emit("joinChat", {
-    //             sender: currentUser,
-    //             receiver: selectedUser.email,
-    //         });
-    
-    //         socket.on("loadMessages", (serverMessages) => {
-    //             console.log("Loaded messages on client:", serverMessages); // Debug loaded messages
-    
-    //             setMessages((prevMessages) => {
-    //                 const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
-    //                 const filteredMessages = serverMessages.filter(
-    //                     (msg) => !existingIds.has(msg._id)
-    //                 );
-    //                 const updatedMessages = [...prevMessages, ...filteredMessages];
-    //                 saveMessagesToLocalStorage(updatedMessages);
-    //                 setTimeout(() => scrollToBottom(), 100);
-    //                 return updatedMessages;
-    //             });
-    
-    //             setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
-    
-    //             const firstUnread = serverMessages.find(
-    //                 (msg) => msg.receiver === currentUser && !msg.isRead
-    //             );
-    //             if (firstUnread && !firstNewMessageId) {
-    //                 setFirstNewMessageId(firstUnread._id);
-    //                 setShowNewMessage(true);
-    //                 setTimeout(() => {
-    //                     setShowNewMessage(false);
-    //                     setFirstNewMessageId(null);
-    //                 }, 5000);
-    //             }
-    
-    //             socket.emit("markAsRead", {
-    //                 sender: selectedUser.email,
-    //                 receiver: currentUser,
-    //             });
-    //         });
-    
-    //         const initialPinned = cachedMessages.filter((msg) => msg.pinned);
-    //         setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
-    //     }
-    
-    //     return () => {
-    //         socket.off("loadMessages");
-    //     };
-    // }, [selectedUser, currentUser, firstNewMessageId]);
     useEffect(() => {
         if (selectedUser) {
-            const fetchMessages = async () => {
-                try {
-                    const response = await fetch(
-                        `https://joblinker-1.onrender.com/messages/${currentUser}/${selectedUser.email}`
-                    );
-                    if (!response.ok) throw new Error("Failed to fetch messages");
-                    const serverMessages = await response.json();
-
-                    setMessages((prevMessages) => {
-                        const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
-                        const filteredMessages = serverMessages.filter((msg) => !existingIds.has(msg._id));
-                        const updatedMessages = [...prevMessages, ...filteredMessages];
-                        saveMessagesToLocalStorage(updatedMessages);
-                        setTimeout(() => scrollToBottom(), 100);
-                        return updatedMessages;
-                    });
-
-                    setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
-
-                    const firstUnread = serverMessages.find(
-                        (msg) => msg.receiver === currentUser && !msg.isRead
-                    );
-                    if (firstUnread && !firstNewMessageId) {
-                        setFirstNewMessageId(firstUnread._id);
-                        setShowNewMessage(true);
-                        setTimeout(() => {
-                            setShowNewMessage(false);
-                            setFirstNewMessageId(null);
-                        }, 5000);
-                    }
-
-                    socket.emit("markAsRead", {
-                        sender: selectedUser.email,
-                        receiver: currentUser,
-                    });
-                } catch (error) {
-                    console.error("Error fetching messages:", error);
-                }
-            };
-
-            fetchMessages();
-
+            const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
+            setMessages(cachedMessages);
+    
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
             });
-
+    
             socket.on("loadMessages", (serverMessages) => {
-                console.log("Loaded messages on client:", serverMessages);
+                console.log("Loaded messages on client:", serverMessages); // Debug loaded messages
+    
                 setMessages((prevMessages) => {
                     const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
-                    const filteredMessages = serverMessages.filter((msg) => !existingIds.has(msg._id));
+                    const filteredMessages = serverMessages.filter(
+                        (msg) => !existingIds.has(msg._id)
+                    );
                     const updatedMessages = [...prevMessages, ...filteredMessages];
                     saveMessagesToLocalStorage(updatedMessages);
                     setTimeout(() => scrollToBottom(), 100);
                     return updatedMessages;
                 });
+    
+                setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
+    
+                const firstUnread = serverMessages.find(
+                    (msg) => msg.receiver === currentUser && !msg.isRead
+                );
+                if (firstUnread && !firstNewMessageId) {
+                    setFirstNewMessageId(firstUnread._id);
+                    setShowNewMessage(true);
+                    setTimeout(() => {
+                        setShowNewMessage(false);
+                        setFirstNewMessageId(null);
+                    }, 5000);
+                }
+    
+                socket.emit("markAsRead", {
+                    sender: selectedUser.email,
+                    receiver: currentUser,
+                });
             });
-
-            const initialPinned = messages.filter((msg) => msg.pinned);
+    
+            const initialPinned = cachedMessages.filter((msg) => msg.pinned);
             setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
         }
-
+    
         return () => {
             socket.off("loadMessages");
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
+
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
             if (selectedUser?.email === receiver) {
@@ -1738,7 +1657,6 @@ export default function Chat() {
         setConfirmData(messageIds);
         setShowConfirmPopup(true);
     };
-    
 
     const deleteChatForMeWithSelection = async (messageIds) => {
         if (!messageIds || messageIds.length === 0) {
@@ -1801,7 +1719,7 @@ export default function Chat() {
                     const errorData = await response.json();
                     throw new Error(errorData.error || "Failed to delete messages");
                 }
-                const result = await response.json();
+
                 setMessages((prevMessages) => {
                     const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
                     saveMessagesToLocalStorage(updatedMessages);
