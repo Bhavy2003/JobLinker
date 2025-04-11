@@ -1972,7 +1972,6 @@ io.on("connection", (socket) => {
     socket.on("joinChat", ({ sender, receiver }) => {
         const room = [sender, receiver].sort().join("_");
         socket.join(room);
-        console.log(`User ${sender} joined room ${room} for chat with ${receiver}`);
 
         Message.find({
             $or: [
@@ -1983,15 +1982,15 @@ io.on("connection", (socket) => {
         })
             .sort("timestamp")
             .then(async (messages) => {
-                console.log(`Messages fetched for ${sender} and ${receiver}:`, messages);
+                console.log(`Messages fetched for ${sender} and ${receiver}:`, messages); // Debug fetched messages
 
                 await Message.updateMany(
-                    { receiver: sender, sender: receiver, status: "sent" },
-                    { $set: { status: "delivered" } }
+                    { receiver: sender, sender: receiver, status: 'sent' },
+                    { $set: { status: 'delivered' } }
                 );
                 await Message.updateMany(
-                    { receiver: sender, sender: receiver, status: { $in: ["sent", "delivered"] } },
-                    { $set: { status: "read", isRead: true } }
+                    { receiver: sender, sender: receiver, status: { $in: ['sent', 'delivered'] } },
+                    { $set: { status: 'read', isRead: true } }
                 );
                 const updatedMessages = await Message.find({
                     $or: [
@@ -2001,11 +2000,11 @@ io.on("connection", (socket) => {
                     deletedBy: { $ne: sender },
                 }).sort("timestamp");
 
-                console.log(`Updated messages for ${sender} and ${receiver}:`, updatedMessages);
+                console.log(`Updated messages for ${sender} and ${receiver}:`, updatedMessages); // Debug updated messages
                 socket.emit("loadMessages", updatedMessages);
 
                 updatedMessages.forEach((msg) => {
-                    if (msg.status !== "sent") {
+                    if (msg.status !== 'sent') {
                         io.to(room).emit("messageStatusUpdated", msg);
                     }
                 });
@@ -2021,8 +2020,9 @@ io.on("connection", (socket) => {
         }
 
         try {
-            console.log("Received msgData in sendMessage:", msgData);
+            console.log("Received msgData in sendMessage:", msgData); // Debug incoming msgData
 
+            // Validate the file field
             if (msgData.file) {
                 if (!msgData.file.name || !msgData.file.type || !msgData.file.url) {
                     console.error("Invalid file data:", msgData.file);
@@ -2034,6 +2034,7 @@ io.on("connection", (socket) => {
                 sender: msgData.sender,
                 receiver: msgData.receiver,
                 text: msgData.text || "",
+                // file: msgData.file || null,
                 file: file,
                 timestamp: new Date(msgData.timestamp),
                 status: "sent",
@@ -2043,22 +2044,22 @@ io.on("connection", (socket) => {
             });
 
             const savedMessage = await newMessage.save();
-            console.log("Saved message in database:", savedMessage);
+            console.log("Saved message in database:", savedMessage); // Debug saved message
 
             const messageToEmit = {
                 ...savedMessage.toObject(),
                 tempId: msgData.tempId,
             };
-            console.log("Emitting message to room:", messageToEmit);
+            console.log("Emitting message to room:", messageToEmit); // Debug message to emit
 
             const room = [msgData.sender, msgData.receiver].sort().join("_");
-            // Emit to the specific room only
             io.to(room).emit("message", messageToEmit);
 
             const receiverSocketId = connectedUsers.get(msgData.receiver);
             if (receiverSocketId && msgData.receiver !== msgData.sender) {
                 await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: "delivered" } });
                 const updatedMessage = await Message.findById(savedMessage._id);
+               // Debug updated message
                 io.to(room).emit("messageStatusUpdated", updatedMessage);
                 io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
             }
