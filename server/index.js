@@ -1963,6 +1963,7 @@ app.post("/api/messages/delete-for-me", async (req, res) => {
 });
 
 
+
 io.on("connection", (socket) => {
     socket.on("register", (email) => {
         connectedUsers.set(email, socket.id);
@@ -2109,23 +2110,70 @@ io.on("connection", (socket) => {
     
 
  
+    // socket.on("addReaction", async ({ messageId, user, emoji }) => {
+    //     try {
+    //         const message = await Message.findById(messageId);
+    //         if (!message) return;
+    
+    //         // Remove existing reaction from this user if it exists
+    //         message.reactions = message.reactions.filter(r => r.user !== user);
+            
+    //         // If emoji is null, it means remove reaction; otherwise add new one
+    //         if (emoji) {
+    //             message.reactions.push({ user, emoji, timestamp: new Date() });
+    //         }
+    
+    //         await message.save();
+    //         const updatedMessage = await Message.findById(messageId);
+    //         const room = [message.sender, message.receiver].sort().join("_");
+    //         io.to(room).emit("messageStatusUpdated", updatedMessage);
+    
+    //         // Send notification to the receiver if the reactor is not the receiver
+    //         const receiver = message.sender === user ? message.receiver : message.sender;
+    //         const receiverSocketId = connectedUsers.get(receiver);
+    //         if (receiverSocketId && receiver !== user) {
+    //             io.to(receiverSocketId).emit("reactionNotification", {
+    //                 messageId,
+    //                 reactor: user,
+    //                 emoji,
+    //                 timestamp: new Date(),
+    //             });
+    //         }
+    //     } catch (error) {
+    //         console.error("Error adding reaction:", error);
+    //     }
+    // });
+
     socket.on("addReaction", async ({ messageId, user, emoji }) => {
         try {
             const message = await Message.findById(messageId);
-            if (!message) return;
+            if (!message) {
+                console.error("Message not found:", messageId);
+                return;
+            }
     
             // Remove existing reaction from this user if it exists
-            message.reactions = message.reactions.filter(r => r.user !== user);
-            
-            // If emoji is null, it means remove reaction; otherwise add new one
+            message.reactions = message.reactions.filter((r) => r.user !== user);
+    
+            // If emoji is provided, add a new reaction; otherwise, the filter above removes it
             if (emoji) {
                 message.reactions.push({ user, emoji, timestamp: new Date() });
             }
     
             await message.save();
-            const updatedMessage = await Message.findById(messageId);
+            const updatedMessage = await Message.findById(messageId).lean(); // Use lean() for performance
+    
+            // Define the room based on sorted sender and receiver emails
             const room = [message.sender, message.receiver].sort().join("_");
+    
+            // Broadcast the updated message to the room (all participants)
             io.to(room).emit("messageStatusUpdated", updatedMessage);
+    
+            // Send a specific reaction update event for better frontend handling
+            io.to(room).emit("reactionUpdate", {
+                messageId,
+                reactions: updatedMessage.reactions,
+            });
     
             // Send notification to the receiver if the reactor is not the receiver
             const receiver = message.sender === user ? message.receiver : message.sender;
@@ -2142,6 +2190,7 @@ io.on("connection", (socket) => {
             console.error("Error adding reaction:", error);
         }
     });
+    
     socket.on("deleteChat", async ({ sender, receiver }) => {
         try {
             await Message.updateMany(
@@ -2221,6 +2270,19 @@ io.on("connection", (socket) => {
             }
         }
     });
+});
+app.get("/messages/:sender/:receiver", async (req, res) => {
+    try {
+        const messages = await Message.find({
+            $or: [
+                { sender: req.params.sender, receiver: req.params.receiver },
+                { sender: req.params.receiver, receiver: req.params.sender },
+            ],
+        }).lean(); // Ensure reactions are included
+        res.json(messages);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch messages" });
+    }
 });
 
 // ... (rest of the index.js file remains the same)
