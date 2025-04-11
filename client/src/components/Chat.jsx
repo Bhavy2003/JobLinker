@@ -1488,10 +1488,12 @@ export default function Chat() {
         socket.on("message", (msg) => {
             console.log("Received message on client:", msg); // Debug received message
     
-            if (
+            // Ensure the message is for the current selected user
+            const isForSelectedUser =
                 (msg.sender === currentUser && msg.receiver === selectedUser?.email) ||
-                (msg.receiver === currentUser && msg.sender === selectedUser?.email)
-            ) {
+                (msg.receiver === currentUser && msg.sender === selectedUser?.email);
+    
+            if (isForSelectedUser) {
                 setMessages((prevMessages) => {
                     const messageIndex = prevMessages.findIndex(
                         (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
@@ -1526,6 +1528,8 @@ export default function Chat() {
                         }, 5000);
                     }
                 }
+            } else {
+                console.log(`Message ignored: Not intended for ${currentUser} with selected user ${selectedUser?.email}`, msg);
             }
         });
     
@@ -1536,22 +1540,16 @@ export default function Chat() {
     
     useEffect(() => {
         if (selectedUser) {
-            const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
-            setMessages(cachedMessages);
-    
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
             });
     
             socket.on("loadMessages", (serverMessages) => {
-                console.log("Loaded messages on client:", serverMessages); // Debug loaded messages
-    
+                console.log("Loaded messages on client:", serverMessages);
                 setMessages((prevMessages) => {
                     const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
-                    const filteredMessages = serverMessages.filter(
-                        (msg) => !existingIds.has(msg._id)
-                    );
+                    const filteredMessages = serverMessages.filter((msg) => !existingIds.has(msg._id));
                     const updatedMessages = [...prevMessages, ...filteredMessages];
                     saveMessagesToLocalStorage(updatedMessages);
                     setTimeout(() => scrollToBottom(), 100);
@@ -1577,9 +1575,6 @@ export default function Chat() {
                     receiver: currentUser,
                 });
             });
-    
-            const initialPinned = cachedMessages.filter((msg) => msg.pinned);
-            setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
         }
     
         return () => {
@@ -1792,12 +1787,12 @@ export default function Chat() {
             toast.error("Please select a user to chat with");
             return;
         }
-
+    
         if (!message.trim() && !selectedFile) {
             toast.error("Please type a message or upload a file");
             return;
         }
-
+    
         const tempId = uuidv4();
         const msgData = {
             sender: currentUser,
@@ -1809,7 +1804,7 @@ export default function Chat() {
             status: "sent",
             tempId,
         };
-
+    
         setMessages((prevMessages) => {
             if (prevMessages.some((m) => m.tempId === tempId)) {
                 return prevMessages;
@@ -1819,9 +1814,9 @@ export default function Chat() {
             setTimeout(() => scrollToBottom(), 0);
             return updatedMessages;
         });
-
+    
         socket.emit("sendMessage", msgData);
-
+    
         setSentUsers((prevSentUsers) => {
             let updatedSentUsers = [...prevSentUsers];
             const existingIndex = updatedSentUsers.findIndex((u) => u.email === selectedUser.email);
@@ -1834,13 +1829,12 @@ export default function Chat() {
             localStorage.setItem(storageKey, JSON.stringify(updatedSentUsers));
             return updatedSentUsers;
         });
-
+    
         setMessage("");
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = null;
         setShowEmojiPicker(false);
     };
-
     const handleKeyPress = (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
