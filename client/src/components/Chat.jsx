@@ -2552,8 +2552,9 @@ const ChatMessage = ({
     
                 let fileType;
                 if (file) {
-                //     fileType = file.type || "unknown";
-                // } else if (file) {
+                fileType = file.type || "unknown";
+                }
+                if (file) {
                     const fileName = fileData.name.toLowerCase();
                     if (fileName.endsWith(".pdf")) fileType = "application/pdf";
                     else if (fileName.endsWith(".csv")) fileType = "text/csv";
