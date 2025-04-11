@@ -2018,10 +2018,10 @@ io.on("connection", (socket) => {
             console.log("No text or file in msgData:", msgData);
             return;
         }
-
+    
         try {
             console.log("Received msgData in sendMessage:", msgData); // Debug incoming msgData
-
+    
             // Validate the file field
             if (msgData.file) {
                 if (!msgData.file.name || !msgData.file.type || !msgData.file.url) {
@@ -2029,12 +2029,11 @@ io.on("connection", (socket) => {
                     return;
                 }
             }
-
+    
             const newMessage = new Message({
                 sender: msgData.sender,
                 receiver: msgData.receiver,
                 text: msgData.text || "",
-                // file: msgData.file || null,
                 file: file,
                 timestamp: new Date(msgData.timestamp),
                 status: "sent",
@@ -2042,26 +2041,26 @@ io.on("connection", (socket) => {
                 reactions: [],
                 pinned: false,
             });
-
+    
             const savedMessage = await newMessage.save();
             console.log("Saved message in database:", savedMessage); // Debug saved message
-
+    
             const messageToEmit = {
                 ...savedMessage.toObject(),
                 tempId: msgData.tempId,
             };
             console.log("Emitting message to room:", messageToEmit); // Debug message to emit
-
+    
             const room = [msgData.sender, msgData.receiver].sort().join("_");
+            // Emit to the specific room only, ensuring no global broadcast
             io.to(room).emit("message", messageToEmit);
-
+    
             const receiverSocketId = connectedUsers.get(msgData.receiver);
             if (receiverSocketId && msgData.receiver !== msgData.sender) {
                 await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: "delivered" } });
                 const updatedMessage = await Message.findById(savedMessage._id);
-               // Debug updated message
-                io.to(room).emit("messageStatusUpdated", updatedMessage);
-                io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
+                io.to(room).emit("messageStatusUpdated", updatedMessage); // Update status in the same room
+                io.to(receiverSocketId).emit("newMessageNotification", updatedMessage); // Notify receiver individually
             }
         } catch (error) {
             console.error("Error processing sendMessage:", error);

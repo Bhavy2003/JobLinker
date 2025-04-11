@@ -1506,10 +1506,12 @@ export default function Chat() {
         socket.on("message", (msg) => {
             console.log("Received message on client:", msg); // Debug received message
     
-            if (
+            // Strict check to ensure the message is for the current selected user only
+            const isForSelectedUser =
                 (msg.sender === currentUser && msg.receiver === selectedUser?.email) ||
-                (msg.receiver === currentUser && msg.sender === selectedUser?.email)
-            ) {
+                (msg.receiver === currentUser && msg.sender === selectedUser?.email);
+    
+            if (isForSelectedUser && selectedUser) { // Added selectedUser check
                 setMessages((prevMessages) => {
                     const messageIndex = prevMessages.findIndex(
                         (m) => (m.tempId && m.tempId === msg.tempId) || (m._id && m._id === msg._id)
@@ -1544,6 +1546,8 @@ export default function Chat() {
                         }, 5000);
                     }
                 }
+            } else {
+                console.log(`Message ignored: Not intended for ${currentUser} with selected user ${selectedUser?.email}`, msg);
             }
         });
     
