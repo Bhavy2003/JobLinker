@@ -1431,8 +1431,8 @@ export default function Chat() {
                         <div
                             style={{
                                 position: "absolute",
-                                top: contextMenu.y,
-                                left: contextMenu.x,
+                                top: contextMenu,
+                                left: contextMenu,
                                 backgroundColor: "#374151",
                                 borderRadius: "4px",
                                 boxShadow: "0 2px 10px rgba(0, 0, 0, 0.2)",
