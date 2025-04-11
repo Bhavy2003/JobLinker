@@ -1419,7 +1419,7 @@ export default function Chat() {
                             {renderTicks()}
                         </div>
                     </div>
-                    {contextMenu?.messageId === message._id && (
+                    {contextMenu?.messageId === message._id && contextMenu.y !== undefined && contextMenu.x !== undefined && (
                         <div
                             style={{
                                 position: "absolute",
