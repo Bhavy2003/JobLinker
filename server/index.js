@@ -2168,12 +2168,13 @@ io.on("connection", (socket) => {
             console.error("Error deleting chat:", error);
         }
     });
-    socket.on("pinMessage", async ({ messageId, sender, receiver }) => {
+    socket.on("pinMessage", async ({ messageId, sender, receiver, pinned }) => {
         try {
             const message = await Message.findById(messageId);
             if (!message) return;
     
-            message.pinned = !message.pinned; // Toggle pinned status
+            // Set the pinned status for the message
+            message.pinned = pinned;
             await message.save();
     
             const updatedMessage = await Message.findById(messageId);

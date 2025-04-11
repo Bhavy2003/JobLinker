@@ -1257,7 +1257,8 @@ export default function Chat() {
     const [selectedPinMessage, setSelectedPinMessage] = useState(null);
     const peerRef = useRef(null);
     const [localStream, setLocalStream] = useState(null);
-
+    const [contextMenu, setContextMenu] = useState(null);
+  
 
     const socketRef = useRef(
         io("https://joblinker-1.onrender.com", {
@@ -1694,7 +1695,7 @@ export default function Chat() {
             socket.off("loadMessages");
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
-    
+
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
             if (selectedUser?.email === receiver) {
@@ -1710,6 +1711,7 @@ export default function Chat() {
         };
     }, [currentUser, selectedUser, chatStorageKey]);
 
+    
     const handlePinMessage = (messageId) => {
         const messageToPin = messages.find((msg) => msg._id === messageId);
         if (!messageToPin) {
@@ -1725,8 +1727,9 @@ export default function Chat() {
                 messageId,
                 sender: currentUser,
                 receiver: selectedUser.email,
-                pinned: false, // Explicitly set to unpin
+                pinned: false,
             });
+            setPinnedMessages([]);
         } else {
             // Unpin the currently pinned message (if any) and pin the new one
             if (currentlyPinned) {
@@ -1744,10 +1747,20 @@ export default function Chat() {
                 receiver: selectedUser.email,
                 pinned: true,
             });
+            setPinnedMessages([messageToPin]); // Update pinned state with the new message
         }
+        setContextMenu(null); // Close context menu after pinning
     };
-    const togglePinMessageSelection = (messageId) => {
-        setSelectedPinMessage((prev) => (prev === messageId ? null : messageId));
+    
+    // Update togglePinMessageSelection for context menu
+    const togglePinMessageSelection = (messageId, event) => {
+        event.preventDefault(); // Prevent default context menu
+        setContextMenu(
+            contextMenu === messageId
+                ? null
+                : { messageId, x: event.pageX, y: event.pageY }
+        );
+        setSelectedPinMessage(messageId);
     };
     const deleteChat = (userEmail) => {
         if (!selectedUser) return;
@@ -2351,12 +2364,11 @@ export default function Chat() {
                             toggleSelectionNew={() => toggleMessageSelectionNew(msg._id)}
                             isPinMode={isPinMode}
                             isPinSelected={selectedPinMessage === msg._id}
-                            togglePinSelection={() => togglePinMessageSelection(msg._id)}
+                            togglePinSelection={() => togglePinMessageSelection(msg._id, { pageX: 0, pageY: 0 })}
                         />
                     </div>
-                    {/* Unpin Button Beside the Message */}
                     <button
-                        onClick={() => handlePinMessage(msg._id)} // Unpin the message
+                        onClick={() => handlePinMessage(msg._id)}
                         className="ml-2 text-yellow-400 hover:text-yellow-500"
                         title="Unpin Message"
                     >
@@ -2633,6 +2645,10 @@ const ChatMessage = ({
         });
         setShowReactionPicker(false);
     };
+    const handleContextMenu = (event, messageId) => {
+        event.preventDefault();
+        togglePinMessageSelection(messageId, event);
+    };
 
     const groupedReactions = message.reactions?.reduce((acc, reaction) => {
         if (!acc[reaction.emoji]) {
@@ -2654,6 +2670,7 @@ const ChatMessage = ({
                 margin: "5px 0",
                 padding: "0",
             }}
+            onContextMenu={(e) => handleContextMenu(e, message._id)}
         >
             {isFirstNew && message.receiver === user && (
                 <span
@@ -2696,6 +2713,7 @@ const ChatMessage = ({
                         if (!isSelectionMode && !isSelectionModeNew && !isPinMode) {
                             setShowReactionPicker(true);
                         }
+                        (e) => handleContextMenu(e, message._id)
                     }}
                 >
                     {message.text && <div>{message.text}</div>}
@@ -2710,7 +2728,28 @@ const ChatMessage = ({
                         
                     </div>
                 </div>
-
+                {contextMenu?.messageId === message._id && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: contextMenu.y,
+                            left: contextMenu.x,
+                            backgroundColor: "#374151",
+                            borderRadius: "4px",
+                            boxShadow: "0 2px 10px rgba(0, 0, 0, 0.2)",
+                            zIndex: 1000,
+                            padding: "5px 0",
+                        }}
+                        onMouseLeave={() => setContextMenu(null)}
+                    >
+                        <div
+                            className="px-4 py-2 text-white hover:bg-gray-600 cursor-pointer"
+                            onClick={() => handlePinMessage(message._id)}
+                        >
+                            Pin
+                        </div>
+                    </div>
+                )}
                 {showReactionPicker && (
                     <div
                         className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 z-10`}
