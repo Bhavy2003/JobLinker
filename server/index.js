@@ -2012,6 +2012,62 @@ io.on("connection", (socket) => {
             .catch((error) => console.error("Error fetching messages:", error));
     });
 
+    // socket.on("sendMessage", async (msgData) => {
+    //     const file = msgData.file && msgData.file.url ? msgData.file.url : null;
+    //     if (!msgData.text && !msgData.file) {
+    //         console.log("No text or file in msgData:", msgData);
+    //         return;
+    //     }
+
+    //     try {
+    //         console.log("Received msgData in sendMessage:", msgData); // Debug incoming msgData
+
+    //         // Validate the file field
+    //         if (msgData.file) {
+    //             if (!msgData.file.name || !msgData.file.type || !msgData.file.url) {
+    //                 console.error("Invalid file data:", msgData.file);
+    //                 return;
+    //             }
+    //         }
+
+    //         const newMessage = new Message({
+    //             sender: msgData.sender,
+    //             receiver: msgData.receiver,
+    //             text: msgData.text || "",
+    //             // file: msgData.file || null,
+    //             file: file,
+    //             timestamp: new Date(msgData.timestamp),
+    //             status: "sent",
+    //             isRead: false,
+    //             reactions: [],
+    //             pinned: false,
+    //         });
+
+    //         const savedMessage = await newMessage.save();
+    //         console.log("Saved message in database:", savedMessage); // Debug saved message
+
+    //         const messageToEmit = {
+    //             ...savedMessage.toObject(),
+    //             tempId: msgData.tempId,
+    //         };
+    //         console.log("Emitting message to room:", messageToEmit); // Debug message to emit
+
+    //         const room = [msgData.sender, msgData.receiver].sort().join("_");
+    //         io.to(room).emit("message", messageToEmit);
+
+    //         const receiverSocketId = connectedUsers.get(msgData.receiver);
+    //         if (receiverSocketId && msgData.receiver !== msgData.sender) {
+    //             await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: "delivered" } });
+    //             const updatedMessage = await Message.findById(savedMessage._id);
+    //            // Debug updated message
+    //             io.to(room).emit("messageStatusUpdated", updatedMessage);
+    //             io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
+    //         }
+    //     } catch (error) {
+    //         console.error("Error processing sendMessage:", error);
+    //     }
+    // });
+
     socket.on("sendMessage", async (msgData) => {
         const file = msgData.file && msgData.file.url ? msgData.file.url : null;
         if (!msgData.text && !msgData.file) {
@@ -2020,9 +2076,8 @@ io.on("connection", (socket) => {
         }
 
         try {
-            console.log("Received msgData in sendMessage:", msgData); // Debug incoming msgData
+            console.log("Received msgData in sendMessage:", msgData);
 
-            // Validate the file field
             if (msgData.file) {
                 if (!msgData.file.name || !msgData.file.type || !msgData.file.url) {
                     console.error("Invalid file data:", msgData.file);
@@ -2034,7 +2089,6 @@ io.on("connection", (socket) => {
                 sender: msgData.sender,
                 receiver: msgData.receiver,
                 text: msgData.text || "",
-                // file: msgData.file || null,
                 file: file,
                 timestamp: new Date(msgData.timestamp),
                 status: "sent",
@@ -2044,13 +2098,13 @@ io.on("connection", (socket) => {
             });
 
             const savedMessage = await newMessage.save();
-            console.log("Saved message in database:", savedMessage); // Debug saved message
+            console.log("Saved message in database:", savedMessage);
 
             const messageToEmit = {
                 ...savedMessage.toObject(),
                 tempId: msgData.tempId,
             };
-            console.log("Emitting message to room:", messageToEmit); // Debug message to emit
+            console.log("Emitting message to room:", messageToEmit);
 
             const room = [msgData.sender, msgData.receiver].sort().join("_");
             io.to(room).emit("message", messageToEmit);
@@ -2059,7 +2113,6 @@ io.on("connection", (socket) => {
             if (receiverSocketId && msgData.receiver !== msgData.sender) {
                 await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: "delivered" } });
                 const updatedMessage = await Message.findById(savedMessage._id);
-               // Debug updated message
                 io.to(room).emit("messageStatusUpdated", updatedMessage);
                 io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
             }
@@ -2067,46 +2120,6 @@ io.on("connection", (socket) => {
             console.error("Error processing sendMessage:", error);
         }
     });
-
-    // socket.on("sendMessage", async (msgData) => {
-    //     const fileUrl = msgData.file && msgData.file.url ? msgData.file.url : null;
-
-    //     if (!msgData.text && !fileUrl) {
-    //         return;
-    //     }
-
-    //     try {
-    //         const newMessage = new Message({
-    //             sender: msgData.sender,
-    //             receiver: msgData.receiver,
-    //             text: msgData.text || "",
-    //             fileUrl: fileUrl,
-    //             timestamp: new Date(msgData.timestamp),
-    //             status: 'sent',
-    //             isRead: false,
-    //             reactions: [],
-    //         });
-    //         const savedMessage = await newMessage.save();
-
-    //         const messageToEmit = {
-    //             ...savedMessage.toObject(),
-    //             tempId: msgData.tempId,
-    //         };
-
-    //         const room = [msgData.sender, msgData.receiver].sort().join("_");
-    //         io.to(room).emit("message", messageToEmit);
-
-    //         const receiverSocketId = connectedUsers.get(msgData.receiver);
-    //         if (receiverSocketId && msgData.receiver !== msgData.sender) {
-    //             await Message.findByIdAndUpdate(savedMessage._id, { $set: { status: 'delivered' } });
-    //             const updatedMessage = await Message.findById(savedMessage._id);
-    //             io.to(room).emit("messageStatusUpdated", updatedMessage);
-    //             io.to(receiverSocketId).emit("newMessageNotification", updatedMessage);
-    //         }
-    //     } catch (error) {
-    //         console.error("Error processing sendMessage:", error);
-    //     }
-    // });
     
 
  
@@ -2169,32 +2182,7 @@ io.on("connection", (socket) => {
             console.error("Error deleting chat:", error);
         }
     });
-    socket.on("pinMessage", async ({ messageId, sender, receiver }) => {
-        try {
-            const message = await Message.findById(messageId);
-            if (!message) return;
     
-            message.pinned = !message.pinned; // Toggle pinned status
-            await message.save();
-    
-            const updatedMessage = await Message.findById(messageId);
-            const room = [sender, receiver].sort().join("_");
-            io.to(room).emit("messagePinned", updatedMessage);
-    
-            // Notify the receiver if they are not the one pinning
-            const receiverSocketId = connectedUsers.get(receiver);
-            if (receiverSocketId && receiver !== sender) {
-                io.to(receiverSocketId).emit("pinNotification", {
-                    messageId,
-                    pinner: sender,
-                    pinned: updatedMessage.pinned,
-                    timestamp: new Date(),
-                });
-            }
-        } catch (error) {
-            console.error("Error pinning message:", error);
-        }
-    });
 
     socket.on("markAsRead", async ({ sender, receiver }) => {
         try {
