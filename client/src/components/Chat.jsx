@@ -1344,9 +1344,11 @@ export default function Chat() {
             });
             setShowReactionPicker(false);
         };
+    
         const handleContextMenu = (event, messageId) => {
             event.preventDefault();
-            togglePinMessageSelection(messageId, event);
+            setContextMenu({ messageId, x: event.pageX, y: event.pageY });
+            setSelectedPinMessage(messageId); // Track the selected message for pinning
         };
     
         const groupedReactions = message.reactions?.reduce((acc, reaction) => {
@@ -1368,6 +1370,7 @@ export default function Chat() {
                     alignItems: isSender ? "flex-end" : "flex-start",
                     margin: "5px 0",
                     padding: "0",
+                    position: "relative",
                 }}
                 onContextMenu={(e) => handleContextMenu(e, message._id)}
             >
@@ -1390,7 +1393,6 @@ export default function Chat() {
                         if (isSelectionMode && message._id) toggleSelection();
                         else if (isSelectionModeNew && message._id) toggleSelectionNew();
                     }}
-                    
                 >
                     <div
                         style={{
@@ -1406,45 +1408,51 @@ export default function Chat() {
                             wordBreak: "break-word",
                             whiteSpace: "normal",
                             overflowWrap: "normal",
-                            position: "relative",
                         }}
-                        onMouseEnter={() => setContextMenu({ messageId: message._id, showPin: true })} // Show pin on hover
-    onMouseLeave={() => setContextMenu(null)}
                     >
                         {message.text && <div>{message.text}</div>}
-                        {(message.file ) && (
-                            <div>{renderFile(message.file)}</div>
-                        )}
+                        {message.file && <div>{renderFile(message.file)}</div>}
                         <div className="flex items-center justify-end space-x-1">
                             <span className="text-xs text-gray-300">
                                 {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                             </span>
                             {renderTicks()}
-                            
                         </div>
                     </div>
-                    {contextMenu?.messageId === message._id && contextMenu.showPin && (
-        <button
-            onClick={() => handlePinMessage(message._id)}
-            className="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500"
-            style={{ display: isSender ? "block" : "none" }} // Show only for sender
-        >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-            >
-                <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
-                />
-            </svg>
-        </button>
-    )}
+                    {contextMenu?.messageId === message._id && (
+                        <div
+                            style={{
+                                position: "absolute",
+                                top: contextMenu.y,
+                                left: contextMenu.x,
+                                backgroundColor: "#374151",
+                                borderRadius: "4px",
+                                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.2)",
+                                zIndex: 1000,
+                                padding: "5px 0",
+                            }}
+                            onMouseLeave={() => setContextMenu(null)}
+                        >
+                            <div
+                                className="px-4 py-2 text-white hover:bg-gray-600 cursor-pointer"
+                                onClick={() => {
+                                    handlePinMessage(message._id);
+                                    setContextMenu(null); // Close menu after action
+                                }}
+                            >
+                                Pin
+                            </div>
+                            <div
+                                className="px-4 py-2 text-white hover:bg-gray-600 cursor-pointer"
+                                onClick={() => {
+                                    setShowReactionPicker(true);
+                                    setContextMenu(null); // Close menu after action
+                                }}
+                            >
+                                React
+                            </div>
+                        </div>
+                    )}
                     {showReactionPicker && (
                         <div
                             className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 z-10`}
@@ -1526,8 +1534,6 @@ export default function Chat() {
                             )}
                         </div>
                     )}
-    
-                    
                 </div>
             </div>
         );
@@ -1969,7 +1975,7 @@ export default function Chat() {
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
 
-    
+
 
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
