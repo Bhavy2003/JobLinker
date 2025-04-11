@@ -1356,22 +1356,7 @@ export default function Chat() {
             })
             .catch((err) => console.error("Error fetching users:", err));
     }, [currentUser, storageKey]);
-    useEffect(() => {
-        socket.on("reactionUpdate", ({ messageId, reactions }) => {
-            setMessages((prevMessages) => {
-                const updatedMessages = prevMessages.map((msg) =>
-                    msg._id === messageId ? { ...msg, reactions } : msg
-                );
-                saveMessagesToLocalStorage(updatedMessages);
-                return updatedMessages;
-            });
-        });
-    
-        return () => {
-            socket.off("reactionUpdate");
-        };
-    }, []);
-
+   
     useEffect(() => {
         fetch(`https://joblinker-1.onrender.com/api/unread-messages/${currentUser}`)
             .then((res) => res.json())
@@ -1573,121 +1558,61 @@ export default function Chat() {
     }, [selectedUser, currentUser, firstNewMessageId]);
     
    
-    // useEffect(() => {
-    //     if (selectedUser) {
-    //         const fetchAndUpdateMessages = async () => {
-    //             try {
-    //                 // Fetch messages from the server to get the latest state
-    //                 const response = await fetch(
-    //                     `https://joblinker-1.onrender.com/messages/${currentUser}/${selectedUser.email}`
-    //                 );
-    //                 if (!response.ok) throw new Error("Failed to fetch messages");
-    //                 const serverMessages = await response.json();
-    
-    //                 // Load cached messages from local storage
-    //                 const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
-    //                 const existingIds = new Set(cachedMessages.map((m) => m._id || m.tempId));
-    
-    //                 // Merge server messages with cached messages, prioritizing server data
-    //                 const updatedMessages = [
-    //                     ...cachedMessages.filter((msg) => !msg._id || existingIds.has(msg._id)),
-    //                     ...serverMessages.filter((msg) => !existingIds.has(msg._id)),
-    //                 ];
-    
-    //                 // Update state and local storage
-    //                 setMessages(updatedMessages);
-    //                 saveMessagesToLocalStorage(updatedMessages);
-    
-    //                 // Handle unread messages and new message notification
-    //                 setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
-    
-    //                 const firstUnread = serverMessages.find(
-    //                     (msg) => msg.receiver === currentUser && !msg.isRead
-    //                 );
-    //                 if (firstUnread && !firstNewMessageId) {
-    //                     setFirstNewMessageId(firstUnread._id);
-    //                     setShowNewMessage(true);
-    //                     setTimeout(() => {
-    //                         setShowNewMessage(false);
-    //                         setFirstNewMessageId(null);
-    //                     }, 5000);
-    //                 }
-    
-    //                 // Mark messages as read
-    //                 socket.emit("markAsRead", {
-    //                     sender: selectedUser.email,
-    //                     receiver: currentUser,
-    //                 });
-    
-    //                 // Update pinned messages after messages are set
-    //                 const initialPinned = updatedMessages.filter((msg) => msg.pinned && msg._id);
-    //                 setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
-    //             } catch (error) {
-    //                 console.error("Error fetching messages:", error);
-    //             }
-    //         };
-    
-    //         fetchAndUpdateMessages(); // Call the async function
-    
-    //         socket.emit("joinChat", {
-    //             sender: currentUser,
-    //             receiver: selectedUser.email,
-    //         });
-    
-    //         socket.on("loadMessages", (serverMessages) => {
-    //             console.log("Loaded messages on client:", serverMessages); // Debug loaded messages
-    //             setMessages((prevMessages) => {
-    //                 const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
-    //                 const filteredMessages = serverMessages.filter((msg) => !existingIds.has(msg._id));
-    //                 const updatedMessages = [...prevMessages, ...filteredMessages];
-    //                 saveMessagesToLocalStorage(updatedMessages); // Sync local storage
-    //                 setTimeout(() => scrollToBottom(), 100);
-    //                 return updatedMessages;
-    //             });
-    
-    //             // Update pinned messages when new messages are loaded
-    //             const initialPinned = serverMessages.filter((msg) => msg.pinned && msg._id);
-    //             setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
-    //         });
-    //     } else {
-    //         setMessages([]); // Clear messages when no user is selected
-    //         saveMessagesToLocalStorage([]); // Clear local storage for the previous chat
-    //         setPinnedMessages([]); // Clear pinned messages
-    //     }
-    
-    //     return () => {
-    //         socket.off("loadMessages");
-    //     };
-    // }, [selectedUser, currentUser, firstNewMessageId]);
-
     useEffect(() => {
         if (selectedUser) {
             const fetchAndUpdateMessages = async () => {
                 try {
+                    // Fetch messages from the server to get the latest state
                     const response = await fetch(
                         `https://joblinker-1.onrender.com/messages/${currentUser}/${selectedUser.email}`
                     );
                     if (!response.ok) throw new Error("Failed to fetch messages");
                     const serverMessages = await response.json();
     
+                    // Load cached messages from local storage
                     const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
                     const existingIds = new Set(cachedMessages.map((m) => m._id || m.tempId));
     
+                    // Merge server messages with cached messages, prioritizing server data
                     const updatedMessages = [
                         ...cachedMessages.filter((msg) => !msg._id || existingIds.has(msg._id)),
-                        ...serverMessages, // Server data includes reactions
+                        ...serverMessages.filter((msg) => !existingIds.has(msg._id)),
                     ];
     
+                    // Update state and local storage
                     setMessages(updatedMessages);
                     saveMessagesToLocalStorage(updatedMessages);
     
-                    // ... (rest of the existing code for unread messages and pinning)
+                    // Handle unread messages and new message notification
+                    setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
+    
+                    const firstUnread = serverMessages.find(
+                        (msg) => msg.receiver === currentUser && !msg.isRead
+                    );
+                    if (firstUnread && !firstNewMessageId) {
+                        setFirstNewMessageId(firstUnread._id);
+                        setShowNewMessage(true);
+                        setTimeout(() => {
+                            setShowNewMessage(false);
+                            setFirstNewMessageId(null);
+                        }, 5000);
+                    }
+    
+                    // Mark messages as read
+                    socket.emit("markAsRead", {
+                        sender: selectedUser.email,
+                        receiver: currentUser,
+                    });
+    
+                    // Update pinned messages after messages are set
+                    const initialPinned = updatedMessages.filter((msg) => msg.pinned && msg._id);
+                    setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
                 } catch (error) {
                     console.error("Error fetching messages:", error);
                 }
             };
     
-            fetchAndUpdateMessages();
+            fetchAndUpdateMessages(); // Call the async function
     
             socket.emit("joinChat", {
                 sender: currentUser,
@@ -1695,25 +1620,32 @@ export default function Chat() {
             });
     
             socket.on("loadMessages", (serverMessages) => {
+                console.log("Loaded messages on client:", serverMessages); // Debug loaded messages
                 setMessages((prevMessages) => {
                     const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
                     const filteredMessages = serverMessages.filter((msg) => !existingIds.has(msg._id));
                     const updatedMessages = [...prevMessages, ...filteredMessages];
-                    saveMessagesToLocalStorage(updatedMessages);
+                    saveMessagesToLocalStorage(updatedMessages); // Sync local storage
                     setTimeout(() => scrollToBottom(), 100);
                     return updatedMessages;
                 });
+    
+                // Update pinned messages when new messages are loaded
+                const initialPinned = serverMessages.filter((msg) => msg.pinned && msg._id);
+                setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
             });
         } else {
-            setMessages([]);
-            saveMessagesToLocalStorage([]);
-            setPinnedMessages([]);
+            setMessages([]); // Clear messages when no user is selected
+            saveMessagesToLocalStorage([]); // Clear local storage for the previous chat
+            setPinnedMessages([]); // Clear pinned messages
         }
     
         return () => {
             socket.off("loadMessages");
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
+
+   
 
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
