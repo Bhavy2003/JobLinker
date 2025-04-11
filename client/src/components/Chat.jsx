@@ -1384,6 +1384,24 @@ export default function Chat() {
             .catch((err) => console.error("Error fetching unread messages:", err));
     }, [allUsers, currentUser, storageKey]);
 
+    useEffect(() => {
+        socket.on("messageDeleted", ({ messageIds }) => {
+            setMessages((prevMessages) => {
+                const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
+                // Update local storage for both sender and receiver
+                if (selectedUser) {
+                    const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
+                    localStorage.setItem(chatKey, JSON.stringify(updatedMessages)); // Update with remaining messages
+                }
+                return updatedMessages;
+            });
+        });
+    
+        return () => {
+            socket.off("messageDeleted");
+        };
+    }, [selectedUser, currentUser, chatStorageKey]);
+
     
     useEffect(() => {
         socket.on("newMessageNotification", (msgData) => {
@@ -1421,13 +1439,13 @@ export default function Chat() {
             }
         });
 
-        socket.on("messageDeleted", ({ messageIds }) => {
-            setMessages((prevMessages) => {
-                const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
-                saveMessagesToLocalStorage(updatedMessages);
-                return updatedMessages;
-            });
-        });
+        // socket.on("messageDeleted", ({ messageIds }) => {
+        //     setMessages((prevMessages) => {
+        //         const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
+        //         saveMessagesToLocalStorage(updatedMessages);
+        //         return updatedMessages;
+        //     });
+        // });
 
         socket.on("messagesDeletedForMe", ({ messageIds }) => {
             setMessages((prevMessages) => {
@@ -1703,6 +1721,53 @@ export default function Chat() {
         }
     };
 
+    // const handleConfirm = async () => {
+    //     if (confirmAction === "deleteMessages") {
+    //         const messageIds = confirmData;
+    //         try {
+    //             const response = await fetch("https://joblinker-1.onrender.com/api/messages/delete", {
+    //                 method: "DELETE",
+    //                 headers: {
+    //                     "Content-Type": "application/json",
+    //                 },
+    //                 body: JSON.stringify({ messageIds }),
+    //             });
+
+    //             if (!response.ok) {
+    //                 const errorData = await response.json();
+    //                 throw new Error(errorData.error || "Failed to delete messages");
+    //             }
+
+    //             setMessages((prevMessages) => {
+    //                 const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
+    //                 saveMessagesToLocalStorage(updatedMessages);
+    //                 return updatedMessages;
+    //             });
+
+    //             toast.success(`${messageIds.length} message(s) deleted permanently`);
+    //             setSelectedMessages([]);
+    //             setIsSelectionMode(false);
+    //         } catch (error) {
+    //             console.error("Error deleting messages:", error.message);
+    //             toast.error(`Failed to delete messages: ${error.message}`);
+    //         }
+    //     } else if (confirmAction === "deleteChat") {
+    //         const userEmail = confirmData;
+    //         socket.emit("deleteChat", {
+    //             sender: currentUser,
+    //             receiver: userEmail,
+    //         });
+    //         toast.success("Chat cleared successfully.");
+    //     } else if (confirmAction === "deleteMessagesForMe") {
+    //         const messageIds = confirmData;
+    //         await deleteSelectedMessagesForMe(messageIds);
+    //     }
+
+    //     setShowConfirmPopup(false);
+    //     setConfirmAction(null);
+    //     setConfirmData(null);
+    // };
+
     const handleConfirm = async () => {
         if (confirmAction === "deleteMessages") {
             const messageIds = confirmData;
@@ -1714,19 +1779,24 @@ export default function Chat() {
                     },
                     body: JSON.stringify({ messageIds }),
                 });
-
+    
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || "Failed to delete messages");
                 }
-
+    
+                const result = await response.json();
                 setMessages((prevMessages) => {
                     const updatedMessages = prevMessages.filter((msg) => !messageIds.includes(msg._id));
-                    saveMessagesToLocalStorage(updatedMessages);
+                    // Update local storage for both sender and receiver
+                    if (selectedUser) {
+                        const chatKey = `${chatStorageKey}_${[currentUser, selectedUser.email].sort().join("_")}`;
+                        localStorage.setItem(chatKey, JSON.stringify(updatedMessages)); // Sync with server state
+                    }
                     return updatedMessages;
                 });
-
-                toast.success(`${messageIds.length} message(s) deleted permanently`);
+    
+                toast.success(result.message || `${messageIds.length} message(s) deleted permanently`);
                 setSelectedMessages([]);
                 setIsSelectionMode(false);
             } catch (error) {
@@ -1744,7 +1814,7 @@ export default function Chat() {
             const messageIds = confirmData;
             await deleteSelectedMessagesForMe(messageIds);
         }
-
+    
         setShowConfirmPopup(false);
         setConfirmAction(null);
         setConfirmData(null);
