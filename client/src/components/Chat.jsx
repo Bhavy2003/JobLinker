@@ -1884,40 +1884,39 @@ export default function Chat() {
     // }, [selectedUser, currentUser, firstNewMessageId]);
     useEffect(() => {
         let isMounted = true;
-
+    
         if (selectedUser) {
             setMessages([]);
             saveMessagesToLocalStorage([]);
             setPinnedMessages([]);
             setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
-
+    
             const fetchAndUpdateMessages = async () => {
                 if (!isMounted) return;
-
                 try {
                     const response = await fetch(
                         `https://joblinker-1.onrender.com/messages/${currentUser}/${selectedUser.email}`
                     );
                     if (!response.ok) throw new Error("Failed to fetch messages");
                     const serverMessages = await response.json();
-
+    
                     if (!isMounted) return;
-
+    
                     const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
                     const existingIds = new Set(cachedMessages.map((m) => m._id || m.tempId));
-
+    
                     const updatedMessages = [
                         ...cachedMessages.filter((msg) => !msg._id || existingIds.has(msg._id)),
                         ...serverMessages.filter((msg) => !existingIds.has(msg._id)),
                     ];
-
+    
                     if (!isMounted) return;
-
+    
                     setMessages(updatedMessages);
                     saveMessagesToLocalStorage(updatedMessages);
-
+    
                     setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
-
+    
                     const firstUnread = serverMessages.find(
                         (msg) => msg.receiver === currentUser && !msg.isRead
                     );
@@ -1931,28 +1930,27 @@ export default function Chat() {
                             }
                         }, 5000);
                     }
-
+    
                     socket.emit("markAsRead", {
                         sender: selectedUser.email,
                         receiver: currentUser,
                     });
-
+    
                     const initialPinned = updatedMessages.filter((msg) => msg.pinned && msg._id);
                     if (isMounted) setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
                 } catch (error) {
                     console.error("Error fetching messages:", error);
                 }
             };
-
+    
             fetchAndUpdateMessages();
-
+    
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
             });
-
-            const handleLoadMessages = (serverMessages) => {
-                if (!isMounted || !selectedUser) return;
+    
+            const handleLoadMessages = (serverMessages) => { // Define handleLoadMessages inside useEffect
                 console.log("Loaded messages on client:", serverMessages);
                 setMessages((prevMessages) => {
                     const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
@@ -1962,11 +1960,11 @@ export default function Chat() {
                     setTimeout(() => scrollToBottom(), 100);
                     return updatedMessages;
                 });
-
+    
                 const initialPinned = serverMessages.filter((msg) => msg.pinned && msg._id);
                 if (isMounted) setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
             };
-
+    
             socket.on("loadMessages", handleLoadMessages);
         } else {
             setMessages([]);
@@ -1974,13 +1972,12 @@ export default function Chat() {
             setPinnedMessages([]);
             setUnreadMessages([]);
         }
-
+    
         return () => {
             isMounted = false;
-            socket.off("loadMessages", handleLoadMessages);
+            socket.off("loadMessages", handleLoadMessages); // Now handleLoadMessages is defined
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
-
     useEffect(() => {
         socket.on("chatDeleted", ({ receiver }) => {
             if (selectedUser?.email === receiver) {
