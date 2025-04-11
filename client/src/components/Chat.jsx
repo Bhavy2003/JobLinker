@@ -1406,14 +1406,10 @@ export default function Chat() {
                             wordBreak: "break-word",
                             whiteSpace: "normal",
                             overflowWrap: "normal",
+                            position: "relative",
                         }}
-                        onContextMenu={(e) => {
-                            e.preventDefault();
-                            if (!isSelectionMode && !isSelectionModeNew && !isPinMode) {
-                                setShowReactionPicker(true);
-                            }
-                            (e) => handleContextMenu(e, message._id)
-                        }}
+                        onMouseEnter={() => setContextMenu({ messageId: message._id, showPin: true })} // Show pin on hover
+    onMouseLeave={() => setContextMenu(null)}
                     >
                         {message.text && <div>{message.text}</div>}
                         {(message.file ) && (
@@ -1427,28 +1423,28 @@ export default function Chat() {
                             
                         </div>
                     </div>
-                    {contextMenu?.messageId === message._id && (
-                        <div
-                            style={{
-                                position: "absolute",
-                                top: contextMenu,
-                                left: contextMenu,
-                                backgroundColor: "#374151",
-                                borderRadius: "4px",
-                                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.2)",
-                                zIndex: 1000,
-                                padding: "5px 0",
-                            }}
-                            onMouseLeave={() => setContextMenu(null)}
-                        >
-                            <div
-                                className="px-4 py-2 text-white hover:bg-gray-600 cursor-pointer"
-                                onClick={() => handlePinMessage(message._id)}
-                            >
-                                Pin
-                            </div>
-                        </div>
-                    )}
+                    {contextMenu?.messageId === message._id && contextMenu.showPin && (
+        <button
+            onClick={() => handlePinMessage(message._id)}
+            className="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500"
+            style={{ display: isSender ? "block" : "none" }} // Show only for sender
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6 21H3v-3L16.732 4.732z"
+                />
+            </svg>
+        </button>
+    )}
                     {showReactionPicker && (
                         <div
                             className={`absolute ${isSender ? "right-0" : "left-0"} top-[-40px] bg-gray-700 rounded-lg p-2 z-10`}
@@ -1887,33 +1883,41 @@ export default function Chat() {
     //     };
     // }, [selectedUser, currentUser, firstNewMessageId]);
     useEffect(() => {
+        let isMounted = true;
+
         if (selectedUser) {
+            setMessages([]);
+            saveMessagesToLocalStorage([]);
+            setPinnedMessages([]);
+            setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
+
             const fetchAndUpdateMessages = async () => {
+                if (!isMounted) return;
+
                 try {
-                    // Fetch messages from the server to get the latest state
                     const response = await fetch(
                         `https://joblinker-1.onrender.com/messages/${currentUser}/${selectedUser.email}`
                     );
                     if (!response.ok) throw new Error("Failed to fetch messages");
                     const serverMessages = await response.json();
-    
-                    // Load cached messages from local storage
+
+                    if (!isMounted) return;
+
                     const cachedMessages = loadMessagesFromLocalStorage(selectedUser.email);
                     const existingIds = new Set(cachedMessages.map((m) => m._id || m.tempId));
-    
-                    // Merge server messages with cached messages, prioritizing server data
+
                     const updatedMessages = [
                         ...cachedMessages.filter((msg) => !msg._id || existingIds.has(msg._id)),
                         ...serverMessages.filter((msg) => !existingIds.has(msg._id)),
                     ];
-    
-                    // Update state and local storage
+
+                    if (!isMounted) return;
+
                     setMessages(updatedMessages);
                     saveMessagesToLocalStorage(updatedMessages);
-    
-                    // Handle unread messages and new message notification
+
                     setUnreadMessages((prev) => prev.filter((msg) => msg.sender !== selectedUser.email));
-    
+
                     const firstUnread = serverMessages.find(
                         (msg) => msg.receiver === currentUser && !msg.isRead
                     );
@@ -1921,55 +1925,59 @@ export default function Chat() {
                         setFirstNewMessageId(firstUnread._id);
                         setShowNewMessage(true);
                         setTimeout(() => {
-                            setShowNewMessage(false);
-                            setFirstNewMessageId(null);
+                            if (isMounted) {
+                                setShowNewMessage(false);
+                                setFirstNewMessageId(null);
+                            }
                         }, 5000);
                     }
-    
-                    // Mark messages as read
+
                     socket.emit("markAsRead", {
                         sender: selectedUser.email,
                         receiver: currentUser,
                     });
-    
-                    // Update pinned messages after messages are set
+
                     const initialPinned = updatedMessages.filter((msg) => msg.pinned && msg._id);
-                    setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
+                    if (isMounted) setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
                 } catch (error) {
                     console.error("Error fetching messages:", error);
                 }
             };
-    
-            fetchAndUpdateMessages(); // Call the async function
-    
+
+            fetchAndUpdateMessages();
+
             socket.emit("joinChat", {
                 sender: currentUser,
                 receiver: selectedUser.email,
             });
-    
-            socket.on("loadMessages", (serverMessages) => {
-                console.log("Loaded messages on client:", serverMessages); // Debug loaded messages
+
+            const handleLoadMessages = (serverMessages) => {
+                if (!isMounted || !selectedUser) return;
+                console.log("Loaded messages on client:", serverMessages);
                 setMessages((prevMessages) => {
                     const existingIds = new Set(prevMessages.map((m) => m._id || m.tempId));
                     const filteredMessages = serverMessages.filter((msg) => !existingIds.has(msg._id));
                     const updatedMessages = [...prevMessages, ...filteredMessages];
-                    saveMessagesToLocalStorage(updatedMessages); // Sync local storage
+                    saveMessagesToLocalStorage(updatedMessages);
                     setTimeout(() => scrollToBottom(), 100);
                     return updatedMessages;
                 });
-    
-                // Update pinned messages when new messages are loaded
+
                 const initialPinned = serverMessages.filter((msg) => msg.pinned && msg._id);
-                setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
-            });
+                if (isMounted) setPinnedMessages(initialPinned.length > 0 ? [initialPinned[0]] : []);
+            };
+
+            socket.on("loadMessages", handleLoadMessages);
         } else {
-            setMessages([]); // Clear messages when no user is selected
-            saveMessagesToLocalStorage([]); // Clear local storage for the previous chat
-            setPinnedMessages([]); // Clear pinned messages
+            setMessages([]);
+            saveMessagesToLocalStorage([]);
+            setPinnedMessages([]);
+            setUnreadMessages([]);
         }
-    
+
         return () => {
-            socket.off("loadMessages");
+            isMounted = false;
+            socket.off("loadMessages", handleLoadMessages);
         };
     }, [selectedUser, currentUser, firstNewMessageId]);
 
