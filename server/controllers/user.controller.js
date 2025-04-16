@@ -6,12 +6,12 @@ import cloudinary from "../utils/cloudinary.js";
 
 export const register = async(req, res) => {
     try {
-        const { fullname, email, password, role, phoneNumber } = req.body;
+        const { fullname, email, password, role, phoneNumber,confirmPassword} = req.body;
 
         
 
         // Check if any required field is missing
-        if (!fullname || !email || !password || !role || !phoneNumber) {
+        if (!fullname || !email || !password || !role || !phoneNumber || !confirmPassword) {
             return res.status(400).json({
                 message: "Required All Fileds",
                 success: false,
@@ -43,6 +43,7 @@ export const register = async(req, res) => {
 
             password: hashedPassword,
             role,
+            confirmPassword,
             phoneNumber,
             profile: {
                 profilePhoto: profilePhotoUrl,
