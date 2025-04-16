@@ -51,8 +51,10 @@ const CompaniesTable = () => {
                                 </TableCell>
                                 <TableCell>{ company.name }</TableCell>
                                 {/* <TableCell>{ company.createdAt.split("T")[0] }</TableCell> */}
-                                <TableCell>{ company.createdAt ? company.createdAt.split("T")[0] : "N/A" }</TableCell>
-
+                                {/* <TableCell>{ company.createdAt ? company.createdAt.split("T")[0] : "N/A" }</TableCell> */}
+                                <TableCell>
+  { company?.createdAt ? company.createdAt.split("T")[0] : "N/A" }
+</TableCell>
                                 <TableCell className="text-right">
                                     <Popover>
                                         <PopoverTrigger>

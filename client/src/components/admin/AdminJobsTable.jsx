@@ -81,7 +81,11 @@ const AdminJobsTable = () => {
                         >
                             <TableCell className="py-4 px-6 whitespace-nowrap">{ job?.company?.name }</TableCell>
                             <TableCell className="py-4 px-6 whitespace-nowrap">{ job?.title }</TableCell>
-                            <TableCell className="py-4 px-6 whitespace-nowrap">{ job?.createdAt.split("T")[0] }</TableCell>
+                            {/* <TableCell className="py-4 px-6 whitespace-nowrap">{ job?.createdAt.split("T")[0] }</TableCell> */}
+                            <TableCell className="py-4 px-6 whitespace-nowrap">
+  { job?.createdAt ? job.createdAt.split("T")[0] : "N/A" }
+</TableCell>
+                            
                             <TableCell className="py-4 px-6 text-right cursor-pointer">
                                 <Popover>
                                     <PopoverTrigger>
