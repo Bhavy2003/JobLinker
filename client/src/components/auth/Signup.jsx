@@ -102,6 +102,7 @@ const Signup = () => {
         setProfilePicture(e.target.files[0]); // Save the selected file
     };
 
+
     const submitHandler = async (e) => {
         e.preventDefault();
     
@@ -117,8 +118,11 @@ const Signup = () => {
             // Creating form data
             const formData = new FormData();
             Object.keys(input).forEach((key) => formData.append(key, input[key]));
+            // if (profilePicture) {
+            //     formData.append('file', profilePicture);
+            // }
             if (profilePicture) {
-                formData.append('file', profilePicture);
+                formData.append('profilePhoto', profilePicture);
             }
     
             const res = await axios.post(`${USER_API_END_POINT}/signup`, formData, {

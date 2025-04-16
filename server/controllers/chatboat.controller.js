@@ -22,7 +22,7 @@ export const chatboat = async(req, res) => {
 
         // Add instruction to limit response length
         const prompt = `Respond to this very briefly in 1-2 lines: ${userMessage}`;
-
+          
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const botResponse = await response.text();
