@@ -101,10 +101,10 @@ const ApplicantsTable = () => {
                                     <span>NA</span>
                                 )}
                             </TableCell>
-                            <TableCell>
+                            {/* <TableCell>
   {item?.applicant?.createdAt ? item.applicant.createdAt.split("T")[0] : "N/A"}
-</TableCell>
-                            {/* <TableCell>{item?.applicant.createdAt.split('T')[0]}</TableCell> */}
+</TableCell> */}
+                            <TableCell>{item?.applicant.createdAt.split('T')[0]}</TableCell>
                             <TableCell className="font-bold text-sm">
                                 <span
                                     className={`px-2 py-1 rounded-md ${
