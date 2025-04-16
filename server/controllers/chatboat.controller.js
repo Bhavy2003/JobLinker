@@ -15,8 +15,9 @@ export const chatboat = async(req, res) => {
          
          //const genAI = new GoogleGenerativeAI('AIzaSyB-_3HgYcvF5TIgwb_1abgELvBikr_mY3M');
         const model = genAI.getGenerativeModel({
-            model: "gemini-pro",
-           
+            //model: "gemini-pro",
+            model: "chat-bison-001"
+
         });
 
         // Add instruction to limit response length
