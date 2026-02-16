@@ -86,9 +86,9 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/meetteams" onClick={() => window.scrollTo(0, 0)} className="hover:text-[#535bf2] transition">
+                {/* <Link to="/meetteams" onClick={() => window.scrollTo(0, 0)} className="hover:text-[#535bf2] transition">
                   {t("MeetTeams")}
-                </Link>
+                </Link> */}
 
               </li>
             </ul>

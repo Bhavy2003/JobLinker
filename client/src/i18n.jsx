@@ -47,12 +47,12 @@ const resources = {
       Website: "Website",
       Description: "Description",
       Date: "Date", Action: "Action", Gobacktojobs: "Go back to jobs", ListUser: "A list of your recent applied users", Accepted: "Accepted", Rejected: "Rejected",
-      introduction: `Jainam Mehta is a dedicated student at <span class="font-semibold">Ahmedabad University</span>, 
+      introduction: `Jainam Mehta is a dedicated student at <span class="font-semibold">GLS University</span>, 
         deeply passionate about <span class="font-semibold">technology</span> and 
         <span class="font-semibold">software development</span>. 
         With a keen interest in learning and innovation, Jainam actively engages in projects that push the 
         boundaries of modern computing.`,
-      role: "Student at Ahmedabad University",
+      role: "Student at GLS University",
       descriptionk: "Passionate about technology, software development, and innovation. Always eager to learn and contribute to exciting projects.",
       skills: "Skills",
       Resumek: "Resume", JobTitle: "Job Title", Company: "Company", AppliedDate: "Applied Date", Status: "Status", AppliedJobs: "Applied Jobs", SavedJobs: "Saved Jobs", Titlek: "Title", Location: "Location", Salary: "Salary", Positions: "No. of Positions", View: "View",

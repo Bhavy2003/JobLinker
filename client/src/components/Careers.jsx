@@ -31,9 +31,9 @@ const Careers = () => {
           {/* Desktop Menu */}
           <div className="hidden md:flex space-x-6">
             
-            <Link to="/meetteams" onClick={() => window.scrollTo(0, 0)} className="hover:text-gray-300 pt-2 hover:font-bold">
+            {/* <Link to="/meetteams" onClick={() => window.scrollTo(0, 0)} className="hover:text-gray-300 pt-2 hover:font-bold">
                               {t("MeetTeams")}
-                </Link>
+                </Link> */}
                 {/* <Link className="hover:text-gray-300 pt-2">
                 {t("DD")}
                 </Link> */}
@@ -53,9 +53,9 @@ const Careers = () => {
         {/* Mobile Menu */}
         {menuOpen && (
           <div className="md:hidden flex flex-col p-6 pt-10 space-y-4">
-            <Link to="/meetteams" onClick={() => window.scrollTo(0, 0)} className="hover:text-gray-300 pt-2 hover:font-bold">
+            {/* <Link to="/meetteams" onClick={() => window.scrollTo(0, 0)} className="hover:text-gray-300 pt-2 hover:font-bold">
                               {t("MeetTeams")}
-                </Link>
+                </Link> */}
                 {/* <Link className="hover:text-gray-300 pt-2">
                 {t("DD")}
                 </Link> */}
