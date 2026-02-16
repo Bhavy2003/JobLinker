@@ -184,7 +184,7 @@ const Signup = () => {
                             </Label>
                             <Input
                                 id="fullname"
-                                placeholder="Bhavy Jhaveri"
+                                placeholder="Jainam Mehta"
                                 type="text"
                                 name="fullname"
                                 value={input.fullname}
@@ -206,7 +206,7 @@ const Signup = () => {
 
             <Input
                 id="email"
-                placeholder="bhavyjhaveri@gmail.com"
+                placeholder="jainam.m.711@gmail.com"
                 type="email"
                 name="email"
                 value={input.email}

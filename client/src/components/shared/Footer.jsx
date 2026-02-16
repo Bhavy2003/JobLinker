@@ -103,7 +103,7 @@ export default function Footer() {
               <a href="https://www.instagram.com/joblinker_finder/2" className="hover:text-[#535bf2] transition" target="_blank" aria-label="Twitter">
                 <Twitter className="h-5 w-5" />
               </a>
-              <a href="https://www.linkedin.com/in/bhavy-parthiv-jhaveri-498986246/" target="_blank" className="hover:text-[#535bf2] transition" aria-label="LinkedIn">
+              <a href="https://www.linkedin.com/in/" target="_blank" className="hover:text-[#535bf2] transition" aria-label="LinkedIn">
                 <Linkedin className="h-5 w-5" />
               </a>
               <a href="https://www.instagram.com/joblinker_finder/" className="hover:text-[#535bf2] transition" target="_blank" aria-label="Instagram">

@@ -65,7 +65,7 @@ const ResetPassword = () => {
                             </Label>
                             <Input
                                 id="email"
-                                placeholder="bhavyjhaveri@gmail.com"
+                                placeholder="jainam.m.711@gmail.com"
                                 type="email"
                                 className="mt-1 p-3 text-white border bg-transparent border-gray-500 rounded-md outline-none focus:border-blue-500 transition-all w-full"
                                 value={input.email}

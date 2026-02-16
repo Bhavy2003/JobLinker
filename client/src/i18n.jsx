@@ -9,7 +9,7 @@ import Chat from "./components/Chat";
 const resources = {
   en: {
     translation: {
-      title: "Meet Bhavy Jhaveri",
+      title: "Meet Jainam Mehta",
       PostedBy: "Posted By",
       SimilarJobs: "Similar Jobs",
       CompanyName: "Company Name",
@@ -47,10 +47,10 @@ const resources = {
       Website: "Website",
       Description: "Description",
       Date: "Date", Action: "Action", Gobacktojobs: "Go back to jobs", ListUser: "A list of your recent applied users", Accepted: "Accepted", Rejected: "Rejected",
-      introduction: `Bhavy Jhaveri is a dedicated student at <span class="font-semibold">Ahmedabad University</span>, 
+      introduction: `Jainam Mehta is a dedicated student at <span class="font-semibold">Ahmedabad University</span>, 
         deeply passionate about <span class="font-semibold">technology</span> and 
         <span class="font-semibold">software development</span>. 
-        With a keen interest in learning and innovation, Bhavy actively engages in projects that push the 
+        With a keen interest in learning and innovation, Jainam actively engages in projects that push the 
         boundaries of modern computing.`,
       role: "Student at Ahmedabad University",
       descriptionk: "Passionate about technology, software development, and innovation. Always eager to learn and contribute to exciting projects.",
@@ -74,7 +74,7 @@ const resources = {
         "a1": "To apply for jobs, create an account, upload your resume, and click on browse.",
         "a2": "Click on ask me button to get job details from AI.",
         "a3": "Yes, we prioritize data security and use encryption to protect user information.",
-        "a4": "You can contact our support team via email at bhavyjhaveri@gmail.com.",
+        "a4": "You can contact our support team via email at jainam.m.711@gmail.com.",
         "a5": "Yes, you can apply to multiple job listings by submitting your resume to each relevant position.",
         "a6": "Go to your profile dashboard, where you can view the status of your applications and responses from employers.",
         "a7": "No, JobLinker is completely free for job seekers. Employers may have premium options for enhanced job postings."
@@ -152,7 +152,7 @@ const resources = {
         "a1": "नौकरियों के लिए आवेदन करने के लिए, एक खाता बनाएं, अपना रिज्यूमे अपलोड करें, और ब्राउज़ पर क्लिक करें।",
         "a2": "एआई से नौकरी विवरण प्राप्त करने के लिए 'मुझसे पूछें' बटन पर क्लिक करें।",
         "a3": "हाँ, हम डेटा सुरक्षा को प्राथमिकता देते हैं और उपयोगकर्ता जानकारी की सुरक्षा के लिए एन्क्रिप्शन का उपयोग करते हैं।",
-        "a4": "आप हमारी सहायता टीम से bhavyjhaveri@gmail.com पर ईमेल के माध्यम से संपर्क कर सकते हैं।",
+        "a4": "आप हमारी सहायता टीम से jainam.m.711@gmail.com पर ईमेल के माध्यम से संपर्क कर सकते हैं।",
         "a5": "हाँ, आप कई नौकरी लिस्टिंग के लिए अपने रिज्यूमे को सबमिट करके आवेदन कर सकते हैं।",
         "a6": "अपने प्रोफाइल डैशबोर्ड पर जाएं, जहां आप अपने आवेदनों की स्थिति और नियोक्ताओं की प्रतिक्रियाएं देख सकते हैं।",
         "a7": "नहीं, JobLinker पूरी तरह से नौकरी खोजने वालों के लिए निःशुल्क है। नियोक्ताओं के लिए प्रीमियम विकल्प उपलब्ध हो सकते हैं।"
@@ -234,7 +234,7 @@ const resources = {
         "a1": "નોકરીઓ માટે અરજી કરવા માટે, એક એકાઉન્ટ બનાવો, તમારું રિઝ્યૂમ અપલોડ કરો, અને બ્રાઉઝ પર ક્લિક કરો.",
         "a2": "'Ask Me' બટન પર ક્લિક કરો કે જેથી એઆઈ તમારી માટે યોગ્ય નોકરી શોધી આપે.",
         "a3": "હા, અમે ડેટા સુરક્ષાને પ્રાધાન્ય આપીએ છીએ અને વપરાશકર્તાની માહિતી સુરક્ષિત કરવા માટે એન્ક્રિપ્શનનો ઉપયોગ કરીએ છીએ.",
-        "a4": "તમે અમારી સપોર્ટ ટીમનો સંપર્ક bhavyjhaveri@gmail.com પર ઈમેઇલ દ્વારા કરી શકો છો.",
+        "a4": "તમે અમારી સપોર્ટ ટીમનો સંપર્ક jainam.m.711@gmail.com પર ઈમેઇલ દ્વારા કરી શકો છો.",
         "a5": "હા, તમે ઘણા નોકરીઓ માટે એકસાથે અરજી કરી શકો છો.",
         "a6": "તમારા પ્રોફાઇલ ડેશબોર્ડ પર જાઓ, જ્યાં તમે તમારા અરજીઓની સ્થિતિ જોઈ શકો.",
         "a7": "નહીં, JobLinker સંપૂર્ણપણે મફત છે."
@@ -249,7 +249,7 @@ const resources = {
   },
   es: {
     translation: {
-      title: "Conoce a Bhavy Jhaveri",
+      title: "Conoce a Jainam Mehta",
       CompanyName: "Nom de l'entreprise",
       SimilarJobs: "Trabajos similares",
       PostedBy: "Publicado por",
@@ -287,9 +287,9 @@ const resources = {
       Applications: "Candidatures",
       Filter: "Filtrer par nom, rôle",
       Date: "Fecha", Action: "Acción", Gobacktojobs: "Volver a trabajos", ListUser: "Una lista de sus usuarios aplicados recientemente", Accepted: "Aceptado", Rejected: "Rechazado",
-      introduction: `Bhavy Jhaveri es un estudiante dedicado en <span class="font-semibold">la Universidad de Ahmedabad</span>, 
+      introduction: `Jainam Mehta es un estudiante dedicado en <span class="font-semibold">la Universidad de Ahmedabad</span>, 
         profundamente apasionado por la <span class="font-semibold">tecnología</span> y el <span class="font-semibold">desarrollo de software</span>. 
-        Con un gran interés en el aprendizaje y la innovación, Bhavy participa activamente en proyectos que 
+        Con un gran interés en el aprendizaje y la innovación, Jainam participa activamente en proyectos que 
         llevan los límites de la computación moderna.`,
       role: "Estudiante en la Universidad de Ahmedabad",
       descriptionk: "Apasionado por la tecnología, el desarrollo de software y la innovación. Siempre dispuesto a aprender y contribuir a proyectos emocionantes.",
@@ -314,7 +314,7 @@ const resources = {
         "a1": "Para solicitar empleos, cree una cuenta, suba su currículum y haga clic en buscar.",
         "a2": "Haga clic en el botón 'Pregúntame' para obtener detalles del trabajo mediante IA.",
         "a3": "Sí, priorizamos la seguridad de los datos y utilizamos cifrado para proteger la información.",
-        "a4": "Puede contactar con nuestro equipo de soporte a través del correo electrónico bhavyjhaveri@gmail.com.",
+        "a4": "Puede contactar con nuestro equipo de soporte a través del correo electrónico jainam.m.711@gmail.com.",
         "a5": "Sí, puede solicitar varios empleos enviando su currículum a cada oferta relevante.",
         "a6": "Vaya a su panel de perfil para ver el estado de sus solicitudes y las respuestas de los empleadores.",
         "a7": "No, JobLinker es completamente gratuito para los buscadores de empleo. Los empleadores pueden tener opciones premium."
@@ -333,7 +333,7 @@ const resources = {
   },
   fr: {
     translation: {
-      title: "Rencontrez Bhavy Jhaveri",
+      title: "Rencontrez Jainam Mehta",
       CompanyName: "Nombre de la empresa",
       PostedBy: "Publié par",
       Cancel: "Annuler",
@@ -371,9 +371,9 @@ const resources = {
       Applications: "Solicitudes",
       Filter: "Filtrar por nombre, rol",
       Date: "Date", Action: "Action", Gobacktojobs: "Retour aux emplois", ListUser: "Une liste de vos utilisateurs récemment appliqués", Accepted: "Accepté", Rejected: "Rejeté",
-      introduction: `Bhavy Jhaveri est un étudiant dévoué à <span class="font-semibold">l'Université d'Ahmedabad</span>, 
+      introduction: `Jainam Mehta est un étudiant dévoué à <span class="font-semibold">l'Université d'Ahmedabad</span>, 
         passionné par la <span class="font-semibold">technologie</span> et le <span class="font-semibold">développement de logiciels</span>. 
-        Avec un grand intérêt pour l'apprentissage et l'innovation, Bhavy participe activement à des projets 
+        Avec un grand intérêt pour l'apprentissage et l'innovation, Jainam participe activement à des projets 
         qui repoussent les limites de l'informatique moderne.`,
       role: "Étudiant à l'Université d'Ahmedabad",
       descriptionk: "Passionné par la technologie, le développement de logiciels et l'innovation. Toujours désireux d'apprendre et de contribuer à des projets passionnants.",
@@ -398,7 +398,7 @@ const resources = {
         "a1": "Pour postuler à des emplois, créez un compte, téléchargez votre CV et cliquez sur parcourir.",
         "a2": "Cliquez sur le bouton 'Demandez-moi' pour obtenir des détails sur les emplois grâce à l'IA.",
         "a3": "Oui, nous donnons la priorité à la sécurité des données et utilisons le chiffrement pour protéger les informations.",
-        "a4": "Vous pouvez contacter notre support par email à bhavyjhaveri@gmail.com.",
+        "a4": "Vous pouvez contacter notre support par email à jainam.m.711@gmail.com.",
         "a5": "Oui, vous pouvez postuler à plusieurs emplois en soumettant votre CV à chaque offre pertinente.",
         "a6": "Allez sur votre tableau de bord pour voir l'état de vos candidatures et les réponses des employeurs.",
         "a7": "Non, JobLinker est totalement gratuit pour les chercheurs d'emploi. Les employeurs peuvent avoir des options premium."
@@ -480,7 +480,7 @@ const resources = {
         "a1": "仕事に応募するには、アカウントを作成し、履歴書をアップロードして、検索をクリックしてください。",
         "a2": "'Ask Me' ボタンをクリックすると、AIが求人情報を提供します。",
         "a3": "はい、当社はデータのセキュリティを最優先し、情報を保護するために暗号化を使用しています。",
-        "a4": "サポートチームには bhavyjhaveri@gmail.com までメールでご連絡いただけます。",
+        "a4": "サポートチームには jainam.m.711@gmail.com までメールでご連絡いただけます。",
         "a5": "はい、関連する各求人に履歴書を送信することで、複数の仕事に応募できます。",
         "a6": "プロフィールダッシュボードで応募の状況や雇用主からの返答を確認できます。",
         "a7": "いいえ、JobLinkerは求職者にとって完全に無料です。雇用主向けにはプレミアムオプションがある場合があります。"

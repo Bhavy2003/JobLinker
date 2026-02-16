@@ -132,8 +132,8 @@ const ContactForm = () => {
           <div>
             <p className="text-sm text-red-600 text-center font-bold">
               {t("ContactInformation")}:{" "}
-              <a href="mailto:bhavyjhaveri@gmail.com" className="text-gray-500 hover:underline">
-                bhavyjhaveri@gmail.com
+              <a href="mailto:jainam.m.711@gmail.com" className="text-gray-500 hover:underline">
+                jainam.m.711@gmail.com
               </a>
             </p>
           </div>

@@ -49,7 +49,7 @@ const ForgotPassword = () => {
                     <Input
                         id="email"
                         type="email"
-                        placeholder="bhavy.jhaveri@gmail.com"
+                        placeholder="jainam.m.711@gmail.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="mt-2 p-3 text-white border bg-transparent border-gray-500 rounded-md w-full"
