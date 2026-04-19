@@ -11,7 +11,7 @@ export const chatboat = async(req, res) => {
 
     try {
          //const genAI = new GoogleGenerativeAI('AIzaSyBKibkxHQNZdmfG5M1YTnX6iRGUCSXHNU0');
-         const genAI = new GoogleGenerativeAI('AIzaSyAahpo6gxKR6hp8MN-fJCDcb_W0Inh3bM4');
+         const genAI = new GoogleGenerativeAI('AIzaSyCEGCbdzHBJ9hMS2U2H7CQ2sM-yhsaY0Wk');
          
          //const genAI = new GoogleGenerativeAI('AIzaSyB-_3HgYcvF5TIgwb_1abgELvBikr_mY3M');
         const model = genAI.getGenerativeModel({
