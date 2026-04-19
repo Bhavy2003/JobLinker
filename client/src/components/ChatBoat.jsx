@@ -3,59 +3,57 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card } from "./ui/card";
 import { FaComments, FaCircle } from "react-icons/fa";
-import { toast } from "sonner";
 import { Send, X } from "lucide-react";
-import axios from "axios";
-import { CHATBOT_API_END_POINT } from "@/utils/constant";
-import './ChatBot.css';
 import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
+import './ChatBot.css';
+
+// ✅ Hardcoded responses for each category — no API needed
+const CATEGORY_RESPONSES = {
+    "Job Opportunities":
+        "We have openings in tech, marketing, finance, and more! Browse the Jobs page to explore listings, or tell me your preferred role and I'll help you find the right fit.",
+    "Application Process":
+        "To apply, submit your resume and cover letter through our portal. Shortlisted candidates are contacted within 5–7 business days for an interview round.",
+    "Interview Tips":
+        "Research the company beforehand, practice common HR and technical questions, dress professionally, and prepare 2–3 thoughtful questions to ask your interviewer. Confidence is key!",
+    "Company Culture":
+        "We foster a collaborative, inclusive, and innovation-driven environment. Work-life balance is a priority, and our diverse teams are united by a shared mission to connect talent with opportunity.",
+    "Resume Building":
+        "Keep your resume to 1–2 pages, tailor it for each role, use strong action verbs, and quantify achievements where possible (e.g., 'Increased sales by 30%'). A clean, readable layout goes a long way.",
+    "Networking Tips":
+        "Attend industry events and webinars, connect with professionals on LinkedIn, send a short follow-up message after meeting someone, and always aim to offer value before asking for help.",
+};
+
+const CATEGORIES = Object.keys(CATEGORY_RESPONSES);
+
+const INITIAL_MESSAGES = [
+    { sender: "bot", text: "Hi there! How can I help you today?" },
+    { sender: "bot", text: "I can answer questions about job opportunities or other inquiries!" },
+];
 
 const ChatBoat = () => {
-    const [chatBoatOpen, setChatBoatOpen] = useState(false);
     const { t } = useTranslation();
-    const [messages, setMessages] = useState([
-        { sender: "bot", text: "Hi there! How can I help you today?" },
-        { sender: "bot", text: "I can answer questions about job opportunities or other inquiries!" },
-    ]);
+    const [chatBoatOpen, setChatBoatOpen] = useState(false);
+    const [messages, setMessages] = useState(INITIAL_MESSAGES);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(false);
-    const [categories, setCategories] = useState([
-        "Job Opportunities",
-        "Application Process",
-        "Interview Tips",
-
-        "Company Culture",
-
-        "Resume Building",
-        "Networking Tips",
-
-    ]);
-
+    const [categoriesVisible, setCategoriesVisible] = useState(true);
 
     const messagesEndRef = useRef(null);
 
-    const handleSendMessage = async (message) => {
-        if (!message.trim()) return;
-
-        setMessages((prev) => [...prev, { sender: "user", text: message }]);
-        setNewMessage("");
-        setLoading(true);
-
-        try {
-            const response = await axios.post(
-                CHATBOT_API_END_POINT,
-                { message },
-                { withCredentials: true }
-            );
-
-            const botMessage = response.data.message || "I didn't understand that.";
-            simulateTypingEffect(botMessage);
-        } catch (error) {
-            toast.error(error.response?.data?.message || "An error occurred");
-        } finally {
-            setLoading(false);
+    // Auto-scroll to latest message
+    useEffect(() => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
+    }, [messages]);
+
+    // Reset chat state when chatbot is opened fresh
+    const handleOpen = () => {
+        setMessages(INITIAL_MESSAGES);
+        setCategoriesVisible(true);
+        setNewMessage("");
+        setChatBoatOpen(true);
     };
 
     const simulateTypingEffect = (fullMessage) => {
@@ -63,6 +61,7 @@ const ChatBoat = () => {
         let currentMessage = "";
         let index = 0;
 
+        // Add a placeholder "..." message first
         setMessages((prev) => [...prev, { sender: "bot", text: "..." }]);
 
         const typingInterval = setInterval(() => {
@@ -80,102 +79,142 @@ const ChatBoat = () => {
             } else {
                 clearInterval(typingInterval);
             }
-        }, 200);
+        }, 120);
     };
 
-    useEffect(() => {
-        if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-        }
-    }, [messages]);
+    const handleSendMessage = (message) => {
+        const trimmed = message.trim();
+        if (!trimmed || loading) return;
 
-    // Check if the last message matches the category introduction
-    const shouldShowCategories = messages.some(
-        (message) =>
-            message.sender === "bot" &&
-            message.text === "I can answer questions about job opportunities or other inquiries!"
-    );
+        // Add user message
+        setMessages((prev) => [...prev, { sender: "user", text: trimmed }]);
+        setNewMessage("");
+
+        // Hide category buttons after first interaction
+        setCategoriesVisible(false);
+
+        // ✅ Check if message matches a category — use hardcoded response
+        if (CATEGORY_RESPONSES[trimmed]) {
+            simulateTypingEffect(CATEGORY_RESPONSES[trimmed]);
+            return;
+        }
+
+        // ✅ For free-text, do a keyword match across all categories
+        const matchedCategory = CATEGORIES.find((cat) =>
+            trimmed.toLowerCase().includes(cat.toLowerCase())
+        );
+
+        if (matchedCategory) {
+            simulateTypingEffect(CATEGORY_RESPONSES[matchedCategory]);
+            return;
+        }
+
+        // ✅ Fallback response for unrecognized input
+        simulateTypingEffect(
+            "I'm not sure about that! Please try one of the topic buttons, or ask about Job Opportunities, Resume Building, Interview Tips, and more."
+        );
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter") {
+            handleSendMessage(newMessage);
+        }
+    };
 
     return (
         <div className="fixed bottom-4 right-4 z-50">
-            { chatBoatOpen ? (
-                <Card className="w-full max-w-md p-4 flex flex-col space-y-4 shadow-lg bg-gradient-to-br from-[#00040A] to-[#001636] border border-blue-600 rounded-lg">
+            {chatBoatOpen ? (
+                <Card className="w-full max-w-md p-4 flex flex-col space-y-4 shadow-2xl bg-gradient-to-br from-[#00040A] to-[#001636] border border-blue-600 rounded-lg">
+
+                    {/* Header */}
                     <div className="flex justify-between items-center">
                         <div className="flex items-center space-x-2">
-                            <h2 className="font-bold text-lg text-gradient bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
+                            <h2 className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
                                 Job Linker
                             </h2>
-                            <FaCircle className="text-green-500" />
+                            <FaCircle className="text-green-500 text-xs" />
                         </div>
                         <Button
                             variant="ghost"
-                            onClick={ () => setChatBoatOpen(false) }
-                            className="text-blue-500 hover:text-white hover:bg-gray-500"
+                            onClick={() => setChatBoatOpen(false)}
+                            className="text-blue-500 hover:text-white hover:bg-gray-600"
                         >
-                            <X />
+                            <X size={18} />
                         </Button>
                     </div>
+
+                    {/* Messages Area */}
                     <div className="flex-1 overflow-y-auto space-y-3 bg-gradient-to-br from-gray-800 to-gray-900 rounded-md p-3 max-h-64">
-                        { messages.map((message, index) => (
+                        {messages.map((message, index) => (
                             <div
-                                key={ index }
-                                className={ `flex ${message.sender === "user" ? "justify-end" : "justify-start"}` }
+                                key={index}
+                                className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
                             >
                                 <div
-                                    className={ `p-2 rounded-lg max-w-full ${message.sender === "user"
-                                        ? "bg-blue-500 text-white"
-                                        : "bg-gray-700 text-white"
-                                        }` }
+                                    className={`p-2 rounded-lg max-w-[85%] text-sm leading-relaxed ${
+                                        message.sender === "user"
+                                            ? "bg-blue-500 text-white"
+                                            : "bg-gray-700 text-white"
+                                    }`}
                                 >
-                                    { message.text }
+                                    {message.text}
                                 </div>
                             </div>
-                        )) }
-                        { loading && (
+                        ))}
+
+                        {/* Loading dots */}
+                        {loading && (
                             <div className="flex justify-start ml-1">
                                 <div className="loader"></div>
                             </div>
-                        ) }
-                        <div ref={ messagesEndRef } />
+                        )}
+
+                        <div ref={messagesEndRef} />
                     </div>
-                    { shouldShowCategories && (
-                        <div className="flex flex-wrap gap-2 mt-3">
-                            { categories.map((category, idx) => (
+
+                    {/* ✅ Category Buttons — only visible at start, hidden after first click */}
+                    {categoriesVisible && (
+                        <div className="flex flex-wrap gap-2">
+                            {CATEGORIES.map((category, idx) => (
                                 <Button
-                                    key={ idx }
-                                    className="bg-blue-400 hover:bg-blue-600 text-white px-2 py-1 rounded-full text-sm"
-                                    onClick={ () => handleSendMessage(category) }
+                                    key={idx}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-medium transition-all"
+                                    onClick={() => handleSendMessage(category)}
                                 >
-                                    { category }
+                                    {category}
                                 </Button>
-                            )) }
+                            ))}
                         </div>
-                    ) }
-                    <div className="flex items-center space-x-2 mt-3">
+                    )}
+
+                    {/* Input Row */}
+                    <div className="flex items-center space-x-2">
                         <Input
                             placeholder="Type a message..."
-                            value={ newMessage }
-                            onChange={ (e) => setNewMessage(e.target.value) }
-                            className="flex-1 border-blue-300 bg-transparent text-white placeholder:text-gray-400 focus:ring-2 focus:ring-blue-600"
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="flex-1 border-blue-400 bg-transparent text-white placeholder:text-gray-400 focus:ring-2 focus:ring-blue-600 text-sm"
                         />
                         <Button
-                            onClick={ () => handleSendMessage(newMessage) }
+                            onClick={() => handleSendMessage(newMessage)}
                             className="bg-blue-500 hover:bg-blue-600 text-white"
-                            disabled={ loading }
+                            disabled={loading || !newMessage.trim()}
                         >
-                            <Send />
+                            <Send size={16} />
                         </Button>
                     </div>
                 </Card>
             ) : (
+                // ✅ Floating trigger button
                 <Button
-                    onClick={ () => setChatBoatOpen(true) }
-                    className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-md hover:bg-blue-600 bounce"
+                    onClick={handleOpen}
+                    className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg hover:bg-blue-600 bounce"
                 >
                     <FaComments className="text-xl" />
                     <span>{t("ASKME")}</span>
                 </Button>
-            ) }
+            )}
         </div>
     );
 };
