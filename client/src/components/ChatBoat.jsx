@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import "../../src/i18n.jsx";
 import './ChatBot.css';
 
-// ✅ Hardcoded responses for each category — no API needed
+// Hardcoded responses for each category — no API needed
 const CATEGORY_RESPONSES = {
     "Job Opportunities":
         "We have openings in tech, marketing, finance, and more! Browse the Jobs page to explore listings, or tell me your preferred role and I'll help you find the right fit.",
@@ -23,6 +23,20 @@ const CATEGORY_RESPONSES = {
     "Networking Tips":
         "Attend industry events and webinars, connect with professionals on LinkedIn, send a short follow-up message after meeting someone, and always aim to offer value before asking for help.",
 };
+
+// 10 random fallback responses — job/career themed
+const FALLBACK_RESPONSES = [
+    "Hmm, I didn't quite catch that! Try asking about Job Opportunities, Resume Building, or Interview Tips — I'm here to help with your career journey!",
+    "That's a bit outside my expertise! But I can help you explore job listings, ace your interviews, or polish your resume. What would you like to know?",
+    "I'm not sure about that one! As a job-seeker assistant, I'm best at topics like Application Process, Company Culture, or Networking Tips. Give one a try!",
+    "Great question, but it's beyond my scope right now! I specialize in helping candidates land their dream jobs — want tips on Resume Building or Interview prep?",
+    "I didn't get that! But whether you're searching for jobs, preparing for interviews, or building your network, I've got you covered. What's your goal today?",
+    "That one stumped me! Try asking about specific topics like Networking Tips or Company Culture — I'm here to make your job search easier!",
+    "Not quite sure how to help with that! But if you're on a job hunt, I can guide you through Applications, Interviews, or finding the right Opportunities.",
+    "I'm still learning! For now, I'm best at career-related queries — things like how to build a standout resume or how to prepare for your next big interview.",
+    "That's outside my current knowledge! But your next dream job could be one click away — ask me about Job Opportunities or the Application Process to get started!",
+    "Oops, couldn't find an answer for that! I'm focused on helping job seekers like you succeed — try asking about Interview Tips or Networking Strategies!",
+];
 
 const CATEGORIES = Object.keys(CATEGORY_RESPONSES);
 
@@ -93,13 +107,13 @@ const ChatBoat = () => {
         // Hide category buttons after first interaction
         setCategoriesVisible(false);
 
-        // ✅ Check if message matches a category — use hardcoded response
+        // Check if message exactly matches a category
         if (CATEGORY_RESPONSES[trimmed]) {
             simulateTypingEffect(CATEGORY_RESPONSES[trimmed]);
             return;
         }
 
-        // ✅ For free-text, do a keyword match across all categories
+        // For free-text, do a keyword match across all categories
         const matchedCategory = CATEGORIES.find((cat) =>
             trimmed.toLowerCase().includes(cat.toLowerCase())
         );
@@ -109,10 +123,10 @@ const ChatBoat = () => {
             return;
         }
 
-        // ✅ Fallback response for unrecognized input
-        simulateTypingEffect(
-            "I'm not sure about that! Please try one of the topic buttons, or ask about Job Opportunities, Resume Building, Interview Tips, and more."
-        );
+        // Random fallback response for unrecognized input
+        const randomFallback =
+            FALLBACK_RESPONSES[Math.floor(Math.random() * FALLBACK_RESPONSES.length)];
+        simulateTypingEffect(randomFallback);
     };
 
     const handleKeyDown = (e) => {
@@ -172,7 +186,7 @@ const ChatBoat = () => {
                         <div ref={messagesEndRef} />
                     </div>
 
-                    {/* ✅ Category Buttons — only visible at start, hidden after first click */}
+                    {/* Category Buttons — only visible at start, hidden after first click */}
                     {categoriesVisible && (
                         <div className="flex flex-wrap gap-2">
                             {CATEGORIES.map((category, idx) => (
@@ -206,7 +220,7 @@ const ChatBoat = () => {
                     </div>
                 </Card>
             ) : (
-                // ✅ Floating trigger button
+                // Floating trigger button
                 <Button
                     onClick={handleOpen}
                     className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg hover:bg-blue-600 bounce"
