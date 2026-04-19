@@ -36,6 +36,7 @@ export const chatboat = async(req, res) => {
         });
     } catch (error) {
         console.error(error);
+        console.log("Error code:", error.message);
         return res.status(500).json({
             error: error.message,
         });
